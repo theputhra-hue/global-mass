@@ -168,7 +168,11 @@ async def test_mutation_detector_logic():
         child = fx.claims_by_id[edge.from_claim_id]
         parent = fx.claims_by_id[edge.to_claim_id]
         assert child.article_id != parent.article_id
-        assert fx.articles_by_id[parent.article_id].published_at < fx.articles_by_id[child.article_id].published_at
+        parent_time = fx.articles_by_id[parent.article_id].published_at
+        child_time = fx.articles_by_id[child.article_id].published_at
+        assert parent_time is not None and child_time is not None
+        assert parent_time < child_time
+        assert edge.mutation_evidence is not None
         assert edge.mutation_evidence["meaningful_change"] is True
         assert edge.mutation_evidence["observed_propagation"] is False
         assert "NUMERIC_DRIFT" in edge.mutation_evidence["mutation_types"]

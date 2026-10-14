@@ -4,6 +4,7 @@ import random
 import uuid
 from collections import Counter
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock
 
 import numpy as np
@@ -13,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 from scripts.sample_eval_pairs import fetch_pool, main, pick_pairs, pool_fingerprint
 
 
-def pool(size=30, identical=False):
+def pool(size=30, identical=False) -> Any:
     rng = np.random.default_rng(42)
     return [(str(uuid.UUID(int=100 + i)), np.asarray([1.0, 0.0, 0.0]) if identical else rng.normal(size=3), f"outlet-{i % 3}") for i in range(size)]
 
@@ -67,7 +68,7 @@ async def test_database_pool_is_seeded_stable_not_sql_random(monkeypatch):
 
 
 class FakeResult:
-    def __init__(self, rows=None, value=None):
+    def __init__(self, rows=None, value=None) -> None:
         self.rows = rows or []
         self.value = value
 
@@ -79,9 +80,9 @@ class FakeResult:
 
 
 class PairStore:
-    def __init__(self):
-        self.pairs = {}
-        self.statements = []
+    def __init__(self) -> None:
+        self.pairs: dict[str, Any] = {}
+        self.statements: list[str] = []
         self.commits = 0
 
     def get_bind(self):
@@ -90,7 +91,7 @@ class PairStore:
     async def execute(self, statement):
         self.statements.append(str(statement))
         if getattr(statement, "is_insert", False):
-            values = statement.compile(dialect=postgresql.dialect()).params
+            values = statement.compile(dialect=postgresql.dialect()).params  # type: ignore[no-untyped-call]  # Third-party API lacks annotations.
             key = values["canonical_key"]
             if key in self.pairs:
                 return FakeResult()

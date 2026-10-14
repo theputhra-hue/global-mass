@@ -74,8 +74,8 @@ def test_config_reports_actual_retrieval_and_stance_method():
     assert "strong_similarity_corroboration" not in cfg
     assert cfg["nli"]["model"] == "cross-encoder/nli-deberta-v3-base"
     assert cfg["nli"]["confidence_min"] == 0.7
-    assert cfg["stance_cache"]["ttl_seconds"] > 0
-    assert cfg["stance_cache"]["max_entries"] > 0
+    assert float(cfg["stance_cache"]["ttl_seconds"]) > 0
+    assert int(cfg["stance_cache"]["max_entries"]) > 0
     assert "never self-verdicts" in cfg["source_prior_policy"]
 
 

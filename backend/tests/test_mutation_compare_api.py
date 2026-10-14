@@ -1,6 +1,7 @@
 """Authenticated bounded comparison API, with no database/model inference."""
 
 import uuid
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,7 +12,7 @@ from app.main import app
 from app.models.user import RoleEnum, User
 
 
-def _authenticate(monkeypatch):
+def _authenticate(monkeypatch) -> Any:
     monkeypatch.setitem(
         app.dependency_overrides,
         get_current_user,

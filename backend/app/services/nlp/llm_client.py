@@ -127,7 +127,7 @@ Chronological Claims:
                 "messages": [{"role": "user", "content": prompt}],
             }
             response = await self.client.messages.create(**params)
-            return response.content[0].text.strip()
+            return str(response.content[0].text).strip()
         except Exception as e:
             logger.error(f"Anthropic API error during mutation summary: {e}")
             return "Unable to generate summary due to API error."

@@ -103,37 +103,21 @@ async def test_database_is_migrated_to_the_script_head() -> None:
 async def test_duplicate_mutation_edge_is_rejected() -> None:
     """End-to-end check of uq_claim_relationships_edge (migration a4c7e1f9b2d6)."""
     from app.db.postgres import async_session_maker
+    from app.models.article import Article
+    from app.models.claim import Claim
     from app.models.evolution import ClaimRelationship, RelationshipTypeEnum
+    from app.models.source import Source, SourceTypeEnum
 
     async with async_session_maker() as db:
-        row = (
-            await db.execute(
-                text(
-                    """
-                    SELECT c1.id AS a, c2.id AS b
-                    FROM claims c1
-                    JOIN claims c2 ON c1.id < c2.id
-                    LEFT JOIN claim_relationships r
-                      ON r.from_claim_id = c1.id
-                     AND r.to_claim_id = c2.id
-                     AND r.relationship_type = 'SIMILAR_TO'
-                    WHERE c1.embedding IS NOT NULL
-                      AND c2.embedding IS NOT NULL
-                      AND r.id IS NULL
-                    LIMIT 1
-                    """
-                )
-            )
-        ).first()
-        await db.rollback()
-
-    if row is None:
-        pytest.skip("no claim pair without an existing SIMILAR_TO edge")
-
-    from_id, to_id = row[0], row[1]
-    assert isinstance(from_id, uuid.UUID) and isinstance(to_id, uuid.UUID)
-
-    async with async_session_maker() as db:
+        source = Source(id=uuid.uuid4(), name="constraint fixture", type=SourceTypeEnum.rss, url_or_identifier="https://example.invalid/feed")
+        db.add(source)
+        await db.flush()
+        article = Article(id=uuid.uuid4(), source_id=source.id, title="fixture", url=f"https://example.invalid/{uuid.uuid4()}", content_hash="fixture")
+        db.add(article)
+        await db.flush()
+        from_id, to_id = uuid.uuid4(), uuid.uuid4()
+        db.add_all([Claim(id=cid, article_id=article.id, claim_text="fixture") for cid in (from_id, to_id)])
+        await db.flush()
         db.add(ClaimRelationship(
             from_claim_id=from_id, to_claim_id=to_id,
             relationship_type=RelationshipTypeEnum.SIMILAR_TO, score=0.75,
@@ -176,3 +160,45 @@ async def test_mutation_chains_endpoint_runs_on_pgvector() -> None:
         assert {"chain_id", "size", "distinct_outlets", "versions"} <= set(chain)
         for version in chain["versions"]:
             assert {"id", "text", "domain", "published_at"} <= set(version)
+
+
+@pytest.mark.asyncio
+async def test_corpus_stats_and_search_use_claim_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Article counts must not inflate when an article has multiple embedded claims."""
+    from contextlib import asynccontextmanager
+
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.api.v1 import corpus
+    from app.db.postgres import async_session_maker
+    from app.models.article import Article, ProcessingStatusEnum
+    from app.models.claim import Claim
+    from app.models.source import Source, SourceTypeEnum
+    from app.services.nlp.embedding_service import EmbeddingService
+
+    async with async_session_maker() as db:
+        @asynccontextmanager
+        async def session() -> AsyncGenerator[AsyncSession, None]:
+            yield db
+
+        monkeypatch.setattr(corpus, "async_session_maker", session)
+        before = await corpus.corpus_stats()
+        source = Source(id=uuid.uuid4(), name="corpus fixture", type=SourceTypeEnum.rss, url_or_identifier="https://example.invalid/feed")
+        db.add(source)
+        await db.flush()
+        article = Article(id=uuid.uuid4(), source_id=source.id, title="fixture", url=f"https://example.invalid/{uuid.uuid4()}", content_hash="fixture", processing_status=ProcessingStatusEnum.processed)
+        db.add(article)
+        await db.flush()
+        vector = [1.0] + [0.0] * 767
+        db.add_all([Claim(id=uuid.uuid4(), article_id=article.id, claim_text=f"fixture {i}", embedding=vector) for i in range(2)])
+        await db.flush()
+        after = await corpus.corpus_stats()
+        assert after["total"] == before["total"] + 1
+        assert after["embedded"] == before["embedded"] + 1
+        monkeypatch.setattr(EmbeddingService, "is_loaded", lambda: True)
+        monkeypatch.setattr(EmbeddingService, "generate_embedding", lambda _: vector)
+        result = await corpus.semantic_search(q="fixture", limit=30)
+        matches = [row for row in result["items"] if row["id"] == str(article.id)]
+        assert len(matches) == 1
+        assert matches[0]["score"] == pytest.approx(1.0)
+        await db.rollback()

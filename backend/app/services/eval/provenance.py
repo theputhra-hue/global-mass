@@ -108,7 +108,8 @@ def exploratory_consensus(rows: list[dict[str, Any]], origin: str) -> list[dict[
         winners = [label for label, n in counts.items() if n == max(counts.values())]
         if len(winners) != 1:
             continue
-        base = dict(min(votes, key=lambda v: str(v.get("annotator", ""))))
+        first_vote = min(votes, key=lambda v: str(v.get("annotator", "")))
+        base = dict(first_vote)
         base.update({"pid": pid, "label": winners[0], "votes": [str(v["label"]) for v in votes]})
         output.append(base)
     return output

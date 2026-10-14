@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID
 
@@ -42,7 +43,7 @@ async def client(verdict_app):
         yield client
 
 
-def response_payload():
+def response_payload() -> Any:
     row = corpus_row()
     return {
         "claim_text": QUERY,

@@ -235,7 +235,7 @@ async def retrieve_candidates(
     # Retain the Python bound as well, including for mocked/alternative drivers.
     for row in result.mappings().all()[:candidate_limit]:
         try:
-            candidates.append(_candidate(row))
+            candidates.append(_candidate(dict(row)))
         except (KeyError, TypeError, ValueError, OverflowError):
             logger.warning("Skipping malformed corpus evidence candidate")
             if not warnings:

@@ -122,7 +122,10 @@ async def corpus_stats() -> dict[str, Any]:
                 text(
                     """
                     SELECT COUNT(*) AS total,
-                           COUNT(embedding) AS embedded,
+                           COUNT(*) FILTER (WHERE EXISTS (
+                               SELECT 1 FROM claims c
+                               WHERE c.article_id = articles.id AND c.embedding IS NOT NULL
+                           )) AS embedded,
                            COUNT(DISTINCT domain) AS domains,
                            MIN(published_at)::date AS earliest,
                            MAX(published_at)::date AS latest
@@ -183,12 +186,13 @@ async def semantic_search(
             await db.execute(
                 sql_text(
                     """
-                    SELECT id::text, title, url, author, domain,
-                           published_at, word_count,
-                           1 - (embedding <=> CAST(:qv AS vector)) AS score
-                    FROM articles
-                    WHERE embedding IS NOT NULL
-                    ORDER BY embedding <=> CAST(:qv AS vector)
+                    SELECT a.id::text, a.title, a.url, a.author, a.domain,
+                           a.published_at, a.word_count,
+                           1 - MIN(c.embedding <=> CAST(:qv AS vector)) AS score
+                    FROM articles a JOIN claims c ON c.article_id = a.id
+                    WHERE c.embedding IS NOT NULL AND a.processing_status = 'processed'
+                    GROUP BY a.id
+                    ORDER BY MIN(c.embedding <=> CAST(:qv AS vector)), a.id
                     LIMIT :lim
                     """
                 ),

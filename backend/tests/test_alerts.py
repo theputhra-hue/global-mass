@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -142,7 +143,7 @@ async def test_alerts_endpoint(async_client, db_session, monkeypatch):
     assert "DISPUTED_SURGE" in types
 
 
-def _alert_result(rows=(), existing=None):
+def _alert_result(rows=(), existing=None) -> Any:
     result = MagicMock()
     result.scalars.return_value.all.return_value = list(rows)
     result.all.return_value = list(rows)
@@ -150,7 +151,7 @@ def _alert_result(rows=(), existing=None):
     return result
 
 
-def _persistent_db(parent_text, child_text, *, stored=False, existing_alert=None):
+def _persistent_db(parent_text, child_text, *, stored=False, existing_alert=None) -> Any:
     parent = Claim(id=uuid.UUID(int=1), claim_text=parent_text)
     child = Claim(id=uuid.UUID(int=2), claim_text=child_text)
     evidence = analyze_text_change(parent_text, child_text) if stored else None
@@ -213,6 +214,7 @@ async def test_existing_reversed_alert_is_refreshed_without_losing_acknowledgeme
     db.add.assert_not_called()
     assert existing.acknowledged_at == NOW
     assert existing.claim_id == child.id
+    assert existing.payload is not None
     assert existing.payload["from_claim"] == str(parent.id)
     assert existing.payload["to_claim"] == str(child.id)
     assert existing.severity == "WARNING"

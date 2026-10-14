@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from app.models.article import Article
 from app.models.claim import Claim
@@ -14,13 +15,13 @@ from app.services.eval.dataset import SCHEMA_VERSION
 from app.services.eval.provenance import origin_counts, pair_consensus
 
 
-def fixture_user_id(index):
+def fixture_user_id(index) -> Any:
     # PostgreSQL UUID declarations have numeric affinity in SQLite: a hex UUID
     # like ...03e9 can be interpreted as scientific notation instead of text.
     return uuid.uuid5(uuid.NAMESPACE_URL, f"gmee-synthetic-eval-user:{index}")
 
 
-def human_vote(pid, label, user=1, mutations=None):
+def human_vote(pid, label, user=1, mutations=None) -> Any:
     user_id = str(fixture_user_id(user))
     return {
         "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"synthetic-vote:{pid}:{user}")),
@@ -30,8 +31,8 @@ def human_vote(pid, label, user=1, mutations=None):
     }
 
 
-def research_records(mutations=False, groups=3):
-    records = []
+def research_records(mutations=False, groups=3) -> Any:
+    records: list[dict[str, Any]] = []
     for split_index, split in enumerate(("train", "dev", "test")):
         for group in range(groups):
             event = f"{split}-event-{group}"
@@ -65,7 +66,7 @@ def research_records(mutations=False, groups=3):
     return records
 
 
-async def seed_user(db, index=1, role=RoleEnum.user):
+async def seed_user(db, index=1, role=RoleEnum.user) -> Any:
     user_id = fixture_user_id(index)
     user = await db.get(User, user_id)
     if user is None:
@@ -75,8 +76,8 @@ async def seed_user(db, index=1, role=RoleEnum.user):
     return user
 
 
-async def seed_pair(db, *, sim=0.75, split="unassigned", event="unassigned", claim_a=None, claim_b=None, pair_id=None, sampled_at=None, text_a=None, text_b=None):
-    async def make_claim(side, supplied_text):
+async def seed_pair(db, *, sim=0.75, split="unassigned", event="unassigned", claim_a=None, claim_b=None, pair_id=None, sampled_at=None, text_a=None, text_b=None) -> Any:
+    async def make_claim(side, supplied_text) -> Any:
         source = Source(name=f"Synthetic {side}", type=SourceTypeEnum.rss, url_or_identifier=f"https://{side}.example/feed")
         db.add(source)
         await db.flush()

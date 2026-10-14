@@ -110,9 +110,9 @@ class LeaderLock:
                 current = await pipe.get(key)
                 value = current.decode() if isinstance(current, bytes) else current
                 if value != token:
-                    await pipe.unwatch()
+                    await pipe.unwatch()  # type: ignore[no-untyped-call]  # Third-party API lacks annotations.
                     return False
-                pipe.multi()
+                pipe.multi()  # type: ignore[no-untyped-call]  # Third-party API lacks annotations.
                 if renew_ms is None:
                     pipe.delete(key)
                 else:

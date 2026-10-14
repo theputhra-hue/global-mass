@@ -59,7 +59,7 @@ class NearDuplicateDetector:
                 collected_at=row.collected_at,
                 canonical_article_id=row.canonical_article_id,
             )
-            m = self._create_minhash(article.cleaned_content)
+            m = self._create_minhash(row.cleaned_content)
             # Use string representation of UUID as key
             key = str(article.id)
             self.lsh.insert(key, m)

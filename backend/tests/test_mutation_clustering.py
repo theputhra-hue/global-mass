@@ -5,6 +5,7 @@ import sys
 import threading
 import uuid
 from types import ModuleType, SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
@@ -16,7 +17,7 @@ from app.services.evolution import cluster_service
 from app.services.evolution.orchestrator import EvolutionOrchestrator
 
 
-def _db():
+def _db() -> Any:
     db = MagicMock()
 
     async def flush():
@@ -29,7 +30,7 @@ def _db():
     return db
 
 
-def _claims():
+def _claims() -> Any:
     return [
         Claim(id=uuid.UUID(int=1), claim_text="first", embedding=[1.0, 0.0]),
         Claim(id=uuid.UUID(int=2), claim_text="missing", embedding=None),
@@ -43,7 +44,7 @@ async def test_clustering_excludes_null_embeddings_and_fitting_does_not_block_lo
 ):
     service, db = cluster_service.ClusterService(), _db()
     started, release = threading.Event(), threading.Event()
-    captured = {}
+    captured: dict[str, Any] = {}
     main_thread = threading.get_ident()
 
     def fit(texts, embeddings, params):
@@ -105,7 +106,7 @@ async def test_empty_embedded_corpus_creates_no_assignments_or_model_import(
 
 
 def test_fit_uses_versioned_parameters_and_supplied_embeddings_only(monkeypatch):
-    captured = {}
+    captured: dict[str, Any] = {}
 
     class FakeTopicModel:
         def __init__(self, **kwargs):
@@ -125,9 +126,9 @@ def test_fit_uses_versioned_parameters_and_supplied_embeddings_only(monkeypatch)
                 )
             )
 
-    bertopic = ModuleType("bertopic")
+    bertopic: Any = ModuleType("bertopic")
     bertopic.BERTopic = FakeTopicModel
-    umap = ModuleType("umap")
+    umap: Any = ModuleType("umap")
     umap.UMAP = MagicMock(return_value="fake_umap")
     monkeypatch.setitem(sys.modules, "bertopic", bertopic)
     monkeypatch.setitem(sys.modules, "umap", umap)
@@ -153,7 +154,7 @@ def test_fit_uses_versioned_parameters_and_supplied_embeddings_only(monkeypatch)
 async def test_orchestrator_counts_embedded_claims_and_syncs_noise_and_missing_children(
     monkeypatch,
 ):
-    orchestrator = EvolutionOrchestrator()
+    orchestrator: Any = EvolutionOrchestrator()
     claims = [
         Claim(
             id=uuid.UUID(int=1),
@@ -183,8 +184,8 @@ async def test_orchestrator_counts_embedded_claims_and_syncs_noise_and_missing_c
     )
     orchestrator.mutation_detector.run_mutation_detection = AsyncMock(return_value=[])
     orchestrator.neo4j_writer.sync_to_graph = AsyncMock(return_value=True)
-    result = await orchestrator.run_evolution_cycle(db, force=True)
-    assert result["status"] == "success"
+    summary = await orchestrator.run_evolution_cycle(db, force=True)
+    assert summary["status"] == "success"
     run = orchestrator.cluster_service.run_clustering.return_value
     assert run.algorithm_params["mutation_algorithm_version"]
     assert run.algorithm_params["text_change_algorithm_version"]
@@ -199,7 +200,7 @@ async def test_orchestrator_counts_embedded_claims_and_syncs_noise_and_missing_c
 
 @pytest.mark.asyncio
 async def test_historical_algorithm_does_not_debounce_typed_upgrade_indefinitely():
-    orchestrator = EvolutionOrchestrator()
+    orchestrator: Any = EvolutionOrchestrator()
     db = MagicMock()
     db.scalar = AsyncMock(
         side_effect=[
@@ -219,8 +220,8 @@ async def test_historical_algorithm_does_not_debounce_typed_upgrade_indefinitely
     )
     orchestrator.mutation_detector.run_mutation_detection = AsyncMock(return_value=[])
     orchestrator.neo4j_writer.sync_to_graph = AsyncMock(return_value=True)
-    result = await orchestrator.run_evolution_cycle(db)
-    assert result["status"] == "success"
+    summary = await orchestrator.run_evolution_cycle(db)
+    assert summary["status"] == "success"
     orchestrator.cluster_service.run_clustering.assert_awaited_once()
     # The old all-claims corpus count exceeds the embedded count, but an
     # algorithm upgrade still reconciles old mutation semantics once.

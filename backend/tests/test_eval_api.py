@@ -63,7 +63,7 @@ def test_blinded_payload_carries_no_engine_cues():
 
 def test_every_declared_label_is_accepted():
     for label in VALID_LABELS:
-        body = EvalLabelBody(pair_id=PAIR_ID, annotator="tester", label=label)
+        body = EvalLabelBody.model_validate({"pair_id": PAIR_ID, "annotator": "tester", "label": label})
         assert body.label == label
         assert body.pair_id == uuid.UUID(PAIR_ID)
 
@@ -87,12 +87,12 @@ def test_per_annotator_is_empty_without_labels():
 
 def test_unknown_label_is_rejected():
     with pytest.raises(ValidationError):
-        EvalLabelBody(pair_id=PAIR_ID, annotator="tester", label="MAYBE")
+        EvalLabelBody.model_validate({"pair_id": PAIR_ID, "annotator": "tester", "label": "MAYBE"})
 
 
 def test_annotator_must_be_non_empty():
     with pytest.raises(ValidationError):
-        EvalLabelBody(pair_id=PAIR_ID, annotator="", label="DISTINCT")
+        EvalLabelBody.model_validate({"pair_id": PAIR_ID, "annotator": "", "label": "DISTINCT"})
 
 
 @pytest.mark.asyncio
@@ -145,13 +145,13 @@ async def signed_in(async_client, db_session):
 ])
 def test_label_bounds_and_provenance_are_enforced(extra):
     with pytest.raises(ValidationError):
-        EvalLabelBody(pair_id=PAIR_ID, label="EVOLVED", **extra)
+        EvalLabelBody.model_validate(dict(pair_id=PAIR_ID, label="EVOLVED", **extra))
 
 
 def test_original_label_body_and_optional_annotations_are_compatible():
-    body = EvalLabelBody(pair_id=PAIR_ID, label="EVOLVED")
+    body = EvalLabelBody.model_validate({"pair_id": PAIR_ID, "label": "EVOLVED"})
     assert body.model_dump()["annotator"] is None and body.mutation_types is None
-    body = EvalLabelBody(pair_id=PAIR_ID, label="EVOLVED", mutation_types=["NUMERIC_DRIFT", " NUMERIC_DRIFT ", "HEDGING_SHIFT"], notes="Manual comparison")
+    body = EvalLabelBody.model_validate({"pair_id": PAIR_ID, "label": "EVOLVED", "mutation_types": ["NUMERIC_DRIFT", " NUMERIC_DRIFT ", "HEDGING_SHIFT"], "notes": "Manual comparison"})
     assert body.mutation_types == ["HEDGING_SHIFT", "NUMERIC_DRIFT"]
 
 

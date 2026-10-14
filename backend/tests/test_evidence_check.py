@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, Mock
 from uuid import UUID
 
@@ -21,7 +22,7 @@ QUERY = "The council approved the new bridge."
 VECTOR = [1.0] + [0.0] * 767
 
 
-def corpus_row(index=1, **overrides):
+def corpus_row(index=1, **overrides) -> Any:
     row = {
         "claim_id": str(UUID(int=index)),
         "article_id": str(UUID(int=1000 + index)),
@@ -42,7 +43,7 @@ def corpus_row(index=1, **overrides):
     return row
 
 
-def fake_db(rows):
+def fake_db(rows) -> Any:
     result = Mock()
     result.mappings.return_value.all.return_value = rows
     result.mappings.return_value.first.return_value = rows[0] if rows else None
@@ -289,7 +290,7 @@ async def test_candidate_and_nli_work_are_bounded_and_vectors_bound(monkeypatch)
     assert "UPDATE" not in str(statement)
 
 
-def json_vector_length(value):
+def json_vector_length(value) -> Any:
     import json
 
     return len(json.loads(value))
