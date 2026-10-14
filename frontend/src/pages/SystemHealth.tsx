@@ -6,6 +6,7 @@ import { useDocumentVisible, usePollingControl, usePollingPolicy } from '../lib/
 import { PollingProvider } from '../components/PollingProvider';
 import { QueryError } from '../components/QueryError';
 import { fetchDashboard } from '../api/dashboard';
+import { AdvancedTabGuide } from '../components/AdvancedTabGuide';
 import { Header } from '../components/Header';
 import { MetricCard } from '../components/MetricCard';
 import { GraphVisualizer } from '../components/GraphVisualizer';
@@ -149,11 +150,11 @@ const SystemHealthContent: React.FC = () => {
   const count = (value: number | undefined) => value === undefined ? 'unavailable' : value.toLocaleString();
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 pb-0 md:p-8 md:pb-0 lg:p-12 lg:pb-0 relative bg-hermes-ink text-hermes-bone overflow-x-clip">
+    <div className="min-h-screen flex flex-col items-center p-4 pb-0 md:p-8 md:pb-0 lg:p-6 lg:pb-0 relative bg-hermes-ink text-hermes-bone overflow-x-clip">
       {/* Paper grain texture — Hermes signature */}
       <div className="fixed inset-0 z-0 pointer-events-none grain-overlay" />
 
-      <div className="w-full max-w-7xl z-10">
+      <div className="w-full min-w-0 z-10">
         {/* Header & Controls */}
         <Header
           activeTab={activeTab}
@@ -165,6 +166,8 @@ const SystemHealthContent: React.FC = () => {
           status={headerStatus}
           demoMode={demoMode}
         />
+
+        <AdvancedTabGuide tab={activeTab} />
 
         {/* Decorative equalizer, never presented as measured telemetry. */}
         <div className="mt-6 mb-8 border border-hermes-bone/15 bg-hermes-panel px-4 py-3">

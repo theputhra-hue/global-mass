@@ -65,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
   const visible = useDocumentVisible();
 
   return (
-    <header className="sticky top-0 z-40 -mx-4 md:-mx-8 lg:-mx-12 mb-8">
+    <header className="sticky top-0 z-40 -mx-4 md:-mx-8 lg:-mx-6 mb-8">
       <div className="bg-hermes-ink/95 backdrop-blur-sm border-b border-hermes-bone/15">
         {/* Marquee ticker — Hermes-site signature */}
         <div className={`overflow-hidden border-b border-hermes-ink/20 bg-hermes-red text-hermes-bone ${visible ? '' : 'marquee-paused'}`}>
@@ -122,6 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="ml-1 normal-case text-hermes-bone/50">(readiness)</span>
               </div>
 
+              <a href="#/dashboard" className="btn-brutal">Simple view</a>
               <AccountPanel />
 
               {/* Pauses background polling across all mounted dashboard panels. */}

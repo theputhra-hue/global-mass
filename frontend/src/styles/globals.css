@@ -98,6 +98,19 @@
     @apply bg-hermes-panel border border-hermes-bone/15 shadow-[4px_4px_0_0_rgba(0,0,0,0.55)];
   }
 
+  /* Shared dark-theme navigation and secondary actions. */
+  .btn-outline-dark {
+    @apply inline-flex items-center justify-center gap-2 border border-hermes-bone/30 bg-hermes-panel-deep px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-hermes-bone/80 shadow-[3px_3px_0_0_rgba(0,0,0,0.55)] transition-colors hover:border-hermes-bone/60 hover:text-hermes-bone disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .workspace-tab {
+    @apply inline-flex items-center border border-transparent border-l-2 px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-hermes-bone/60 transition-colors hover:bg-hermes-panel hover:text-hermes-bone;
+  }
+
+  .workspace-tab[aria-current='page'] {
+    @apply border-l-hermes-red-bright bg-hermes-panel text-hermes-red-bright;
+  }
+
   /* Fractal noise grain — now a red-tinted film grain */
   .grain-overlay {
     pointer-events: none;

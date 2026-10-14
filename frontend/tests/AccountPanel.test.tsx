@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { SignIn } from '../src/pages/SignIn';
 import { AccountPanel } from '../src/components/AccountPanel';
 import { getAccessToken, getRefreshToken } from '../src/lib/session';
 import { accountFixture, jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 function openLogin() {
-  renderWithClient(<AccountPanel />);
-  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+  renderWithClient(<SignIn />);
   fireEvent.change(screen.getByLabelText('Email'), { target: { value: accountFixture.email } });
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'strong-password' } });
 }
@@ -17,8 +17,8 @@ describe('memory-only account UI', () => {
       ? jsonResponse({ access_token: 'login-access', refresh_token: 'login-refresh', token_type: 'bearer' })
       : jsonResponse(accountFixture));
     openLogin();
-    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
-    expect(await screen.findByText('Corpus Reviewer')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(window.location.hash).toBe('#/dashboard'));
     expect(getAccessToken()).toBe('login-access');
     expect(getRefreshToken()).toBe('login-refresh');
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ email: accountFixture.email, password: 'strong-password' });
@@ -30,24 +30,23 @@ describe('memory-only account UI', () => {
     expect(screen.queryByText('login-access')).toBeNull();
   });
 
-  it('registers with the existing optional full_name contract', async () => {
+  it('registers from the dedicated sign-in page', async () => {
     const fetch = mockApi((endpoint) => endpoint === '/auth/register'
       ? jsonResponse({ access_token: 'registered-access', refresh_token: 'registered-refresh' }, 201)
       : jsonResponse(accountFixture));
     openLogin();
-    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
-    fireEvent.change(screen.getByLabelText('Full name (optional)'), { target: { value: '  Corpus Reviewer  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New to GMEE? Create an account' }));
     expect(screen.getByLabelText('Password').getAttribute('minlength')).toBe('10');
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-    await screen.findByText('Corpus Reviewer');
+    await waitFor(() => expect(getAccessToken()).toBe('registered-access'));
     expect(String(fetch.mock.calls[0][0])).toContain('/auth/register');
-    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ email: accountFixture.email, password: 'strong-password', full_name: 'Corpus Reviewer' });
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ email: accountFixture.email, password: 'strong-password' });
   });
 
   it('shows authentication errors without claiming a signed-in identity', async () => {
     mockApi(() => jsonResponse({ detail: 'Incorrect email or password' }, 401));
     openLogin();
-    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(await screen.findByText('Incorrect email or password')).toBeTruthy();
     expect(getAccessToken()).toBeUndefined();
     expect(screen.queryByText('Corpus Reviewer')).toBeNull();
@@ -90,8 +89,9 @@ describe('memory-only account UI', () => {
   });
 
   it('labels the dialog, traps keyboard focus, closes on Escape and restores the opener', async () => {
+    signInFixture();
     renderWithClient(<AccountPanel />);
-    const opener = screen.getByRole('button', { name: 'Sign in' });
+    const opener = screen.getByRole('button', { name: 'Account' });
     opener.focus();
     fireEvent.click(opener);
     const dialog = screen.getByRole('dialog', { name: 'GMEE Account' });

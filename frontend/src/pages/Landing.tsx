@@ -10,6 +10,7 @@ import {
   GitBranch,
   ShieldCheck,
 } from 'lucide-react';
+import { useSession } from '../lib/session';
 import { fetchDashboard } from '../api/dashboard';
 import { AsciiGlobe } from '../components/AsciiGlobe';
 import { AsciiTicker } from '../components/AsciiTicker';
@@ -83,14 +84,16 @@ const STEPS = [
 ];
 
 export const Landing: React.FC = () => {
+  const { user } = useSession();
   const polling = usePollingPolicy(30_000);
   const dashboard = useQuery({
     queryKey: ['dashboard'],
     queryFn: ({ signal }) => fetchDashboard({ signal }),
     ...polling,
     staleTime: 15_000,
+    enabled: Boolean(user),
   });
-  const snapshot = dashboard.data;
+  const snapshot = user ? dashboard.data : undefined;
 
   const heroStats = useMemo(() => {
     const format = (value: number | undefined) => value === undefined ? '—' : value.toLocaleString();
@@ -120,8 +123,8 @@ export const Landing: React.FC = () => {
               v1.0 telemetry
             </span>
           </div>
-          <a href="#/dashboard" className="btn-brutal !py-1.5 !px-3">
-            Command Center <ArrowRight className="w-3.5 h-3.5" />
+          <a href={user ? "#/dashboard" : "#/signin"} className="btn-brutal !py-1.5 !px-3">
+            {user ? 'Command Center' : 'Sign in'} <ArrowRight className="w-3.5 h-3.5" />
           </a>
         </div>
       </header>
@@ -147,8 +150,8 @@ export const Landing: React.FC = () => {
               how a falsehood forms, spreads, and evolves across the network.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
-              <a href="#/dashboard" className="btn-brutal">
-                Launch Telemetry <ArrowRight className="w-4 h-4" />
+              <a href={user ? "#/dashboard" : "#/signin"} className="btn-brutal">
+                {user ? 'Open dashboard' : 'Sign in to explore'} <ArrowRight className="w-4 h-4" />
               </a>
               <a
                 href="#about"
@@ -289,7 +292,7 @@ export const Landing: React.FC = () => {
                   </span>
                 </div>
               </div>
-              <LiveAuditFeed />
+              {user ? <LiveAuditFeed /> : <div className="border border-hermes-ink/20 p-8 flex flex-col items-start justify-center gap-4"><p className="font-mono text-sm">Sign in to view articles and live corpus data.</p><a href="#/signin" className="btn-brutal">Sign in <ArrowRight className="w-4 h-4" /></a></div>}
             </div>
           </AsciiReveal>
         </div>
@@ -308,10 +311,10 @@ export const Landing: React.FC = () => {
             </p>
           </div>
           <a
-            href="#/dashboard"
+            href={user ? "#/dashboard" : "#/signin"}
             className="inline-flex items-center gap-2 border border-hermes-ink/90 bg-hermes-ink text-hermes-bone font-mono text-xs font-bold uppercase tracking-wider px-5 py-3 shadow-[3px_3px_0_0_rgba(26,6,8,1)] transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_rgba(26,6,8,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer"
           >
-            Open Command Center <ArrowRight className="w-4 h-4" />
+            Open {user ? 'Command Center' : 'Sign in'} <ArrowRight className="w-4 h-4" />
           </a>
         </div>
         <div className="border-t border-hermes-bone/20">

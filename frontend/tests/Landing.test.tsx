@@ -1,11 +1,12 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Landing } from '../src/pages/Landing';
-import { emptyDashboardApi, jsonResponse, mockApi, renderWithClient, zeroDashboard } from './helpers';
+import { emptyDashboardApi, jsonResponse, mockApi, renderWithClient, zeroDashboard, signInFixture } from './helpers';
 
 describe('honest landing statistics', () => {
   it('renders real zero counts without fabricated hero fallback counts', async () => {
     mockApi(emptyDashboardApi);
+    signInFixture();
     renderWithClient(<Landing />);
     const claimLabel = screen.getByText('claims indexed');
     await screen.findByText('3 / 3');
@@ -19,6 +20,7 @@ describe('honest landing statistics', () => {
   it('keeps initial/unavailable counts unknown and offers actual retry', async () => {
     let failure = true;
     const fetch = mockApi((endpoint) => endpoint === '/dashboard' ? failure ? jsonResponse({ detail: 'Dashboard unavailable' }, 503) : jsonResponse(zeroDashboard) : emptyDashboardApi(endpoint));
+    signInFixture();
     renderWithClient(<Landing />);
     expect(screen.getByText('Connecting to real dashboard metrics…')).toBeTruthy();
     expect(await screen.findByText('Dashboard unavailable')).toBeTruthy();
