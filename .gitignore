@@ -73,6 +73,7 @@ coverage/
 _endpoint_report.txt
 _scroll_*.mjs
 _ui_sweep*
+!_ui_sweep.ps1
 _hub.txt
 backend/_backup/
 backend/eval_report.json
