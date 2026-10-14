@@ -171,8 +171,8 @@ describe('Eval Lab authenticated labeling', () => {
     fireEvent.click(screen.getByRole('button', { name: /Download actual export/ }));
     await screen.findByText('Export response downloaded.');
     const blob = createUrl.mock.calls[0][0] as Blob;
-    // jsdom's Blob lacks .text(); FileReader is the portable reader here.
-    const text = await new Promise<string>((resolve, reject) => {
+    // Native fetch returns a Node Blob; jsdom FileReader only accepts its own Blob.
+    const text = typeof blob.text === 'function' ? await blob.text() : await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
       reader.onerror = () => reject(reader.error);

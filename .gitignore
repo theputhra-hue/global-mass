@@ -56,6 +56,7 @@ redis-data/
 # TypeScript build artifacts
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+dataaa/
 
 # The Python-oriented `lib/` rule above matches ANY directory named lib,
 # including frontend/src/lib — which silently kept `src/lib/sound.ts` out of

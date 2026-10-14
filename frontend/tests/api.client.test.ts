@@ -11,6 +11,25 @@ function deferred<T>() {
 }
 
 describe('typed API requests and readiness', () => {
+  it.each([
+    '/corpus/stats',
+    '/corpus/articles/recent?limit=2',
+    '/corpus/graph/story-clusters?min_links=3&limit=2',
+    '/graph/full',
+    '/graph/claims',
+    '/graph/timeline?article_id=fixture',
+    '/graph/scoops',
+  ])('requests real backend data for %s without a static fallback', async (endpoint) => {
+    const payload = { source: 'backend', items: [] };
+    const fetch = mockApi((requested) => {
+      expect(requested).toBe(endpoint);
+      return jsonResponse(payload);
+    });
+    expect(await apiClient.get(endpoint)).toEqual(payload);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe(`/api/v1${endpoint}`);
+  });
+
   it('uses the real ready aggregate value', async () => {
     mockApi(() => jsonResponse(readyFixture));
     expect(await fetchHealth()).toEqual(readyFixture);
