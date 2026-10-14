@@ -11,11 +11,11 @@ from app.models.session import Session
 from app.models.user import RoleEnum, User
 
 # Test route for role checking
-test_router = APIRouter()
-@test_router.get("/admin-only")
+auth_test_router = APIRouter()
+@auth_test_router.get("/admin-only")
 async def admin_only_route(user: User = Depends(require_role("admin"))) -> dict[str, str]:
     return {"status": "ok"}
-app.include_router(test_router, prefix="/api/v1/test")
+app.include_router(auth_test_router, prefix="/api/v1/test")
 
 @pytest.mark.asyncio
 async def test_register_success(async_client: AsyncClient, db_session: AsyncSession) -> None:
@@ -59,6 +59,23 @@ async def test_login_success(async_client: AsyncClient, db_session: AsyncSession
     result = await db_session.execute(select(Session))
     sessions = result.scalars().all()
     assert len(sessions) > 0
+
+@pytest.mark.asyncio
+async def test_inactive_user_cannot_login_or_refresh(async_client: AsyncClient, db_session: AsyncSession) -> None:
+    payload = {"email": "inactive@example.com", "password": "password123"}
+    registered = await async_client.post("/api/v1/auth/register", json=payload)
+    tokens = registered.json()
+    user = (await db_session.execute(select(User).where(User.email == payload["email"]))).scalar_one()
+    user.is_active = False
+    await db_session.commit()
+    before = len((await db_session.execute(select(Session))).scalars().all())
+    login = await async_client.post("/api/v1/auth/login", json=payload)
+    assert login.status_code == 401
+    assert login.json()["detail"] == "Incorrect email or password"
+    refresh = await async_client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
+    assert refresh.status_code == 401
+    assert len((await db_session.execute(select(Session))).scalars().all()) == before
+
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(async_client: AsyncClient) -> None:

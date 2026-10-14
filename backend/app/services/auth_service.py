@@ -86,7 +86,7 @@ async def authenticate_user(db: AsyncSession, redis: Redis, login_in: LoginReque
         )
         
     user = await user_repository.get_by_email(db, login_in.email)
-    if not user or not security.verify_password(user.hashed_password, login_in.password):
+    if not user or not security.verify_password(user.hashed_password, login_in.password) or not user.is_active:
         raise generic_error
         
     return await _issue_tokens_and_session(db, user, device_info)

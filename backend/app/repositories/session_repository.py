@@ -8,7 +8,14 @@ from app.models.session import Session
 
 
 async def get_by_refresh_token_hash(db: AsyncSession, token_hash: str) -> Session | None:
-    result = await db.execute(select(Session).where(Session.refresh_token_hash == token_hash))
+    # Hold the lock until rotation/revocation commits so a concurrent refresh
+    # observes the revoked token instead of issuing a second successor.
+    result = await db.execute(
+        select(Session)
+        .where(Session.refresh_token_hash == token_hash)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
     return result.scalars().first()
 
 async def create(db: AsyncSession, user_id: uuid.UUID, refresh_token_hash: str, device_info: str | None, expires_at: datetime) -> Session:

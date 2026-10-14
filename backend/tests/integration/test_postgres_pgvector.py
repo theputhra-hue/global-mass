@@ -54,6 +54,57 @@ async def _scalar(sql: str) -> Any:
 
 
 @pytest.mark.asyncio
+async def test_concurrent_refresh_issues_only_one_successor() -> None:
+    import asyncio
+    from datetime import UTC, datetime, timedelta
+
+    from fastapi import HTTPException
+    from sqlalchemy import delete, select
+
+    from app.core.security import hash_refresh_token
+    from app.db.postgres import async_session_maker
+    from app.models.session import Session
+    from app.models.user import User
+    from app.schemas.auth import RefreshRequest, TokenResponse
+    from app.services.auth_service import rotate_refresh_token
+
+    user_id = uuid.uuid4()
+    token = uuid.uuid4().hex
+    async with async_session_maker() as db:
+        db.add(User(id=user_id, email=f"{user_id}@example.invalid", hashed_password="unused"))
+        await db.flush()
+        db.add(Session(user_id=user_id, refresh_token_hash=hash_refresh_token(token),
+                       expires_at=datetime.now(UTC) + timedelta(days=1)))
+        await db.commit()
+
+    ready = asyncio.Event()
+
+    async def rotate() -> TokenResponse | int:
+        async with async_session_maker() as db:
+            await ready.wait()
+            try:
+                return await rotate_refresh_token(db, RefreshRequest(refresh_token=token), None)
+            except HTTPException as exc:
+                return exc.status_code
+
+    try:
+        tasks = [asyncio.create_task(rotate()) for _ in range(2)]
+        ready.set()
+        results = await asyncio.wait_for(asyncio.gather(*tasks), timeout=15)
+        assert sum(isinstance(result, TokenResponse) for result in results) == 1
+        assert results.count(401) == 1
+        async with async_session_maker() as db:
+            sessions = (await db.scalars(select(Session).where(Session.user_id == user_id))).all()
+            assert len(sessions) == 2
+            # Reuse detection revokes the winner's successor as well.
+            assert all(session.revoked for session in sessions)
+    finally:
+        async with async_session_maker() as db:
+            await db.execute(delete(User).where(User.id == user_id))
+            await db.commit()
+
+
+@pytest.mark.asyncio
 async def test_pgvector_cosine_operator() -> None:
     distance = await _scalar("SELECT ('[1,0,0]'::vector <=> '[0,1,0]'::vector)")
     assert float(distance) == pytest.approx(1.0)
