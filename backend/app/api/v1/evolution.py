@@ -1,7 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import ScalarResult, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -110,7 +110,7 @@ async def get_cluster_mutation_summary(topic_id: int, db: AsyncSession = Depends
         .order_by(Article.published_at.asc().nulls_last())
         .limit(50)  # limit context window
     )
-    claims_rows = await db.scalars(claims_stmt)
+    claims_rows: ScalarResult[str] = await db.scalars(claims_stmt)
     claims = list(claims_rows.all())
     
     if len(claims) < 2:

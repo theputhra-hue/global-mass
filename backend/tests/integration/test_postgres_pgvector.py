@@ -15,7 +15,7 @@ provides the pgvector service container, migrates it, then runs:
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -65,7 +65,7 @@ async def test_hnsw_index_exists_on_claim_embeddings() -> None:
     from app.db.postgres import async_session_maker
 
     async with async_session_maker() as db:
-        rows = (
+        rows: Sequence[str] = (
             await db.execute(
                 text("SELECT indexdef FROM pg_indexes WHERE tablename = 'claims'")
             )

@@ -89,6 +89,7 @@ class CollectionOrchestrator:
                 if articles_to_insert:
                     # 3. Bulk insert with ON CONFLICT DO NOTHING on url
                     # We deduplicate primarily by url.
+                    assert db.bind is not None
                     if db.bind.dialect.name == "sqlite":
                         stmt_sq = sqlite_insert(Article).values(articles_to_insert)
                         res = await db.execute(
