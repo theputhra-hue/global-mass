@@ -42,7 +42,7 @@ services:
       - key: NEO4J_PASSWORD
         value: ""
       - key: REDIS_URL
-        value: ""             # optional — leave empty to skip
+        sync: false           # required for auth, revocation and readiness
       - key: ANTHROPIC_API_KEY
         sync: false
     # Docker CMD runs alembic upgrade head before the single Uvicorn worker.
