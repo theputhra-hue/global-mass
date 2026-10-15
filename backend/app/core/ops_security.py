@@ -54,6 +54,7 @@ SENSITIVE_LIMITS: dict[str, tuple[int, int]] = {
     "/api/v1/evolution/graph/sync": (4, 60),
     "/api/v1/operations/recover": (4, 60),
     "/api/v1/publications/upload": (4, 60),
+    "/api/v1/developer/export": (4, 60),
     "/api/v1/developer/sources": (20, 60),
 }
 
@@ -118,6 +119,8 @@ def _limit_for(path: str) -> tuple[str, int, int, bool]:
     a small fixed set, so varying IDs or path suffixes cannot mint unlimited
     fresh buckets.
     """
+    if path.startswith("/api/v1/publications/") and path.endswith("/publish"):
+        return "/api/v1/publications/publish", 4, 60, True
     for prefix, (limit, window) in SENSITIVE_LIMITS.items():
         if path == prefix or path.startswith(prefix + "/"):
             return prefix, limit, window, True

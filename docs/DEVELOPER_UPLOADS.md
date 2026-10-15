@@ -2,11 +2,13 @@
 
 Route: `/#/dashboard/upload` after sign-in; administrators also see a Developer
 uploads link in Account. Current feature stores validated releases in PostgreSQL
-staging, separate from articles/claims. It does not activate them in public views.
+staging, separate from local articles/claims. The cloud deployment supports
+reviewed activation and rollback; the local server remains staging-only by
+default. See [the daily publishing workflow](CLOUD_PUBLISHING.md).
 
 ## Operator setup
 
-1. Rehearse additive migration gmee06 (after upstream gmee04 and gmee05) on an isolated database, take a backup,
+1. Rehearse additive migrations through gmee07 on an isolated database, take a backup,
    then migrate the target deployment through the normal release procedure.
 2. Set backend `DEVELOPER_UPLOAD_EMAILS` to a JSON list of the two approved
    addresses. Default `[]` disables all uploads. Never put the allowlist or

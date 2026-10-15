@@ -1,6 +1,8 @@
 # Companion plan: local AI, cloud published results
 
-Date: 2026-10-15. Status: first contract slice implemented; no hosting cutover. See [contract and inventory](PUBLICATION_CONTRACT.md).
+Updated: 2026-10-16. Status: manual export, review, atomic publication and a lightweight
+cloud read API are implemented and deployed. First live release approval is pending. See
+[daily workflow and hosting](CLOUD_PUBLISHING.md).
 
 ## Purpose and relationship to the original plan
 
@@ -19,17 +21,18 @@ publish API -> persistent cloud database -> existing Render frontend.
 Developer convenience slice: [website upload guide](DEVELOPER_UPLOADS.md).
 Local operator workspace: [developer console guide](DEVELOPER_CONSOLE.md).
 Authenticated email-allowlisted administrators can stage a validated JSON upload
-through the website. This is partial P03/P05 work: public activation and cloud
-data serving are still pending. No live migration/allowlist has been applied.
+through the website, review its provenance and explicitly publish it. Published
+reads are separate from the local analysis corpus. The fresh managed database
+has been migrated through gmee07; existing local source databases are unchanged.
 
 | ID | Status | Work | Acceptance |
 |---|---|---|---|
 | P01 | PARTIAL | Inventory the dashboard's required fields/endpoints; define a versioned publication format and public-data boundary | Article, claim, relationship and score exports include stable IDs, source references, analysis timestamps, model/config versions and run ID; credentials, sessions and private annotations are excluded |
-| P02 | PARTIAL | Separate cloud data serving from local AI execution; choose persistent free storage and verify current quotas | Cloud startup imports/downloads no AI models; required browsing endpoints run against an isolated published fixture within host limits |
-| P03 | OPEN | Implement authenticated, bounded upload batches with schema validation, checksums and idempotency | Repeating a batch creates no duplicates; conflicting payloads, unauthorized writes and invalid references are rejected; incomplete runs never become visible |
-| P04 | OPEN | Add local export/upload command and durable retry state | Upload after each completed analysis batch and reconcile at day end; an interrupted upload resumes safely; local data is retained until acknowledgement |
-| P05 | OPEN | Connect the frontend to published results and expose freshness/capabilities | Show last successful publication and analysis period; failed uploads preserve the previous complete release; unsupported interactive AI actions explain availability |
-| P06 | OPEN | Deploy, restore-test, and switch over | Validate data integrity, user journeys, backups, reboot behavior and rollback; website works with the PC and temporary tunnel switched off |
+| P02 | IMPLEMENTED | Standalone app.cloud with a minimal dependency lock, managed Neon PostgreSQL and Upstash Redis | Linux Docker readiness/authentication passed; observed memory after login about 109 MiB under a 384 MiB container cap; no AI libraries imported |
+| P03 | PARTIAL | Complete-file staging, review, idempotent atomic activation, concurrent-writer protection and rollback implemented | Chunked upload remains future work; complete release files are limited to 10 MiB |
+| P04 | PARTIAL | Local console exports a consistent read snapshot; the exact downloaded JSON is retained for manual retries | Automatic outbox synchronization and scheduling remain future work |
+| P05 | IMPLEMENTED | Published reader, saved claims, article details, relationships, provenance/freshness and explicit capability boundaries | Build, lint and frontend tests pass; public cutover verification remains P06 |
+| P06 | IN PROGRESS | Render API and frontend deployed on main; Neon/Upstash readiness, live developer login, comparison, staging and review passed | First draft contains 500 articles, 1,536 claims, 71 relationships. Developer approval, live activation and published corpus reads with the analysis PC disconnected remain |
 
 ## Publication rules
 
@@ -37,7 +40,9 @@ data serving are still pending. No live migration/allowlist has been applied.
   ID, then activate the release atomically after manifest/count checks pass.
 - Start with versioned snapshots if the measured corpus/storage budget permits;
   add incremental publication only when necessary. Define updates, deletions
-  and stable references explicitly before implementing synchronization.
+and stable references explicitly before implementing synchronization. The first
+implementation uses whole replacement files; partial daily files must not be
+mistaken for incremental updates.
 - Keep publishing credentials on the PC and server, never in the frontend.
   Separate publishing permission from ordinary user access; support rotation.
 - Preserve provenance and release hashes for paper experiments. A published
@@ -50,18 +55,20 @@ data serving are still pending. No live migration/allowlist has been applied.
 
 ## Hosting and rollout gates
 
-Keep the frontend at https://global-mass.onrender.com. Choose the lightweight
-API host and persistent database after measuring exported size and checking
-current free-tier limits; a cloud provider has not been selected for this track.
+The frontend is https://global-mass.onrender.com and the lightweight Render API
+is https://global-mass-api.onrender.com, backed by Neon PostgreSQL and Upstash
+Redis. Both Render services use main. Deployment and browser evidence is in
+[cloud publishing verification](CLOUD_PUBLISHING_VERIFICATION.md).
 Do not rely on ephemeral service files for published data or expiring trial
 databases for ongoing storage. Semantic search must either use a verified
 lightweight query-embedding option or be explicitly replaced by text search;
 do not silently claim feature parity.
 
-Develop and restore into isolated storage first. Leave the current local stack
-and working frontend connection intact until P06 passes. At cutover, take a
-fresh backup, publish a verified release, update frontend API/CORS/security
-headers, and retain the previous configuration for rollback. Keep encrypted
+Develop and restore into isolated storage first. The frontend API/CORS/security
+cutover is deployed; the original local source database is preserved and the
+isolated preview was backed up before its additive migration. Review the staged
+release before activation, then verify reads with local processing disconnected.
+Keep encrypted
 backups outside the cloud database and test restoring one.
 
 Suggested sequence: P01-P02 -> P03-P04 -> P05-P06. Allow approximately 3-5 working

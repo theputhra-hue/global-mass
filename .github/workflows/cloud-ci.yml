@@ -1,0 +1,22 @@
+name: Cloud publishing
+on:
+  push:
+    paths: ['backend/**', 'infra/scripts/check_cloud_runtime.py', 'render.cloud.yaml', '.github/workflows/cloud-ci.yml']
+  pull_request:
+    paths: ['backend/**', 'infra/scripts/check_cloud_runtime.py', 'render.cloud.yaml', '.github/workflows/cloud-ci.yml']
+permissions:
+  contents: read
+concurrency:
+  group: cloud-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  minimal-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r backend/requirements-cloud.lock
+      - run: python infra/scripts/check_cloud_runtime.py

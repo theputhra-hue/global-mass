@@ -70,6 +70,7 @@ publish PostgreSQL, Neo4j, Redis or the API to all interfaces.
 | `gmee04` | Migrated article vectors/HNSW and claim full-text/GIN search; preserves prior manually populated vectors. |
 | `gmee05` | Private investigation casebook snapshots and review revisions. |
 | `gmee06` | Validated developer publication uploads, staged separately from the public corpus. |
+| `gmee07` | Immutable published article/claim/link projections and an atomically switched release pointer; original corpus rows remain independent. |
 
 The unpublished local upload prototype previously used `gmee04` for a different
 table. Do not upgrade a database carrying that private revision blindly. Preserve

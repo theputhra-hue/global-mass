@@ -7,6 +7,7 @@ import { safeHttpUrl } from '../lib/urls';
 import { QueryError } from './QueryError';
 import { SignInNotice } from './SignInNotice';
 import { articleHref } from '../lib/articleRoutes';
+import { usePublicationRuntime } from '../lib/publicationRuntime';
 
 const ASSESSMENTS: Record<CorpusAssessment, string> = {
   SUPPORTED_BY_CORPUS: 'Supported by corpus',
@@ -144,6 +145,8 @@ function CheckForm({ initialClaim = '' }: { initialClaim?: string }) {
 
 export function ClaimCheck({ initialClaim = '' }: { initialClaim?: string }) {
   const { user, revision } = useSession();
+  const runtime = usePublicationRuntime();
+  if (runtime.mode === 'published') return <p className="card-brutal-dark p-6 text-sm">This page shows the saved assessment above. New AI evidence checks run on the analysis PC; no model is running in the cloud.</p>;
   return (
     <section aria-labelledby="claim-check-title" className="card-brutal-dark p-6 space-y-4">
       <h2 id="claim-check-title" className="font-display text-2xl flex items-center gap-2"><FileSearch className="w-5 h-5" /> Corpus Evidence Check</h2>

@@ -9,6 +9,7 @@ import { MutationComparator } from '../components/MutationComparator';
 import { articleHref, detailTabs, isUuid, navigateHash, parseArticleRoute, type DetailTab } from '../lib/articleRoutes';
 import { safeHttpUrl } from '../lib/urls';
 import { setSelectedArticle } from '../lib/useSelectedArticle';
+import { PublicationNotice } from '../lib/publicationRuntime';
 
 const tabs: Record<DetailTab, { name: string; help: string }> = {
   overview: { name: 'Overview', help: 'Start with the source, available text and recorded analysis.' },
@@ -104,6 +105,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
   return <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate">
     <div className="fixed inset-0 -z-10 pointer-events-none grain-overlay" aria-hidden="true" />
     <header className="border-b border-hermes-bone/15 px-4 md:px-8 py-5 flex flex-wrap items-center justify-between gap-4"><a href="#/dashboard" className="font-display text-3xl">GMEE <span className="font-mono text-[10px] tracking-widest uppercase ml-3 text-hermes-bone/65">Story investigation</span></a><div className="flex gap-3 flex-wrap items-center"><a href="#/dashboard/overview" className="btn-outline-dark">Advanced tools</a><AccountPanel /></div></header>
+    <PublicationNotice />
     <main className="p-4 md:p-8 space-y-6 min-w-0">
       <a href={back} className={`${linkStyle} text-xs inline-flex gap-2 items-center`}><ArrowLeft className="w-4 h-4" /> Back to results</a>
       {!valid ? <Empty>This article link is invalid. Return to the collection and open an article.</Empty> : <>

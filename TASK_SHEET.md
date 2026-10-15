@@ -420,7 +420,7 @@ This sheet is the current progress ledger. Earlier plans retain their design
 context; their original all-open checklists do not override the evidence here.
 
 - [Production plan and delivery constraints](docs/PRODUCTION_PLAN.md)
-- [Companion plan: local AI and cloud published results](docs/DATA_PUBLISHING_PLAN.md) — proposed deployment track; P01-P06 remain open.
+- [Companion plan: local AI and cloud published results](docs/DATA_PUBLISHING_PLAN.md) — cloud API and frontend deployed on 2026-10-16. Live readiness, developer login, comparison, upload and review passed. First 500-article draft remains private pending developer review/activation; P06 stays in progress. Chunked uploads, automatic synchronization and operational recovery work remain open. See [deployment evidence](docs/CLOUD_PUBLISHING_VERIFICATION.md).
 - [Target project structure and module contracts](docs/PROJECT_STRUCTURE.md)
 - [Original implementation backlog and safety/test matrix](docs/IMPLEMENTATION_BACKLOG.md)
 - [Research protocol and results ledger](docs/RESEARCH.md)
