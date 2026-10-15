@@ -17,7 +17,7 @@ from app.services.evolution import cluster_service
 from app.services.evolution.orchestrator import EvolutionOrchestrator
 
 
-def _db() -> Any:
+def _db() -> MagicMock:
     db = MagicMock()
 
     async def flush():
@@ -30,7 +30,7 @@ def _db() -> Any:
     return db
 
 
-def _claims() -> Any:
+def _claims() -> list[Claim]:
     return [
         Claim(id=uuid.UUID(int=1), claim_text="first", embedding=[1.0, 0.0]),
         Claim(id=uuid.UUID(int=2), claim_text="missing", embedding=None),
@@ -126,10 +126,11 @@ def test_fit_uses_versioned_parameters_and_supplied_embeddings_only(monkeypatch)
                 )
             )
 
-    bertopic: Any = ModuleType("bertopic")
-    bertopic.BERTopic = FakeTopicModel
-    umap: Any = ModuleType("umap")
-    umap.UMAP = MagicMock(return_value="fake_umap")
+    bertopic = ModuleType("bertopic")
+    monkeypatch.setattr(bertopic, "BERTopic", FakeTopicModel, raising=False)
+    umap = ModuleType("umap")
+    fake_umap = MagicMock(return_value="fake_umap")
+    monkeypatch.setattr(umap, "UMAP", fake_umap, raising=False)
     monkeypatch.setitem(sys.modules, "bertopic", bertopic)
     monkeypatch.setitem(sys.modules, "umap", umap)
     params = {
@@ -147,7 +148,7 @@ def test_fit_uses_versioned_parameters_and_supplied_embeddings_only(monkeypatch)
     assert captured["embeddings"].dtype == np.float32
     assert captured["bertopic"]["calculate_probabilities"] is False
     assert captured["bertopic"]["min_topic_size"] == 5
-    assert umap.UMAP.call_args.kwargs["random_state"] == 42
+    assert fake_umap.call_args.kwargs["random_state"] == 42
 
 
 @pytest.mark.asyncio
@@ -179,28 +180,28 @@ async def test_orchestrator_counts_embedded_claims_and_syncs_noise_and_missing_c
     db.scalar = AsyncMock(return_value=40)
     db.execute = AsyncMock(side_effect=results)
     db.commit, db.refresh = AsyncMock(), AsyncMock()
-    orchestrator.cluster_service.run_clustering = AsyncMock(
-        return_value=ClaimClusterRun(id=uuid.UUID(int=200), claims_in_corpus=1)
-    )
-    orchestrator.mutation_detector.run_mutation_detection = AsyncMock(return_value=[])
-    orchestrator.neo4j_writer.sync_to_graph = AsyncMock(return_value=True)
-    summary = await orchestrator.run_evolution_cycle(db, force=True)
-    assert summary["status"] == "success"
-    run = orchestrator.cluster_service.run_clustering.return_value
+    cluster_mock = AsyncMock(return_value=ClaimClusterRun(id=uuid.UUID(int=200), claims_in_corpus=1))
+    monkeypatch.setattr(orchestrator.cluster_service, "run_clustering", cluster_mock)
+    monkeypatch.setattr(orchestrator.mutation_detector, "run_mutation_detection", AsyncMock(return_value=[]))
+    graph_mock = AsyncMock(return_value=True)
+    monkeypatch.setattr(orchestrator.neo4j_writer, "sync_to_graph", graph_mock)
+    outcome = await orchestrator.run_evolution_cycle(db, force=True)
+    assert outcome["status"] == "success"
+    run = cluster_mock.return_value
     assert run.algorithm_params["mutation_algorithm_version"]
     assert run.algorithm_params["text_change_algorithm_version"]
     assert run.algorithm_params["mutation_max_lag_days"] == 30
     assert run.algorithm_params["mutation_candidate_limit"] == 50
     assert "embedding IS NOT NULL" in str(db.scalar.await_args.args[0])
-    assert orchestrator.neo4j_writer.sync_to_graph.call_args.kwargs[
+    assert graph_mock.call_args.kwargs[
         "evaluated_claim_ids"
     ] == {c.id for c in claims}
     db.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_historical_algorithm_does_not_debounce_typed_upgrade_indefinitely():
-    orchestrator: Any = EvolutionOrchestrator()
+async def test_historical_algorithm_does_not_debounce_typed_upgrade_indefinitely(monkeypatch):
+    orchestrator = EvolutionOrchestrator()
     db = MagicMock()
     db.scalar = AsyncMock(
         side_effect=[
@@ -215,14 +216,14 @@ async def test_historical_algorithm_does_not_debounce_typed_upgrade_indefinitely
     empty.scalars.return_value.all.return_value = []
     db.execute = AsyncMock(return_value=empty)
     db.commit, db.refresh = AsyncMock(), AsyncMock()
-    orchestrator.cluster_service.run_clustering = AsyncMock(
-        return_value=ClaimClusterRun(id=uuid.UUID(int=200), claims_in_corpus=40)
-    )
-    orchestrator.mutation_detector.run_mutation_detection = AsyncMock(return_value=[])
-    orchestrator.neo4j_writer.sync_to_graph = AsyncMock(return_value=True)
-    summary = await orchestrator.run_evolution_cycle(db)
-    assert summary["status"] == "success"
-    orchestrator.cluster_service.run_clustering.assert_awaited_once()
+    cluster_mock = AsyncMock(return_value=ClaimClusterRun(id=uuid.UUID(int=200), claims_in_corpus=40))
+    monkeypatch.setattr(orchestrator.cluster_service, "run_clustering", cluster_mock)
+    monkeypatch.setattr(orchestrator.mutation_detector, "run_mutation_detection", AsyncMock(return_value=[]))
+    graph_mock = AsyncMock(return_value=True)
+    monkeypatch.setattr(orchestrator.neo4j_writer, "sync_to_graph", graph_mock)
+    result = await orchestrator.run_evolution_cycle(db)
+    assert result["status"] == "success"
+    cluster_mock.assert_awaited_once()
     # The old all-claims corpus count exceeds the embedded count, but an
     # algorithm upgrade still reconciles old mutation semantics once.
     assert db.scalar.await_count == 2

@@ -1,0 +1,93 @@
+{
+  "created_at_utc": "2026-10-15T16:40:35.039042+00:00",
+  "repository": "https://github.com/theputhra-hue/global-mass.git",
+  "upstream_commit": "8d8ff3c14c17b155b27dc15a40b634bd67460794",
+  "archive_base": "b4893083dfcef2c2a9e246d019236ca8ebaf2a93",
+  "integration_branch": "codex/major-project-integration",
+  "backend_offline": {
+    "tests": 591,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "evidence": "integration-backend-unit.xml",
+    "coverage_percent": 83.77,
+    "deselected_integration_model": 16,
+    "sqlite_test_deprecation_warnings": 12
+  },
+  "frontend": {
+    "tests": 159,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "evidence": "integration-frontend.xml",
+    "files": 29,
+    "lint": "passed",
+    "production_build": "passed",
+    "test_typescript": "passed",
+    "coverage": {
+      "lines": 90.6,
+      "statements": 85.8,
+      "branches": 76.24,
+      "functions": 78.36
+    }
+  },
+  "strict_mypy": {
+    "source_files": 180,
+    "result": "passed"
+  },
+  "ruff": "passed",
+  "infrastructure": {
+    "offline_tests": 23,
+    "powershell_ast_files": 8,
+    "compose_dockerfile_proxy_ci_render_markdown": "passed"
+  },
+  "npm_audit": {
+    "full_findings": 0,
+    "production_findings": 0
+  },
+  "preservation": {
+    "upstream_added_files_retained": 16,
+    "protected_unchanged_files": [
+      "backend/app/api/v1/health.py",
+      "backend/scripts/serve_local.py",
+      "backend/scripts/prepare_local_models.py",
+      "backend/tests/test_health.py",
+      "backend/tests/test_local_hosting.py",
+      "infra/scripts/start_local_backend.ps1",
+      "infra/scripts/start_demo_tunnel.ps1",
+      "render.yaml",
+      "_ui_sweep.ps1",
+      "docs/IMPLEMENTATION_BACKLOG.md",
+      "docs/PRODUCTION_PLAN.md",
+      "docs/PROJECT_STRUCTURE.md"
+    ],
+    "deleted_upstream_files": 0,
+    "original_archive_unchanged": true,
+    "live_databases_modified": false,
+    "remote_push": false
+  },
+  "preview": {
+    "url": "http://localhost:4174/#/project",
+    "read_only": true,
+    "real_control_passes": 12,
+    "lexical_baseline_passes": 9,
+    "research_gold": false,
+    "http_checks": "passed",
+    "browser_checks": [
+      "actual controls and span selection",
+      "anonymous advanced route redirects to signin"
+    ],
+    "screenshot": "integration-project-lab.jpg"
+  },
+  "schema": {
+    "head": "gmee05",
+    "heads": 1,
+    "live_migration": "not attempted"
+  },
+  "pending": [
+    "real PostgreSQL migration and integration cases after Docker recovery",
+    "production-image HTTP smoke and authenticated full-stack browser validation",
+    "fresh real pretrained model smoke on merged checkout",
+    "independent human benchmark and held-out research experiments"
+  ]
+}

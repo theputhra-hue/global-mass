@@ -13,7 +13,10 @@ on:
       - 'ARCHITECTURE.md'
       - 'CHANGELOG.md'
       - 'verify_endpoints.ps1'
-      - '_ui_sweep.ps1'
+      - 'scripts/**'
+      - 'Start-GMEE.bat'
+      - 'Start-Preview.bat'
+      - 'START-HERE.md'
   pull_request:
     paths:
       - 'backend/**'
@@ -26,7 +29,10 @@ on:
       - 'ARCHITECTURE.md'
       - 'CHANGELOG.md'
       - 'verify_endpoints.ps1'
-      - '_ui_sweep.ps1'
+      - 'scripts/**'
+      - 'Start-GMEE.bat'
+      - 'Start-Preview.bat'
+      - 'START-HERE.md'
 
 permissions:
   contents: read
@@ -49,7 +55,7 @@ jobs:
       - name: Static deployment contracts (no runtime secrets or containers)
         run: python infra/scripts/validate_deployment.py
       - name: Lint infrastructure and backup scripts
-        run: ruff check --config backend/pyproject.toml backend/scripts/backup_database.py infra/scripts/*.py infra/tests/*.py
+        run: ruff check --config backend/pyproject.toml backend/scripts/backup_database.py scripts/preview-project.py infra/scripts/*.py infra/tests/*.py
       - name: Offline infrastructure safety tests
         run: python -m unittest discover -s infra/tests -v
 

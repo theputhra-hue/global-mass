@@ -5,7 +5,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db_session, get_redis_client
-from app.core.ops_security import record_audit
+from app.core.ops_security import client_ip, record_audit
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
@@ -42,7 +42,7 @@ async def login(
     db: AsyncSession = Depends(get_db_session),
     redis: Redis = Depends(get_redis_client)
 ) -> Any:
-    ip = request.client.host if request.client else "unknown"
+    ip = client_ip(request)
     device_info = request.headers.get("user-agent")
     result = await authenticate_user(db, redis, login_in, ip, device_info)
     await record_audit(

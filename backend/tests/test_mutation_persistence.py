@@ -23,7 +23,7 @@ from app.services.evolution.text_changes import analyze_text_change
 NOW = datetime(2026, 9, 20, tzinfo=UTC)
 
 
-def _database_uuid(n) -> Any:
+def _database_uuid(n) -> uuid.UUID:
     # SQLite gives native UUID columns NUMERIC affinity. An all-digit UUID
     # would round-trip as an integer instead of text; use deterministic hex.
     return uuid.UUID(f"abcdef00-0000-0000-0000-{n:012x}")

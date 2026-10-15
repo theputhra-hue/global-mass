@@ -1,0 +1,52 @@
+{
+  "backend_unit": {
+    "tests": 567,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "evidence": "backend-unit.xml",
+    "coverage_percent": 84.27
+  },
+  "postgres_integration": {
+    "tests": 10,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "evidence": "integration.xml"
+  },
+  "pretrained_models": {
+    "tests": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "evidence": "models.xml"
+  },
+  "frontend": {
+    "tests": 132,
+    "files": 22,
+    "lint": "passed",
+    "production_build": "passed",
+    "line_coverage_percent": 91.02,
+    "branch_coverage_percent": 75.81,
+    "evidence": "../../../frontend/SECURITY_REVIEW.md"
+  },
+  "infrastructure": {
+    "offline_tests": 20,
+    "powershell_parse_files": 5,
+    "result": "passed"
+  },
+  "dependencies": {
+    "full_findings": 5,
+    "production_findings": 0,
+    "remaining_root_advisory": "GHSA-vfj7-8cjw-p6xm",
+    "patched_version_available": false
+  },
+  "pending": [
+    "final production nginx/HTTP smoke",
+    "updated app replacement and authenticated browser E2E",
+    "final complete mypy app tests scripts rerun",
+    "fixture cleanup after Docker engine recovery",
+    "independent human benchmark and held-out publication experiments"
+  ],
+  "environment_blocker": "Docker Desktop engine unavailable; normal bounded restart failed; WSL inventory stalled. No factory reset or user-volume removal performed."
+}

@@ -26,6 +26,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from spacy.language import Language
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import text
@@ -50,8 +52,8 @@ ALL_ANNOTATORS = {ANNOTATOR_NLI, ANNOTATOR_ENTITY, ANNOTATOR_LEXICAL}
 # Signal 1: NLI stance (FLAN-T5-base)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_nli_tok = None
-_nli_mdl = None
+_nli_tok: Any = None
+_nli_mdl: Any = None
 
 
 def _load_nli() -> tuple[Any, Any]:
@@ -107,10 +109,10 @@ def nli_label(text_a: str, text_b: str) -> str:
 # Signal 2: Named-entity overlap (spaCy)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_spacy_nlp = None
+_spacy_nlp: Language | None = None
 
 
-def _load_spacy() -> Any:
+def _load_spacy() -> Language:
     global _spacy_nlp
     if _spacy_nlp is None:
         import spacy

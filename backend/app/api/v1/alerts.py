@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, require_role
@@ -144,18 +144,21 @@ async def acknowledge_alert(
     """Operator ack; idempotent so the first acknowledgement time wins."""
     from app.models.evolution import Alert
 
-    alert = (await db.execute(select(Alert).where(Alert.id == alert_id))).scalar_one_or_none()
-    if alert is None:
-        raise HTTPException(status_code=404, detail="alert not found")
-
-    acked_at = alert.acknowledged_at
+    # COALESCE is evaluated inside the row update, so concurrent administrators
+    # cannot overwrite the timestamp chosen by the first acknowledgement.
+    acked_at = (await db.execute(
+        update(Alert)
+        .where(Alert.id == alert_id)
+        .values(acknowledged_at=func.coalesce(Alert.acknowledged_at, datetime.now(UTC)))
+        .returning(Alert.acknowledged_at)
+        .execution_options(synchronize_session=False)
+    )).scalar_one_or_none()
     if acked_at is None:
-        acked_at = datetime.now(UTC)
-        alert.acknowledged_at = acked_at
-        await db.commit()
+        raise HTTPException(status_code=404, detail="alert not found")
+    await db.commit()
 
     return {
         "status": "acknowledged",
-        "alert_id": str(alert.id),
+        "alert_id": str(alert_id),
         "acknowledged_at": _iso(acked_at),
     }

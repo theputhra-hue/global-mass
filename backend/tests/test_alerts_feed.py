@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from sqlalchemy import select, text
 
 from app.models.evolution import Alert
-from app.services.alerts import evaluate_alerts
+from app.services.alerts import _upsert_alert, evaluate_alerts
 
 
 async def _seed_alert(
@@ -162,3 +162,33 @@ async def test_evaluate_persists_then_deduplicates(async_client, db_session):
     assert item["severity"] == "INFO"
     assert item["claim_id"] is not None
     assert item["payload"]["corroboration"] == 0.8
+    assert item["payload"]["score_kind"] == "legacy_unverified"
+    assert item["title"].startswith("Legacy corroboration signal")
+    assert "independently verify" in item["payload"]["warning"]
+
+
+async def test_delayed_alert_evaluation_preserves_newer_observation_and_first_ack(db_session):
+    now = datetime.now(UTC)
+    condition = {
+        "kind": "MUTATION", "subject_key": "edge:concurrent-fixture",
+        "severity": "WARNING", "title": "Original condition", "body": "original",
+        "claim_id": None, "payload": {"observation": 1},
+    }
+    assert await _upsert_alert(db_session, condition, now)
+    await db_session.commit()
+    alert = (await db_session.scalars(select(Alert))).one()
+    alert_id = alert.id
+    alert.acknowledged_at = now
+    await db_session.commit()
+
+    newer = {**condition, "title": "Latest condition", "payload": {"observation": 2}}
+    assert not await _upsert_alert(db_session, newer, now + timedelta(minutes=2))
+    assert not await _upsert_alert(db_session, condition, now + timedelta(minutes=1))
+    await db_session.commit()
+    await db_session.refresh(alert)
+    assert alert.id == alert_id
+    assert alert.title == "Latest condition"
+    assert alert.payload == {"observation": 2}
+    assert alert.first_seen_at.replace(tzinfo=UTC) == now
+    assert alert.last_seen_at.replace(tzinfo=UTC) == now + timedelta(minutes=2)
+    assert alert.acknowledged_at.replace(tzinfo=UTC) == now

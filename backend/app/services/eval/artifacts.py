@@ -41,6 +41,9 @@ def line_svg(title: str, x_label: str, y_label: str, series: list[tuple[str, lis
             f'<path d="M 700 {85 + i * 34} H 720" stroke="{color}" stroke-width="3"/>',
             f'<text x="726" y="{90 + i * 34}" font-family="sans-serif" font-size="11">{escape(name)}</text>',
         ])
+        # A constant-confidence model can have one attainable coverage/bin.
+        # A polyline alone makes that valid observation invisible.
+        lines.extend(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="3" fill="{color}"/>' for x, y in (xy(a, b) for a, b in points))
     lines.extend([
         f'<text x="{left + plot_width / 2}" y="555" text-anchor="middle" font-family="sans-serif" font-size="16">{escape(x_label)}</text>',
         f'<text transform="translate(24 {top + plot_height / 2}) rotate(-90)" text-anchor="middle" font-family="sans-serif" font-size="16">{escape(y_label)}</text>',
@@ -69,12 +72,19 @@ def markdown_report(report: dict[str, Any]) -> str:
     ]
     for split, support in report["validation"]["support"].items():
         lines.append(f"| {split} | {support['pairs']} | {support['positive']} | {support['negative']} | {support['events']} | {support['independent_groups']} |")
-    lines.extend(["", "## Untouched test results", "", "| Method | Score kind | Dev threshold | Precision | Recall | F1 | AUPRC (AP) | AUROC | Brier | ECE |", "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"])
+    lines.extend(["", "## Untouched test results", "", "| Method | Score kind | Dev threshold | Precision | Recall | F1 | AUPRC (AP) | AUROC | Brier | ECE | Log loss |", "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"])
     for name, method in report["methods"].items():
         metrics = method["test"]
-        values = " | ".join(_number(metrics[key]) for key in ("precision", "recall", "f1", "auprc", "auroc", "brier", "ece"))
+        values = " | ".join(_number(metrics[key]) for key in ("precision", "recall", "f1", "auprc", "auroc", "brier", "ece", "log_loss"))
         lines.append(f"| {name} | {method['score_kind']} | {_number(method['threshold'])} | {values} |")
-    lines.extend(["", "Brier/ECE and reliability curves are provided only for explicitly train-calibrated probabilities. AUPRC is non-interpolated average precision and depends on prevalence.", "", "## Paired connected-group bootstrap differences", "", "Differences are A minus B using frozen dev thresholds and identical test component resamples. Intervals are descriptive, not multiple-comparison-corrected significance claims.", "", "| A | B | Metric | Observed difference | 95% CI |", "|---|---|---|---:|---|"])
+    lines.extend(["", "Brier/ECE/log loss and reliability curves are provided only for explicitly train-calibrated probabilities. Log loss uses natural logarithms and clips probabilities to [1e-15, 1-1e-15]. AUPRC is non-interpolated average precision and depends on prevalence.", "", "## Selective relatedness", "", "The confidence cutoff maximizes dev coverage subject to the configured empirical dev error and minimum support. The cutoff is then frozen. This is not a statistical risk guarantee: test risk may exceed the dev target. No qualifying dev point means abstain on all test pairs; risk at zero retained pairs is N/A.", "", "| Method | Dev confidence cutoff | Dev retained | Dev risk | Test coverage | Test retained | Test risk | Test AURC |", "|---|---:|---:|---:|---:|---:|---:|---:|"])
+    for name, method in report["methods"].items():
+        selective = method["selective_evaluation"]
+        if selective["status"] != "evaluated":
+            continue
+        policy, point = selective["policy"], selective["test_operating_point"]
+        lines.append(f"| {name} | {_number(policy['min_confidence'])} | {policy['dev_retained']} | {_number(policy['dev_risk'])} | {_number(point['coverage'])} | {point['retained']} | {_number(point['risk'])} | {_number(selective['test_risk_coverage']['aurc'])} |")
+    lines.extend(["", "Confidence is the probability of the class predicted at the frozen relatedness decision threshold. Confidence ties enter together; AURC is a right-endpoint step integral over attainable coverage. The test curve is descriptive and never selects a cutoff. Raw cosine/TF-IDF are excluded because they are not class probabilities.", "", "## Paired connected-group bootstrap differences", "", "Differences are A minus B using frozen dev thresholds and identical test component resamples. Intervals are descriptive, not multiple-comparison-corrected significance claims.", "", "| A | B | Metric | Observed difference | 95% CI |", "|---|---|---|---:|---|"])
     bootstrap = report["grouped_bootstrap"]
     for comparison in bootstrap["comparisons"]:
         for metric, result in comparison["metrics"].items():
@@ -90,7 +100,11 @@ def markdown_report(report: dict[str, Any]) -> str:
         lines.extend(["", mutation["macro_f1_definition"], "", mutation["warning"]])
     else:
         lines.append(mutation["reason"])
-    lines.extend(["", "## Graphs", "", "![Test precision–recall](pr.svg)", "", "![Dev-only F1 threshold selection](f1.svg)", "", "![Test reliability of calibrated probabilities](reliability.svg)", "", "## Reproducibility", "", "`report.json` records versions, seeds, configuration, membership, fitted-state and source hashes. `model_states.json` records fitted vocabulary/IDF, scaling and logistic/calibrator parameters. `pair_predictions.json`/`.csv` include every pair/model prediction and IDs. `manifest.json` hashes all output artifacts. Error analysis is in `report.json`.", "", "## Limitations", ""])
+    spans, context = report["grounding_evaluation"]["changed_spans"], report["grounding_evaluation"]["context_relation"]
+    lines.extend(["", "## Independent changed-span and contextual evaluation", "", "| Target | Gold test pairs | Evaluated | Missing prediction | Unannotated test pairs |", "|---|---:|---:|---:|---:|"])
+    for name, target in (("Typed changed spans", spans), ("Context relation", context)):
+        lines.append(f"| {name} | {target['n_gold_pairs']} | {target['n_evaluated_pairs']} | {target['missing_prediction_pairs']} | {target['unannotated_test_pairs']} |")
+    lines.extend(["", f"Exact typed-span micro F1: {_number(spans['exact_typed_span_micro']['f1'])}; typed-character micro F1: {_number(spans['typed_character_micro']['f1'])}; exact span-set accuracy: {_number(spans['exact_set_accuracy'])}.", "", spans["definition"], "", spans["warning"], "", f"Context accuracy: {_number(context['accuracy'])}; macro F1: {_number(context['macro_f1'])}. {context['macro_f1_definition']}.", "", context["warning"], "", "Context confusion/per-class support, explicit category mapping and pair-level span/context errors are in `report.json`. Missing targets/predictions are unavailable, never synthesized from relatedness labels.", "", "## Graphs", "", "![Test precision–recall](pr.svg)", "", "![Dev-only F1 threshold selection](f1.svg)", "", "![Test reliability of calibrated probabilities](reliability.svg)", "", "![Descriptive test risk versus attainable coverage](risk_coverage.svg)", "", "## Reproducibility", "", "`report.json` records versions, seeds, configuration, membership, fitted-state and source hashes. `model_states.json` records fitted vocabulary/IDF, scaling and logistic/calibrator parameters. `pair_predictions.json`/`.csv` include every pair/model prediction, selective acceptance, span/context targets and IDs. `manifest.json` hashes all output artifacts. Error analysis is in `report.json`.", "", "## Limitations", ""])
     lines.extend(f"- {warning}" for warning in report["warnings"])
     lines.extend(["", "## Versions", "", "```json", json.dumps(report["versions"], sort_keys=True, indent=2), "```", ""])
     return "\n".join(lines)
@@ -98,16 +112,15 @@ def markdown_report(report: dict[str, Any]) -> str:
 
 def _csv_predictions(predictions: list[dict[str, Any]]) -> str:
     output = io.StringIO(newline="")
-    columns = ["dataset_version", "pair_id", "event_id", "split", "claim_a_id", "claim_b_id", "article_a_id", "article_b_id", "text_a", "text_b", "gold_label", "gold_relatedness", "model", "score", "score_kind", "probability", "dev_threshold", "predicted_relatedness", "correct", "gold_mutation_types", "predicted_mutation_types", "human_user_ids"]
+    columns = ["dataset_version", "pair_id", "event_id", "split", "claim_a_id", "claim_b_id", "article_a_id", "article_b_id", "text_a", "text_b", "gold_label", "gold_relatedness", "model", "score", "score_kind", "probability", "dev_threshold", "predicted_relatedness", "correct", "gold_mutation_types", "predicted_mutation_types", "gold_changed_spans", "predicted_changed_spans", "gold_context_relation", "predicted_context_relation", "predicted_class_confidence", "selective_accepted", "human_user_ids"]
     writer = csv.DictWriter(output, fieldnames=columns, lineterminator="\n")
     writer.writeheader()
     for prediction in predictions:
         row = {key: prediction.get(key) for key in columns}
-        for key in ("gold_mutation_types", "predicted_mutation_types", "human_user_ids"):
+        for key in ("gold_mutation_types", "predicted_mutation_types", "gold_changed_spans", "predicted_changed_spans", "human_user_ids"):
             row[key] = canonical_json(row[key]) if row[key] is not None else ""
         # Spreadsheet formulas are not part of a claim's text; CSV keeps them inert.
-        for key in ("text_a", "text_b", "event_id", "dataset_version", "pair_id"):
-            value = row[key]
+        for key, value in row.items():
             if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
                 row[key] = "'" + value
         writer.writerow(row)
@@ -117,12 +130,14 @@ def _csv_predictions(predictions: list[dict[str, Any]]) -> str:
 def write_artifacts(report: dict[str, Any], predictions: list[dict[str, Any]], states: dict[str, Any], output_dir: Path) -> dict[str, Any]:
     if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
         raise DatasetError(f"Output directory {output_dir} is not empty; choose a new directory to preserve previous results")
-    pr, f1, reliability = [], [], [("ideal calibration", [(0.0, 0.0), (1.0, 1.0)])]
+    pr, f1, risk = [], [], []
+    reliability = [("ideal calibration", [(0.0, 0.0), (1.0, 1.0)])]
     for name, method in report["methods"].items():
         pr.append((name, [(0.0, 1.0)] + [(p["recall"], p["precision"]) for p in method["test_pr_curve"]]))
         f1.append((name, sorted((p["threshold"], p["f1"]) for p in method["dev_pr_curve"])))
         if method["score_kind"] == "calibrated_probability":
             reliability.append((name, [(p["mean_score"], p["empirical_rate"]) for p in method["test_reliability"]]))
+            risk.append((name, [(p["coverage"], p["risk"]) for p in method["selective_evaluation"]["test_risk_coverage"]["points"]]))
     content = {
         "pair_predictions.json": json.dumps(predictions, sort_keys=True, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
         "pair_predictions.csv": _csv_predictions(predictions),
@@ -130,6 +145,7 @@ def write_artifacts(report: dict[str, Any], predictions: list[dict[str, Any]], s
         "pr.svg": line_svg("Untouched test precision–recall", "Recall", "Precision", pr),
         "f1.svg": line_svg("Dev-only threshold selection (not a test sweep)", "Decision threshold (raw score or calibrated probability)", "Dev F1", f1, (-1.0, 1.0)),
         "reliability.svg": line_svg("Untouched test: calibrated probabilities only", "Mean calibrated probability", "Empirical relatedness rate", reliability),
+        "risk_coverage.svg": line_svg("Test risk–coverage (diagnostic; cutoff selected on dev)", "Attainable coverage (confidence ties retained together)", "Empirical error among retained predictions", risk),
     }
     report["artifact_sha256"] = {name: hashlib.sha256(value.encode("utf-8")).hexdigest() for name, value in sorted(content.items())}
     content["report.json"] = json.dumps(report, sort_keys=True, ensure_ascii=False, indent=2, allow_nan=False) + "\n"

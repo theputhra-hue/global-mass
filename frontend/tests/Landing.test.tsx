@@ -4,6 +4,15 @@ import { Landing } from '../src/pages/Landing';
 import { emptyDashboardApi, jsonResponse, mockApi, renderWithClient, zeroDashboard, signInFixture } from './helpers';
 
 describe('honest landing statistics', () => {
+  it('keeps signed-out visitors on sign-in links without fetching corpus data', () => {
+    const fetch = mockApi(() => { throw new Error('Anonymous landing must not fetch private workspace data'); });
+    renderWithClient(<Landing />);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(screen.getByText('Sign in to view articles and live corpus data.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Sign in to explore' }).getAttribute('href')).toBe('#/signin');
+    expect(screen.queryByText('Connecting to real dashboard metrics…')).toBeNull();
+    expect(within(screen.getByText('claims indexed').parentElement!).getByText('—')).toBeTruthy();
+  });
   it('renders real zero counts without fabricated hero fallback counts', async () => {
     mockApi(emptyDashboardApi);
     signInFixture();

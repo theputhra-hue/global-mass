@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+@source "../";
 
 /* ------------------------------ Design tokens ----------------------------- */
 :root {
@@ -14,6 +14,8 @@
 }
 
 @layer base {
+  /* Preserve v3's neutral default border for elements without an explicit color. */
+  *, ::before, ::after, ::backdrop { border-color: #e5e7eb; }
   html {
     background: var(--hermes-paper);
   }
@@ -109,6 +111,14 @@
 
   .workspace-tab[aria-current='page'] {
     @apply border-l-hermes-red-bright bg-hermes-panel text-hermes-red-bright;
+  }
+
+  .card-brutal-dark .btn-ghost-brutal {
+    @apply text-hermes-bone border-hermes-bone/30 hover:border-hermes-bone/60 hover:bg-hermes-bone/5;
+  }
+
+  .card-brutal-dark .chip-brutal {
+    @apply border-hermes-bone/30;
   }
 
   /* Fractal noise grain — now a red-tinted film grain */

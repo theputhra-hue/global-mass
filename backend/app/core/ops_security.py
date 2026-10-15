@@ -57,7 +57,7 @@ SENSITIVE_LIMITS: dict[str, tuple[int, int]] = {
 # Mounted router prefixes (see app/main.py). Anything else shares "other".
 _ROUTER_FAMILIES = frozenset({
     "alerts", "auth", "collection", "corpus", "dashboard", "eval", "evolution",
-    "graph", "health", "nlp", "operations", "preprocessing", "verdicts",
+    "graph", "health", "nlp", "operations", "preprocessing", "verdicts", "casebook", "project",
 })
 
 
@@ -256,4 +256,7 @@ async def record_audit(
         )
         await db.commit()
     except Exception as exc:
+        # An unavailable audit table must not leave the request's shared session
+        # in PostgreSQL's failed-transaction state for its next operation.
+        await db.rollback()
         logger.warning("audit log write failed: %s", exc)

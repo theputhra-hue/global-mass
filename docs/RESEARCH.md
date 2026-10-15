@@ -209,10 +209,108 @@ successes. No unperformed experiment gets a placeholder metric.
 | Capacity/load and disaster-recovery measurements | **UNPERFORMED** | Static checks and mocked backup tests only |
 | Historical automatic-label report | **EXPLORATORY** | Retained artifact; not human gold or proof of novelty |
 
-### Starting literature pointers (not a novelty comparison)
+## Primary literature comparison (checked 15 October 2026)
 
-Sentence-BERT ([Reimers & Gurevych, 2019](https://arxiv.org/abs/1908.10084)),
-probability calibration ([Guo et al., 2017](https://arxiv.org/abs/1706.04599)) and
-FEVER ([Thorne et al., 2018](https://arxiv.org/abs/1803.05355)) provide relevant
-retrieval/calibration/evidence tasks. A current literature review and direct
-comparisons against appropriate temporal claim-change systems remain necessary.
+This is a focused comparison against original papers, not an exhaustive
+systematic review or a claim that no overlapping system exists. The GMEE gaps
+below are our assessment of the implementation; the papers establish the prior
+tasks/methods. Their reported numbers are not comparable to GMEE without the
+same dataset, label definition, retrieval universe and scorer.
+
+| Prior work | What already exists | Consequence for the proposed contribution |
+|---|---|---|
+| [Magomere et al., *When Claims Evolve*, ACL Findings 2025](https://aclanthology.org/2025.findings-acl.1150/) | Edited-claim retrieval evaluation, embedding robustness, reranking and train/inference mitigation. | Closest overlap: “tracking changed claims using embeddings” is insufficient novelty. Compare edit categories and retrieval failures; evaluate human-grounded quantity equivalence and correction/context distinctions on natural event histories. A synthetic perturbation check is a separate stress test, not natural-history gold. |
+| [Allein et al., *Implicit Temporal Reasoning for Evidence-Based Fact-Checking*, EACL Findings 2023](https://aclanthology.org/2023.findings-eacl.13/) | Shared timelines use publication dates and textual time expressions in evidence-based verification. | Timestamps/temporal edges alone are not a new method. Compare explicit event/time constraints with unconstrained matching and retain ambiguous chronology. GMEE's current pair evaluator does not establish temporal reasoning performance. |
+| [Chen et al., *Complex Claim Verification with Evidence Retrieved in the Wild*, NAACL 2024](https://aclanthology.org/2024.naacl-long.196/) | Decomposition, web retrieval, evidence selection and verification restricted to pre-claim documents. | Prevent future-evidence leakage when making emerging-claim claims. GMEE's current revision-bound evidence is traceable but is not automatically a historical evidence snapshot predating the claim. |
+| [Glockner et al., *AmbiFC*, TACL 2024](https://aclanthology.org/2024.tacl-1.1/) | Fine-grained passage annotations and ambiguity-related annotator disagreement. | Preserving dissent and insufficient context is methodologically useful but not novel by itself. Measure context errors and annotation disagreement; never turn unresolved labels into unanimous gold. |
+| [Akhtar et al., *2nd AVeriTeC Shared Task*, FEVER 2025](https://aclanthology.org/2025.fever-1.15/) | Open-weight, reproducible evidence/verdict systems under a specified single-GPU runtime budget and knowledge store. | “Local models + retrieval + evidence” is not a research contribution alone. Measure quality/cost and use the official task scorer for a task claim; a local stance score is not an AVeriTeC score. |
+| [Strong and Vlachos, *TSVer*, EMNLP 2025](https://aclanthology.org/2025.emnlp-main.1519/) | Numerical/temporal verification grounded in time-series evidence and justifications. | Distinguish GMEE's text-level quantity normalization from verification against external numerical evidence. Typed span agreement cannot establish factual numeric correctness. |
+| [Dey et al., *Temporal Fact Conflicts in LLMs*, March 2026 preprint](https://arxiv.org/abs/2603.15892) | Reproduces temporal-conflict studies across DYNAMICQA/MULAN and investigates dataset/metric/model-size dependence. | A recent reproducibility warning, not a peer-reviewed superiority benchmark: report cross-event sensitivity and exact task definitions. Do not imply this LLM-memory task is identical to news-pair analysis. |
+| [Upravitelev et al., *Take It All*, FEVER 2026](https://aclanthology.org/2026.fever-1.7/) | Multimodal evidence aggregation with runtime/performance ablations. | A current adjacent efficiency reference; GMEE is text-only. Adding image support is optional scope, not a prerequisite for publishing a focused textual contribution. |
+
+Calibration and selective prediction are established methodology:
+[Guo et al. (2017)](https://proceedings.mlr.press/v70/guo17a.html) studies
+probability calibration, and [Geifman and El-Yaniv (2019)](https://proceedings.mlr.press/v97/geifman19a.html)
+jointly optimize prediction and rejection. GMEE implements a simpler post-hoc,
+empirically dev-selected rejection policy. It does **not** implement SelectiveNet,
+conformal risk control, or a distribution-free error guarantee.
+
+**Defensible candidate paper:** a reproducible benchmark and modest method for
+quantity/context-aware change triage on independently annotated natural news
+claim pairs. The research question is whether inspectable spans and normalized
+quantities reduce false mutation alarms from equivalent units, paraphrases and
+legitimate updates, at useful coverage on unseen events. This remains a
+hypothesis: the present rule-based context mapping cannot independently decide
+incompatibility or unrelatedness, and external source cues remain unverified.
+No new algorithmic or empirical superiority claim is supported yet.
+
+## Implemented experiment protocol v2
+
+`backend/scripts/run_research_experiment.py` accepts only an immutable exported
+human-gold JSONL snapshot. It fits character TF-IDF, stored-cosine sigmoid
+calibration and group-calibrated logistic feature ablations; the baseline
+families listed earlier that are absent here remain planned, not implemented.
+
+```powershell
+backend/.venv/Scripts/python.exe backend/scripts/run_research_experiment.py `
+  --dataset path/to/reviewed-v1.jsonl --output-dir path/to/new-run-v1 `
+  --seed 1729 --bootstrap 1000 --selective-target-risk 0.1 --selective-min-dev 5
+```
+
+The two selective arguments must be predeclared. The minimum retained count is
+a computational safeguard, not a sample-size prescription. No reviewed dataset
+is created by this command, and a nonempty result directory is refused.
+
+- **Log loss:** mean negative natural log probability of the true relatedness
+  label, with probabilities clipped to `[1e-15, 1-1e-15]`. Brier/ECE/log loss are
+  emitted only for methods explicitly calibrated on train; raw cosine is not
+  reinterpreted as probability.
+- **Selective relatedness:** freeze the relatedness threshold selected by dev
+  F1. Confidence is `p` for a predicted positive and `1-p` for a predicted
+  negative at that threshold, even when it differs from 0.5. Retain all examples
+  at or above a confidence cutoff. Select the largest dev coverage satisfying
+  the empirical error target and minimum dev support; freeze this policy for
+  test. If no point qualifies, abstain on all test pairs. Zero retained risk is
+  undefined (`null`), not zero. Confidence ties enter together. Test AURC uses
+  a right-endpoint step integral at attainable coverages; the plot connects
+  measured points for inspection and does not choose test thresholds.
+- **Changed spans:** score only independently agreed test `gold_changed_spans`.
+  Match exact `(side,start,end,type)` sets and the union of typed Unicode
+  characters, micro-aggregated across pairs. Duplicate/overlapping typed spans
+  cannot inflate support. Empty annotation is an explicit reviewed negative;
+  missing gold/predictions are unavailable and have separate coverage counts.
+  Partial span credit never proves causal explanation faithfulness.
+- **Context:** report accuracy, confusion and per-class support; macro F1 averages
+  labels with gold or prediction support. Conservative analyzer cues map to
+  PARAPHRASE, UPDATE_OR_CORRECTION or INSUFFICIENT_CONTEXT. The inability to
+  predict INCOMPATIBLE_ASSERTION/UNRELATED is visible as errors, not hidden by
+  collapsing those gold labels. Pair order is not inferred chronology.
+- **Artifacts:** JSON and CSV preserve per-pair probabilities, selective
+  acceptance and separate type/span/context targets/predictions. Markdown
+  reports support, unavailable cases and limitations. PR, dev-F1, reliability
+  and risk-coverage SVGs plus fitted states/source hashes are included in a
+  SHA-256 manifest. Synthetic unit fixtures verify calculations and leakage
+  boundaries; they are never a completed human research experiment.
+
+Current grouped intervals cover paired differences in relatedness F1, AUROC
+and average precision only. Span/context metrics, calibration scores and
+selective operating points currently have point estimates and explicit support,
+not confidence bounds. Predeclare and add appropriate event-level uncertainty
+for those endpoints before drawing inferential conclusions from them. Neither
+the runner nor its report verifies annotator independence, acquisition rights,
+semantic event correctness or whether an external user reused the test set.
+
+
+## Implemented investigation and annotation support
+
+Quantity normalization converts explicitly supported units/currencies while
+preserving original character spans; text comparison reports correction/update
+cues conservatively and labels supplied source references unverified. The human
+rubric, exact span/context annotations and independent blinded disagreement
+queue are implemented. Type/span/context consensus remains separate and retains
+dissent. Frozen exports retain these annotations; implementing their UI does not
+supply human gold or complete the results ledger above.
+
+Hybrid corpus retrieval and revision-bound Wikipedia passages include exact
+text provenance and local stance/abstention. Real pretrained engineering smoke
+checks run separately from unit tests. See [Verification](VERIFICATION.md).

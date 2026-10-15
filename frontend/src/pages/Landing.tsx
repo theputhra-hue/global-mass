@@ -31,9 +31,9 @@ import { usePollingPolicy } from '../lib/polling';
 const HERO_LABELS = ['claims indexed', 'graph nodes', 'graph relationships', 'ready services'];
 
 const TICKER_ITEMS = [
-  'CLAIM MUTATIONS TRACED IN REAL TIME',
+  'COMPARE CLAIMS ACROSS COLLECTED ARTICLES',
   'PGVECTOR · HNSW · 768-D EMBEDDINGS',
-  'NEO4J PROPAGATION TOPOLOGY',
+  'NEO4J CLAIM RELATIONSHIP GRAPH',
   'SOURCE-ATTRIBUTED INGEST STREAM',
   'REDIS-METERED INGEST QUEUE',
 ];
@@ -47,7 +47,7 @@ const CAPABILITIES = [
   },
   {
     icon: Network,
-    title: 'Propagation Graph Engine',
+    title: 'Claim Relationship Graph',
     body: 'Explore linked articles and claim relationships. Similarity and mutation edges help compare coverage; they do not establish causal propagation or coordinated amplification.',
     meta: 'NEO4J · BOLT · CYPHER',
   },
@@ -60,7 +60,7 @@ const CAPABILITIES = [
   {
     icon: HardDrive,
     title: 'Rate-Limited Ingest Queue',
-    body: 'A Redis-backed queue meters ingestion and blocks revoked tokens, so the corpus grows on our terms — not the spammer\u2019s.',
+    body: 'Inspect configured collection jobs, processing stages and recovery controls. Redis supports rate limiting, queue coordination and session revocation.',
     meta: 'REDIS · JWT BLOCKLIST',
   },
 ];
@@ -69,17 +69,17 @@ const STEPS = [
   {
     n: '01',
     title: 'Ingest',
-    body: 'Articles, posts, and broadcasts flow through the LLM pipeline, which extracts factual claims and normalizes them into embeddings.',
+    body: 'Collect articles from configured sources, process their text and extract candidate claims. Coverage depends on the available sources and successful processing.',
   },
   {
     n: '02',
-    title: 'Evolve',
-    body: 'Each new claim is matched against the vector index and grafted into the propagation graph — mutations, lineage, and all.',
+    title: 'Compare',
+    body: 'Use vector similarity and mutation analysis to identify candidate relationships between claims. Inspect the evidence behind each relationship.',
   },
   {
     n: '03',
-    title: 'Trace',
-    body: 'Open the command center to watch narratives spread in real time: risk scores, cluster maps, and the full audit trail.',
+    title: 'Review',
+    body: 'Explore corpus timelines, evidence passages and heuristic alerts. Use blinded annotation to collect independent judgments for evaluation.',
   },
 ];
 
@@ -139,20 +139,22 @@ export const Landing: React.FC = () => {
               Global Misinformation Evolution Engine
             </p>
             <h1 className="text-5xl md:text-7xl font-display leading-[0.98] tracking-tight">
-              Watch narratives
+              Explore how claims
               <br />
-              mutate{' '}
-              <em className="text-hermes-red-bright">live</em>.
+              differ across{' '}
+              <em className="text-hermes-red-bright">sources</em>.
             </h1>
             <p className="text-sm md:text-base font-mono leading-relaxed text-hermes-bone/70 max-w-md">
-              GMEE ingests the world&apos;s news stream, extracts claims, embeds
-              them, and grafts them into a propagation graph — so you can trace
-              how a falsehood forms, spreads, and evolves across the network.
+              GMEE collects configured news sources, extracts candidate claims,
+              and compares them within the available corpus. Explore related
+              coverage, inspect evidence and annotate changes. Similarity links
+              do not establish truth, misinformation or causal spread.
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <a href={user ? "#/dashboard" : "#/signin"} className="btn-brutal">
                 {user ? 'Open dashboard' : 'Sign in to explore'} <ArrowRight className="w-4 h-4" />
               </a>
+              <a href="#/project" className="btn-outline-dark">Try engineering controls</a>
               <a
                 href="#about"
                 className="btn-ghost-brutal !text-hermes-bone !border-hermes-bone/40 hover:!border-hermes-bone"
@@ -174,8 +176,8 @@ export const Landing: React.FC = () => {
           </div>
         </div>
 
-        {dashboard.isLoading && <p role="status" className="max-w-7xl mx-auto px-4 md:px-8 pb-4 font-mono text-xs">Connecting to real dashboard metrics…</p>}
-        {dashboard.isError && <div className="max-w-7xl mx-auto px-4 md:px-8 pb-4"><QueryError title="Dashboard metrics unavailable" error={dashboard.error} onRetry={() => dashboard.refetch()} retrying={dashboard.isFetching} />
+        {user && dashboard.isLoading && <p role="status" className="max-w-7xl mx-auto px-4 md:px-8 pb-4 font-mono text-xs">Connecting to real dashboard metrics…</p>}
+        {user && dashboard.isError && <div className="max-w-7xl mx-auto px-4 md:px-8 pb-4"><QueryError title="Dashboard metrics unavailable" error={dashboard.error} onRetry={() => dashboard.refetch()} retrying={dashboard.isFetching} />
           {snapshot && <p className="font-mono text-xs mt-2">Last real snapshot: {snapshot.generated_at}. Values may be stale.</p>}
         </div>}
         {/* Stats strip */}
@@ -210,12 +212,13 @@ export const Landing: React.FC = () => {
               What this site is
             </p>
             <h2 className="text-3xl md:text-5xl font-display tracking-tight">
-              An observatory for engineered truth decay.
+              An observatory for claim variation.
             </h2>
             <p className="text-sm font-mono leading-relaxed text-hermes-ink/70">
-              Misinformation doesn&apos;t appear fully formed — it evolves. GMEE
-              treats every claim as an organism: embedded, indexed, and tracked
-              through its mutations. Four subsystems make that possible.
+              GMEE brings source collection, semantic retrieval, relationship
+              graphs and human review into one research workspace. Its scores
+              are heuristic signals whose accuracy requires independent
+              evaluation on a documented benchmark.
             </p>
           </AsciiReveal>
 
@@ -303,7 +306,7 @@ export const Landing: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex flex-col gap-1">
             <h2 className="text-3xl md:text-4xl font-display tracking-tight">
-              Ready to trace the spread?
+              Ready to inspect the evidence?
             </h2>
             <p className="font-mono text-xs text-hermes-bone/75 flex items-center gap-2">
               <ShieldCheck className="w-3.5 h-3.5" />

@@ -97,11 +97,9 @@ class ClaimRelationship(Base):
 
 
 class FeedbackVerdict(Base):
-    """Human-in-the-loop verdict corrections.
+    """Anonymous, unverified agreement and suggested verdict corrections.
 
-    Users agree or disagree with an engine verdict (optionally submitting the
-    band they believe is correct). These rows are the gold labels that power
-    the evaluation loop — without them, verdict quality can't be measured.
+    These are product feedback, not independent gold labels or accuracy data.
     """
 
     __tablename__ = "verdict_feedback"
@@ -125,6 +123,9 @@ class Alert(Base):
     """
 
     __tablename__ = "alerts"
+    __table_args__ = (
+        UniqueConstraint("kind", "subject_key", name="uq_alerts_kind_subject"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     kind: Mapped[str] = mapped_column(String(24), nullable=False, index=True)  # CORROBORATION | CONTRADICTION | MUTATION | SPIKE

@@ -12,17 +12,17 @@ from app.db.neo4j_client import neo4j_client
 from app.services.evolution.text_changes import analyze_text_change
 
 
-def _id(n) -> Any:
+def _id(n) -> str:
     return str(uuid.UUID(int=n))
 
 
-def _result(rows) -> Any:
+def _result(rows) -> MagicMock:
     result = MagicMock()
     result.all.return_value = rows
     return result
 
 
-def _database(monkeypatch, results) -> Any:
+def _database(monkeypatch, results) -> MagicMock:
     db = MagicMock()
     db.execute = AsyncMock(side_effect=results)
     context = AsyncMock()
@@ -31,7 +31,7 @@ def _database(monkeypatch, results) -> Any:
     return db
 
 
-def _neo4j(monkeypatch, handler) -> Any:
+def _neo4j(monkeypatch, handler) -> MagicMock:
     async def run(query, **params):
         result = MagicMock()
         result.data = AsyncMock(return_value=handler(query, params))
