@@ -79,3 +79,7 @@ backend/_backup/
 backend/eval_report.json
 gmee_backend_source.zip
 
+# Host-specific deployment state, logs and model preparation manifests.
+.local-deployment/
+backend/integration-results.xml
+

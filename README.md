@@ -22,6 +22,13 @@ experiments are **UNPERFORMED**; see [the audit](docs/AUDIT.md) and
 
 ## Quick Start
 
+For current development status, ordered work packages, acceptance checks, and
+the next implementation batch, follow the [master task sheet](TASK_SHEET.md).
+
+For an existing Render frontend with ML inference on a local PC, see the
+[hybrid hosting runbook](docs/HYBRID_HOSTING.md). This avoids trying to fit the
+full model stack into a 512 MB free web-service instance.
+
 ### Prerequisites
 
 - Docker Desktop (the whole stack runs in Compose)

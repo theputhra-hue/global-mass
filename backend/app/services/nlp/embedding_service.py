@@ -15,7 +15,7 @@ class EmbeddingService:
     _lock = threading.Lock()
 
     @classmethod
-    def load_model(cls) -> None:
+    def load_model(cls, *, local_files_only: bool = False) -> None:
         """Load the model once (idempotent, thread-safe).
 
         Skipped when HUGGINGFACE_API_KEY is set: embeddings come from the
@@ -38,7 +38,7 @@ class EmbeddingService:
                 logger.info("Loading SentenceTransformer model %s...", model_name)
                 # We don't strictly need PyTorch if we have ONNX, but SentenceTransformers
                 # usually defaults to PyTorch backend.
-                cls._model = SentenceTransformer(model_name)
+                cls._model = SentenceTransformer(model_name, local_files_only=local_files_only)
                 logger.info("SentenceTransformer model loaded.")
 
     @classmethod
