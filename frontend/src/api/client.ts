@@ -167,4 +167,5 @@ export const apiClient = {
   get: <T = unknown>(endpoint: string, options?: ApiRequestOptions): Promise<T> => request('GET', endpoint, undefined, options),
   post: <T = unknown>(endpoint: string, body: unknown, options?: ApiRequestOptions): Promise<T> => request('POST', endpoint, body, options),
   download: (endpoint: string, options?: ApiRequestOptions): Promise<ApiDownload> => request('GET', endpoint, undefined, options, true),
+  downloadPost: (endpoint: string, body: unknown, options?: ApiRequestOptions): Promise<ApiDownload> => request('POST', endpoint, body, options, true),
 };

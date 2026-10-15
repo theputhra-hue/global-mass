@@ -24,6 +24,7 @@ from app.api.v1 import (
     operations,
     preprocessing,
     project,
+    publication_export,
     publications,
     verdicts,
 )
@@ -76,6 +77,12 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=503, content={"detail": str(exc)})
 
     api_router = APIRouter()
+
+    @api_router.get("/capabilities", tags=["Runtime"])
+    async def capabilities() -> dict[str, object]:
+        return {"mode": "local", "live_ai": True, "pipeline": settings.DEVELOPER_PIPELINE_ENABLED,
+                "publication_enabled": settings.PUBLICATION_ACTIVATION_ENABLED}
+
     api_router.include_router(health.router, prefix="/health", tags=["health"])
     api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
     api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -94,6 +101,7 @@ def create_app() -> FastAPI:
     api_router.include_router(project.router, prefix="/project", tags=["Project"])
     api_router.include_router(eval.router, prefix="/eval", tags=["Evaluation"])
     api_router.include_router(publications.router, prefix="/publications", tags=["Developer uploads"])
+    api_router.include_router(publication_export.router, prefix="/developer", tags=["Local publication export"])
     api_router.include_router(developer.router, prefix="/developer", tags=["Developer console"])
 
     app.include_router(api_router, prefix="/api/v1")

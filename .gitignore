@@ -86,6 +86,9 @@ backend/integration-results.xml
 
 # Recovery archives contain private credentials and original corpus data.
 local-backups/
+/output/
+/.playwright-cli/
+/publication-outbox/
 *.dump
 backend/gmee_articles_export.csv
 

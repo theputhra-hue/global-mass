@@ -11,7 +11,7 @@ async function authenticate(endpoint: '/auth/login' | '/auth/register', input: L
   clearSession();
   const revision = getSessionRevision();
   try {
-    const tokens = await apiClient.post<SessionTokens>(endpoint, input, { anonymous: true });
+    const tokens = await apiClient.post<SessionTokens>(endpoint, input, { anonymous: true, timeoutMs: 60_000 });
     if (revision !== getSessionRevision()) throw new ApiError(401, null, 'The account changed while signing in. Please retry.');
     if (!tokens?.access_token) throw new ApiError(200, tokens, 'The authentication response did not contain an access token.');
     setSessionTokens(tokens);

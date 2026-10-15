@@ -4,6 +4,26 @@ import { DeveloperUpload } from '../src/pages/DeveloperUpload';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 describe('developer upload', () => {
+  it('requires review approval and publishes the exact reviewed fingerprint and revision', async () => {
+    signInFixture({ role: 'admin' });
+    const receipt = { run_id: 'reviewed-run', sha256: 'a'.repeat(64), uploaded_at: '2026-10-15T10:00:00Z', status: 'staged', articles: 2, claims: 3, relationships: 1 };
+    const fetch = mockApi(endpoint => {
+      if (endpoint === '/publications/access') return jsonResponse({ allowed: true, max_bytes: 1000, mode: 'publishing' });
+      if (endpoint.endsWith('/review')) return jsonResponse({ ...receipt, provenance: { source_commit: 'b'.repeat(40) }, sample_articles: [], sample_claims: [], current: { revision: 7, counts: { articles: 8 } } });
+      if (endpoint.endsWith('/publish')) return jsonResponse({ revision: 8, run_id: receipt.run_id });
+      return jsonResponse({ items: [receipt] });
+    });
+    renderWithClient(<DeveloperUpload />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Review / publish this release' }));
+    const publish = await screen.findByRole('button', { name: '4. Publish reviewed release' });
+    expect(publish.hasAttribute('disabled')).toBe(true);
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/publish'))).toBe(false);
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(publish);
+    expect(await screen.findByText(/Published successfully/)).toBeTruthy();
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/publish'));
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({ sha256: receipt.sha256, expected_revision: 7, reviewed: true });
+  });
   it('uploads the selected JSON and reports saved staging counts', async () => {
     signInFixture();
     const fetch = mockApi(endpoint => {
@@ -40,6 +60,6 @@ describe('developer upload', () => {
     fireEvent.click(screen.getByRole('button', { name: '2. Validate and upload' }));
     expect(await screen.findByText('Choose a file smaller than 10 MiB.')).toBeTruthy();
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/publications/upload'))).toBe(false);
-    expect(screen.getByText(/They do not yet replace/)).toBeTruthy();
+    expect(screen.getByText(/An upload stays private/)).toBeTruthy();
   });
 });

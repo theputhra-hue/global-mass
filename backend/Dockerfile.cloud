@@ -1,0 +1,13 @@
+FROM python:3.11-slim
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /app
+COPY requirements-cloud.txt requirements-cloud.lock ./
+RUN pip install --no-cache-dir -r requirements-cloud.lock
+COPY alembic.ini ./
+COPY app ./app
+COPY alembic ./alembic
+COPY scripts/set_user_role.py ./scripts/set_user_role.py
+RUN useradd --create-home --uid 10001 gmee && chown -R gmee:gmee /app
+USER gmee
+EXPOSE 8000
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.cloud:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --limit-concurrency 4 --proxy-headers --forwarded-allow-ips 127.0.0.1"]
