@@ -1,7 +1,7 @@
 # Companion plan: local AI, cloud published results
 
-Date: 2026-10-15. Status: manual export, review, atomic publication and a lightweight
-cloud read API are implemented. Cloud cutover is being verified. See
+Updated: 2026-10-16. Status: manual export, review, atomic publication and a lightweight
+cloud read API are implemented and deployed. First live release approval is pending. See
 [daily workflow and hosting](CLOUD_PUBLISHING.md).
 
 ## Purpose and relationship to the original plan
@@ -32,7 +32,7 @@ has been migrated through gmee07; existing local source databases are unchanged.
 | P03 | PARTIAL | Complete-file staging, review, idempotent atomic activation, concurrent-writer protection and rollback implemented | Chunked upload remains future work; complete release files are limited to 10 MiB |
 | P04 | PARTIAL | Local console exports a consistent read snapshot; the exact downloaded JSON is retained for manual retries | Automatic outbox synchronization and scheduling remain future work |
 | P05 | IMPLEMENTED | Published reader, saved claims, article details, relationships, provenance/freshness and explicit capability boundaries | Build, lint and frontend tests pass; public cutover verification remains P06 |
-| P06 | IN PROGRESS | Fresh managed schema/accounts and Linux cloud runtime verified; Render deployment and browser cutover are next | Cloud data serving with the analysis PC disconnected must be verified before completion |
+| P06 | IN PROGRESS | Render API and frontend deployed on main; Neon/Upstash readiness, live developer login, comparison, staging and review passed | First draft contains 500 articles, 1,536 claims, 71 relationships. Developer approval, live activation and published corpus reads with the analysis PC disconnected remain |
 
 ## Publication rules
 
@@ -55,18 +55,20 @@ mistaken for incremental updates.
 
 ## Hosting and rollout gates
 
-Keep the frontend at https://global-mass.onrender.com. Choose the lightweight
-API host and persistent database after measuring exported size and checking
-current free-tier limits; a cloud provider has not been selected for this track.
+The frontend is https://global-mass.onrender.com and the lightweight Render API
+is https://global-mass-api.onrender.com, backed by Neon PostgreSQL and Upstash
+Redis. Both Render services use main. Deployment and browser evidence is in
+[cloud publishing verification](CLOUD_PUBLISHING_VERIFICATION.md).
 Do not rely on ephemeral service files for published data or expiring trial
 databases for ongoing storage. Semantic search must either use a verified
 lightweight query-embedding option or be explicitly replaced by text search;
 do not silently claim feature parity.
 
-Develop and restore into isolated storage first. Leave the current local stack
-and working frontend connection intact until P06 passes. At cutover, take a
-fresh backup, publish a verified release, update frontend API/CORS/security
-headers, and retain the previous configuration for rollback. Keep encrypted
+Develop and restore into isolated storage first. The frontend API/CORS/security
+cutover is deployed; the original local source database is preserved and the
+isolated preview was backed up before its additive migration. Review the staged
+release before activation, then verify reads with local processing disconnected.
+Keep encrypted
 backups outside the cloud database and test restoring one.
 
 Suggested sequence: P01-P02 -> P03-P04 -> P05-P06. Allow approximately 3-5 working

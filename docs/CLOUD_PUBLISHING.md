@@ -56,6 +56,11 @@ exact email is in the server allowlist. Registration never grants admin rights.
 
 ## Deployment
 
+Current live frontend: https://global-mass.onrender.com. Current cloud API:
+https://global-mass-api.onrender.com/api/v1. Both use the repository's `main`
+branch. Deployment evidence and pending first-publication checks are recorded in
+[cloud publishing verification](CLOUD_PUBLISHING_VERIFICATION.md).
+
 Use `render.cloud.yaml` or configure a free Docker web service from the repository:
 
 | Setting | Value |
