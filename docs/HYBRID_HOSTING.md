@@ -57,6 +57,9 @@ does not hardcode an obsolete PostgreSQL port or copy database passwords into
 command arguments. It uses the private root `.env` for application settings,
 keeps scheduled ingestion disabled, checks the schema revision, and binds only
 to `127.0.0.1:8000`. Missing schema/model prerequisites stop startup.
+The serving process sets Hugging Face/Transformers offline mode; preparation
+runs separately with network access. New/changed models must be prepared before
+restarting the server rather than downloaded while handling a request.
 
 The launcher never runs migrations automatically. Future migrations require a
 backup and isolated rehearsal; a schema mismatch must not be bypassed by stamping

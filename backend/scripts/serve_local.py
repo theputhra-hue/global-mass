@@ -91,6 +91,10 @@ def configure(origin: str, additional_origins: Sequence[str] = ()) -> None:
     ])))
     os.environ["ENABLE_SCHEDULER"] = "false"
     os.environ["RATE_LIMIT_ENABLED"] = "true"
+    # Set before importing transformers/huggingface_hub. Model preparation runs
+    # in a separate process with networking; inference uses only its cache.
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
     # Ignore arbitrary forwarded headers. Tunnel users share conservative peer limits.
     os.environ["TRUSTED_PROXY_CIDRS"] = "[]"
     get_settings.cache_clear()
