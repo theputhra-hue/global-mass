@@ -12,7 +12,7 @@ describe('reader dashboard', () => {
     expect(screen.getByText('Statements identified in articles, not verified facts.')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Read original source/ }).getAttribute('href')).toBe('https://example.com/story');
     expect(screen.getByText(/Publication date unknown/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Advanced tools' }).getAttribute('href')).toBe('#/dashboard/overview');
+    expect(screen.getByRole('link', { name: 'Tools & guides' }).getAttribute('href')).toBe('#/dashboard/tools');
   });
   it('searches only after submission and explains empty results', async () => {
     const fetch = mockApi(endpoint => endpoint === '/dashboard' ? jsonResponse(zeroDashboard) : jsonResponse({ total: 0, items: [] }));
