@@ -12,7 +12,7 @@ describe('dashboard sign-in boundary', () => {
     renderWithClient(<App />);
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
     expect(screen.queryByText('Private dashboard')).toBeNull();
-    await waitFor(() => expect(window.location.hash).toBe('#/signin'));
+    await waitFor(() => expect(window.location.hash).toBe(`#/signin?next=${encodeURIComponent('#/dashboard/masala')}`));
     expect(fetch).not.toHaveBeenCalled();
   });
   it('opens data after sign-in and removes it when the session ends', async () => {
@@ -25,12 +25,21 @@ describe('dashboard sign-in boundary', () => {
     expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeTruthy();
     expect(screen.queryByText('Private dashboard')).toBeNull();
   });
+  it('restores the requested article deep link after sign-in', async () => {
+    const requested = '#/dashboard/articles/11111111-1111-1111-1111-111111111111/claims?claim=22222222-2222-2222-2222-222222222222';
+    mockApi(() => new Response(JSON.stringify({ detail: 'Article not found' }), { status: 404 }));
+    window.history.replaceState(null, '', `/#/signin?next=${encodeURIComponent(requested)}`);
+    renderWithClient(<App />);
+    act(() => signInFixture());
+    await waitFor(() => expect(window.location.hash).toBe(requested));
+    expect(await screen.findByText('Article not found')).toBeTruthy();
+  });
   it.each(['project', 'casebook'])('keeps the new %s workspace behind the existing sign-in boundary', async tab => {
     const fetch = mockApi(() => { throw new Error('Data must not be requested'); });
     window.history.replaceState(null, '', `/#/dashboard/${tab}`);
     renderWithClient(<App />);
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
-    await waitFor(() => expect(window.location.hash).toBe('#/signin'));
+    await waitFor(() => expect(window.location.hash).toBe(`#/signin?next=${encodeURIComponent(`#/dashboard/${tab}`)}`));
     expect(fetch).not.toHaveBeenCalled();
   });
   it.each(['project', 'casebook'])('opens the %s advanced workspace for a signed-in account', tab => {

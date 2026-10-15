@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '../api/client';
+import { developerApi } from '../api/developer';
+import { publicationsApi } from '../api/publications';
 import { useSession } from '../lib/session';
 import { usePollingPolicy } from '../lib/polling';
 import { QueryError } from './QueryError';
@@ -74,7 +76,9 @@ function OperatorControls() {
 export function OperationsPanel() {
   const { user, revision } = useSession();
   const [open, setOpen] = useState(false);
-  if (user?.role.toLowerCase() !== 'admin') return null;
+  const access = useQuery({ queryKey: ['publication-access', user?.id, revision], queryFn: publicationsApi.access, enabled: user?.role === 'admin', retry: false });
+  const overview = useQuery({ queryKey: ['developer-overview', user?.id, revision], queryFn: developerApi.overview, enabled: access.data?.allowed === true, retry: false });
+  if (!access.data?.allowed || !overview.data?.pipeline_enabled) return null;
   return <section className="card-brutal-dark p-4" aria-label="Pipeline operations">
     <button type="button" className="btn-brutal" aria-expanded={open} onClick={() => setOpen((value) => !value)}>Pipeline operations</button>
     {open && <OperatorControls key={revision} />}

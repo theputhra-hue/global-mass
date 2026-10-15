@@ -51,13 +51,16 @@ SENSITIVE_LIMITS: dict[str, tuple[int, int]] = {
     "/api/v1/collection/trigger": (6, 60),
     "/api/v1/preprocessing/trigger": (6, 60),
     "/api/v1/alerts/evaluate": (4, 60),
+    "/api/v1/evolution/graph/sync": (4, 60),
     "/api/v1/operations/recover": (4, 60),
+    "/api/v1/publications/upload": (4, 60),
+    "/api/v1/developer/sources": (20, 60),
 }
 
 # Mounted router prefixes (see app/main.py). Anything else shares "other".
 _ROUTER_FAMILIES = frozenset({
     "alerts", "auth", "collection", "corpus", "dashboard", "eval", "evolution",
-    "graph", "health", "nlp", "operations", "preprocessing", "verdicts", "casebook", "project",
+    "developer", "graph", "health", "nlp", "operations", "preprocessing", "publications", "verdicts", "casebook", "project",
 })
 
 

@@ -18,6 +18,7 @@ import { safeHttpUrl } from '../lib/urls';
 import { Dialog } from './Dialog';
 import { QueryError } from './QueryError';
 import { ClaimCheck } from './ClaimCheck';
+import { articleHref } from '../lib/articleRoutes';
 
 /**
  * FactCheck — the Verdict Engine surface.
@@ -35,6 +36,7 @@ export interface VerdictRow {
   outlet: string;
   article_title: string;
   article_url: string;
+  article_id?: string;
 }
 
 interface Evidence {
@@ -218,6 +220,7 @@ const EvidenceDrawer: React.FC<{ detail: VerdictDetail; onClose: () => void }> =
         <div>
           <div className="font-mono text-[10px] uppercase tracking-widest text-hermes-bone/45 mb-1.5">The Claim</div>
           <p className="font-display text-lg leading-snug">{detail.claim_text}</p>
+          {detail.article_id && <a href={articleHref(detail.article_id, 'evidence', { claim: detail.id, back: window.location.hash })} className="btn-outline-dark mt-3">Open article investigation</a>}
           <a href={safeHttpUrl(detail.article_url)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 mt-2 font-mono text-xs text-hermes-red-bright hover:text-white">
             {detail.article_title?.slice(0, 70)}… <ExternalLink className="w-3 h-3" />
           </a>

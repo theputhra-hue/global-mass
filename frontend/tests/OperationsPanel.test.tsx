@@ -1,11 +1,27 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OperationsPanel } from '../src/components/OperationsPanel';
 import { PollingContext } from '../src/lib/polling';
 import { clearSession } from '../src/lib/session';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
+vi.mock('../src/api/publications', () => ({ publicationsApi: { access: vi.fn(async () => ({ allowed: true })) } }));
+vi.mock('../src/api/developer', () => ({ developerApi: { overview: vi.fn(async () => ({ pipeline_enabled: true })) } }));
+import { publicationsApi } from '../src/api/publications';
+import { developerApi } from '../src/api/developer';
+
 describe('Pipeline operations', () => {
+  beforeEach(() => {
+    vi.mocked(publicationsApi.access).mockResolvedValue({ allowed: true, max_bytes: 1, mode: 'staging' });
+  });
+  it('hides controls from administrators outside the developer allowlist', async () => {
+    signInFixture({ role: 'admin' });
+    vi.mocked(publicationsApi.access).mockResolvedValue({ allowed: false, max_bytes: 1, mode: 'staging' });
+    renderWithClient(<OperationsPanel />);
+    await waitFor(() => expect(publicationsApi.access).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: 'Pipeline operations' })).toBeNull();
+    expect(developerApi.overview).not.toHaveBeenCalled();
+  });
   it('shows controls only to administrators', () => {
     signInFixture();
     renderWithClient(<OperationsPanel />);
@@ -25,7 +41,7 @@ describe('Pipeline operations', () => {
       return jsonResponse({}, 404);
     });
     renderWithClient(<OperationsPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Pipeline operations' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pipeline operations' }));
     const recover = screen.getByRole('button', { name: 'Recover expired work' }) as HTMLButtonElement;
     expect(recover.disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Preview expired work' }));
@@ -40,7 +56,7 @@ describe('Pipeline operations', () => {
     signInFixture({ role: 'admin' });
     const fetch = mockApi(() => jsonResponse({ items: [] }));
     renderWithClient(<PollingContext.Provider value={{ interval: 0, setInterval: () => {} }}><OperationsPanel /></PollingContext.Provider>);
-    fireEvent.click(screen.getByRole('button', { name: 'Pipeline operations' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pipeline operations' }));
     await screen.findByText('No pipeline runs recorded yet.');
     expect(fetch).toHaveBeenCalledTimes(1);
     vi.useFakeTimers();
@@ -53,13 +69,13 @@ describe('Pipeline operations', () => {
     let calls = 0;
     mockApi(() => ++calls === 1 ? jsonResponse({ items: [{ id: 'old-job', job_type: 'Old account job', status: 'completed', started_at: '2026-01-01T00:00:00Z', error: null }] }) : new Promise<Response>(() => {}));
     renderWithClient(<OperationsPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Pipeline operations' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Pipeline operations' }));
     await screen.findByText('Old account job');
     act(() => {
       clearSession();
       signInFixture({ role: 'admin', id: 'another-admin' });
     });
     expect(screen.queryByText('Old account job')).toBeNull();
-    expect(screen.getByText('Loading recent runs…')).toBeTruthy();
+    expect(await screen.findByText('Loading recent runs…')).toBeTruthy();
   });
 });

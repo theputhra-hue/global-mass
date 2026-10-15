@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Database, Search, ExternalLink, Zap } from 'lucide-react';
+import { Database, Search, ArrowRight, Zap } from 'lucide-react';
 import { corpusApi, CorpusStats } from '../api/corpus';
 import { usePollingPolicy } from '../lib/polling';
-import { safeHttpUrl } from '../lib/urls';
+import { articleHref } from '../lib/articleRoutes';
 import { QueryError } from './QueryError';
 
 /**
@@ -13,8 +13,9 @@ import { QueryError } from './QueryError';
  */
 
 export const VectorTelemetry: React.FC = () => {
-  const [q, setQ] = useState('');
-  const [submitted, setSubmitted] = useState('');
+  const initialQuery = new URLSearchParams(window.location.hash.split('?')[1] || '').get('q') || '';
+  const [q, setQ] = useState(initialQuery);
+  const [submitted, setSubmitted] = useState(initialQuery);
   const polling = usePollingPolicy(15000);
 
   const stats = useQuery({
@@ -34,6 +35,7 @@ export const VectorTelemetry: React.FC = () => {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(q.trim());
+    window.history.replaceState(null, '', `#/dashboard/vector?${new URLSearchParams({ q: q.trim() })}`);
   };
 
   return (
@@ -128,9 +130,9 @@ export const VectorTelemetry: React.FC = () => {
               {results.data?.items.map((r) => (
                 <a
                   key={r.id}
-                  href={safeHttpUrl(r.url)}
-                  target="_blank"
-                  rel="noreferrer"
+                  href={articleHref(r.id, 'overview', { back: window.location.hash })}
+
+
                   className="group flex items-center gap-3 py-2"
                 >
                   <span className="w-12 shrink-0 text-right font-mono text-sm tabular-nums text-hermes-red-bright font-bold">
@@ -142,7 +144,7 @@ export const VectorTelemetry: React.FC = () => {
                   <span className="flex-1 truncate text-xs text-hermes-bone/85 group-hover:text-white">
                     {r.title}
                   </span>
-                  <ExternalLink className="w-3 h-3 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />
+                  <ArrowRight className="w-3 h-3 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />
                 </a>
               ))}
             </div>

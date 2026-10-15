@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db_session, require_role
+from app.api.developer_access import require_local_pipeline
 from app.models.article import Article, ProcessingStatusEnum
 from app.models.pipeline import JobTypeEnum
 from app.models.user import RoleEnum, User
@@ -18,7 +19,7 @@ router = APIRouter()
 prep_orchestrator = PreprocessingOrchestrator()
 
 
-@router.post("/trigger", response_model=dict)
+@router.post("/trigger", response_model=dict, dependencies=[Depends(require_local_pipeline)])
 async def trigger_preprocessing(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(require_role(RoleEnum.admin))

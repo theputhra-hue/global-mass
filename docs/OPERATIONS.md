@@ -68,6 +68,14 @@ publish PostgreSQL, Neo4j, Redis or the API to all interfaces.
 | `gmee02` | Origins (`human`, `automatic`, `legacy`, `test`), authenticated annotator IDs, label history, canonical pairs, splits and event identity. Existing votes remain conservative `legacy`; migration does not turn old handles into human gold. |
 | `gmee03` | Pipeline ownership/lease and durable job records. |
 | `gmee04` | Migrated article vectors/HNSW and claim full-text/GIN search; preserves prior manually populated vectors. |
+| `gmee05` | Private investigation casebook snapshots and review revisions. |
+| `gmee06` | Validated developer publication uploads, staged separately from the public corpus. |
+
+The unpublished local upload prototype previously used `gmee04` for a different
+table. Do not upgrade a database carrying that private revision blindly. Preserve
+its backup and rehearse reconciliation on a separate restore; the published
+upstream `gmee04` and `gmee05` remain unchanged. See
+[the combined merge verification](MERGE_VERIFICATION_2026-10-15.md).
 
 Alembic migrations are not a replica-coordination mechanism. This deployment is
 single-process/single-API-container by default. A future multi-replica rollout
