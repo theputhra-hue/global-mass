@@ -78,7 +78,7 @@ describe('developer console', () => {
     const buttons = await screen.findAllByRole('button', { name: 'Run stage' });
     expect(buttons.every(button => (button as HTMLButtonElement).disabled)).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Publishing' }));
-    expect(screen.getByText(/Automatic export, public activation/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Open upload workspace' }).getAttribute('href')).toBe('#/dashboard/upload');
+    expect(screen.getByRole('heading', { name: 'Publish on the live website' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open live publishing workspace' }).getAttribute('href')).toBe('https://global-mass.onrender.com/#/dashboard/upload');
   });
 });

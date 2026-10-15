@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     # admin role. Public registration cannot grant developer privileges.
     DEVELOPER_UPLOAD_EMAILS: list[str] = []
     DEVELOPER_PIPELINE_ENABLED: bool = False
+    # Cloud serves immutable published results; this flag never enables local AI.
+    PUBLICATION_ACTIVATION_ENABLED: bool = False
+    PUBLICATION_MAX_UPLOADS: int = Field(default=20, ge=1, le=100)
 
     # Rate limiting. Disable in the test suite (tests share one IP and would
     # trip the login limiter against each other / against dev usage).

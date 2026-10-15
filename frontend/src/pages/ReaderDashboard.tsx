@@ -9,6 +9,8 @@ import { MutationComparator } from '../components/MutationComparator';
 import { FactCheck } from '../components/FactCheck';
 import { safeHttpUrl } from '../lib/urls';
 import { articleHref, navigateHash } from '../lib/articleRoutes';
+import { PublicationNotice, usePublicationRuntime } from '../lib/publicationRuntime';
+import { PublishedClaimSearch } from '../components/PublishedClaimSearch';
 
 const actions = [
   { href: '#/dashboard/browse', title: 'Explore articles', text: 'Find coverage by title or author, then read the original source.', icon: BookOpen },
@@ -16,6 +18,7 @@ const actions = [
   { href: '#/dashboard/check', title: 'Find evidence for a claim', text: 'Look for supporting or conflicting passages in this collection.', icon: ShieldCheck },
 ];
 export function ReaderDashboard({ view = 'home' }: { view?: string }) {
+  const runtime = usePublicationRuntime();
   const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const [draft, setDraft] = useState(params.get('q') || '');
   const [search, setSearch] = useState(params.get('q') || '');
@@ -41,6 +44,7 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
     <nav aria-label="Workspace" className="flex flex-wrap gap-2 px-4 md:px-8 py-4 border-b border-hermes-bone/10">
       {[['home', 'Start here'], ['browse', 'Articles'], ['compare', 'Compare claims'], ['check', 'Find evidence']].map(([key, label]) => <a key={key} aria-current={view === key ? 'page' : undefined} href={key === 'home' ? '#/dashboard' : `#/dashboard/${key}`} className="workspace-tab">{label}</a>)}
     </nav>
+    <PublicationNotice />
     <main className="p-4 md:p-8 space-y-8">
       <section className="max-w-3xl">
         <p className="text-xs uppercase tracking-widest text-hermes-red-bright mb-3">{home ? 'Your starting point' : 'Research workspace'}</p>
@@ -50,7 +54,7 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
       {home && <>
         {summary.isError && <QueryError title="Collection summary unavailable" error={summary.error} onRetry={() => summary.refetch()} />}
         <dl className="grid sm:grid-cols-3 gap-4">
-          {[[number(summary.data?.articles_total), 'Articles collected', 'Source documents available for research.'], [number(summary.data?.claims_total), 'Claims extracted', 'Statements identified in articles, not verified facts.'], [number(summary.data?.embedded_claims), 'Claims prepared for similarity search', 'Related wording can be retrieved; similarity is not truth.']].map(([value, label, help]) => <div key={label} className="card-brutal-dark p-5"><dt className="font-mono text-[11px] font-bold uppercase tracking-wider text-hermes-bone/70">{label}</dt><dd className="text-4xl font-display mt-2">{value}</dd><p className="text-xs text-hermes-bone/65 mt-3">{help}</p></div>)}
+          {[[number(summary.data?.articles_total), 'Articles collected', 'Source documents available for research.'], [number(summary.data?.claims_total), 'Claims extracted', 'Statements identified in articles, not verified facts.'], runtime.mode === 'published' ? [number(runtime.publication?.counts.relationships), 'Published relationships', 'Stored comparison links; these do not prove transmission.'] : [number(summary.data?.embedded_claims), 'Claims prepared for similarity search', 'Related wording can be retrieved; similarity is not truth.']].map(([value, label, help]) => <div key={label} className="card-brutal-dark p-5"><dt className="font-mono text-[11px] font-bold uppercase tracking-wider text-hermes-bone/70">{label}</dt><dd className="text-4xl font-display mt-2">{value}</dd><p className="text-xs text-hermes-bone/65 mt-3">{help}</p></div>)}
         </dl>
         {summary.isLoading && <p role="status">Loading collection totals…</p>}
         {summary.data && <p className="text-xs text-hermes-bone/65">Snapshot: {new Date(summary.data.generated_at).toLocaleString()}{summary.isError ? ' · Last available data; may be outdated.' : ''}</p>}
@@ -69,7 +73,7 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
         </>}
       </section>}
       {view === 'compare' && <MutationComparator />}
-      {view === 'check' && <FactCheck />}
+      {view === 'check' && (runtime.mode === 'published' ? <PublishedClaimSearch /> : <FactCheck />)}
       <aside className="border-t border-hermes-bone/15 pt-6 text-sm text-hermes-bone/60"><strong className="text-hermes-bone">How to read these results:</strong> An article is a source document. A claim is a statement extracted from it. Similarity means wording is related. None of these alone establishes whether a statement is true.</aside>
     </main>
   </div>;

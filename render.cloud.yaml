@@ -1,0 +1,31 @@
+# Separate from the local ML blueprint. Supply managed PostgreSQL/Redis privately.
+services:
+  - type: web
+    name: global-mass-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile.cloud
+    dockerContext: .
+    healthCheckPath: /api/v1/health/ready
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: '["https://global-mass.onrender.com"]'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: POSTGRES_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ENABLE_SCHEDULER
+        value: "false"
+      - key: DEVELOPER_PIPELINE_ENABLED
+        value: "false"
+      - key: PUBLICATION_ACTIVATION_ENABLED
+        value: "true"
+      - key: DEVELOPER_UPLOAD_EMAILS
+        value: '["prab@gmee.com","pavan@gmee.com"]'
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
