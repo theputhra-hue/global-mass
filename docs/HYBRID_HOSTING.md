@@ -10,8 +10,8 @@ It does not make the full ML application fit Render's 512 MB free instance.
 
 The major-project integration retains this hosting profile and its offline
 model preparation/preflight behavior. Its new additive migration chain ends at
-`gmee05`; the prior verified database below was at `gmee03`. Back up and rehearse
-the `gmee04`/`gmee05` upgrade on an isolated restore before applying it to that
+`gmee06`; the prior verified database below was at `gmee03`. Back up and rehearse
+the `gmee04`/`gmee05`/`gmee06` upgrade on an isolated restore before applying it to that
 existing deployment. The read-only launcher deliberately refuses a schema
 mismatch and does not auto-upgrade or stamp the database. Article search retains
 a claim-vector fallback for existing articles without document embeddings.

@@ -40,6 +40,7 @@ describe('graph article identity drill-down', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Claims' }));
     await screen.findByRole('option', { name: 'Actual extracted claim' });
     fireEvent.change(screen.getByLabelText('Inspect a node (keyboard alternative)'), { target: { value: claimId } });
+    expect(screen.getByRole('link', { name: /Open article details/ }).getAttribute('href')).toContain(`/articles/${articleId}/overview`);
     fireEvent.click(screen.getByRole('button', { name: /View in Timeline/ }));
     expect(navigate).toHaveBeenCalledWith('timeline');
   });

@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Newspaper,
   Search,
-  ExternalLink,
+  ArrowRight,
   Network,
   Radio,
   RefreshCw,
 } from 'lucide-react';
 import { corpusApi } from '../api/corpus';
 import { usePollingPolicy } from '../lib/polling';
-import { safeHttpUrl } from '../lib/urls';
+import { articleHref } from '../lib/articleRoutes';
 import { QueryError } from './QueryError';
 
 /**
@@ -21,10 +21,21 @@ import { QueryError } from './QueryError';
 const PAGE = 25;
 
 const CorpusExplorer: React.FC = () => {
-  const [q, setQ] = useState('');
-  const [query, setQuery] = useState('');
-  const [domain, setDomain] = useState('');
-  const [offset, setOffset] = useState(0);
+  const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const [q, setQ] = useState(params.get('q') || '');
+  const [query, setQuery] = useState(params.get('q') || '');
+  const [domain, setDomain] = useState(params.get('domain') || '');
+  const initialOffset = Number(params.get('offset') || 0);
+  const [offset, setOffset] = useState(Number.isSafeInteger(initialOffset) && initialOffset >= 0 ? initialOffset : 0);
+  useEffect(() => {
+    // Persist only submitted filters; typing does not fetch or navigate.
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (domain) params.set('domain', domain);
+    if (offset) params.set('offset', String(offset));
+    const hash = `#/dashboard/corpus${params.size ? `?${params}` : ''}`;
+    window.history.replaceState(null, '', hash);
+  }, [query, domain, offset]);
   const polling = usePollingPolicy(15000);
 
   const list = useQuery({
@@ -82,9 +93,9 @@ const CorpusExplorer: React.FC = () => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <a
-                    href={safeHttpUrl(c.url)}
-                    target="_blank"
-                    rel="noreferrer"
+                    href={articleHref(c.id, 'overview', { back: window.location.hash })}
+
+
                     className="font-display text-lg leading-snug hover:text-hermes-red-bright transition-colors"
                   >
                     {c.title}
@@ -97,9 +108,9 @@ const CorpusExplorer: React.FC = () => {
                   {c.neighbors.map((nb) => (
                     <a
                       key={nb.id}
-                      href={safeHttpUrl(nb.url)}
-                      target="_blank"
-                      rel="noreferrer"
+                      href={articleHref(nb.id, 'overview', { back: window.location.hash })}
+
+
                       className="group flex items-center gap-2 font-mono text-[11px] text-hermes-bone/70 hover:text-hermes-bone"
                     >
                       <span className="w-9 shrink-0 text-right tabular-nums text-hermes-red-bright">
@@ -178,9 +189,9 @@ const CorpusExplorer: React.FC = () => {
               {list.data?.items.map((a) => (
                 <a
                   key={a.id}
-                  href={safeHttpUrl(a.url)}
-                  target="_blank"
-                  rel="noreferrer"
+                  href={articleHref(a.id, 'overview', { back: window.location.hash })}
+
+
                   className="flex items-center justify-between gap-4 py-2.5 group"
                 >
                   <div className="min-w-0 flex flex-col gap-0.5">
@@ -198,7 +209,7 @@ const CorpusExplorer: React.FC = () => {
                       {a.word_count != null ? <span>· {a.word_count}w</span> : null}
                     </span>
                   </div>
-                  <ExternalLink className="w-3.5 h-3.5 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />
                 </a>
               ))}
             </div>
@@ -251,9 +262,9 @@ const CorpusExplorer: React.FC = () => {
             {recent.data?.items.map((r) => (
               <a
                 key={r.id}
-                href={safeHttpUrl(r.url)}
-                target="_blank"
-                rel="noreferrer"
+                href={articleHref(r.id, 'overview', { back: window.location.hash })}
+
+
                 className="group py-2 flex flex-col gap-0.5 border-b border-hermes-bone/8 last:border-0"
               >
                 <span className="truncate text-xs font-medium text-hermes-bone/85 group-hover:text-white">

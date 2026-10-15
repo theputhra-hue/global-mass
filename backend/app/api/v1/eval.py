@@ -149,7 +149,8 @@ async def label_pair(
         raise HTTPException(status_code=404, detail="pair not found")
     annotation: dict[str, Any] = {}
     if body.changed_spans is not None:
-        texts = dict((await db.execute(select(Claim.id, Claim.claim_text).where(Claim.id.in_([pair.claim_a_id, pair.claim_b_id])))).all())
+        rows = (await db.execute(select(Claim.id, Claim.claim_text).where(Claim.id.in_([pair.claim_a_id, pair.claim_b_id])))).all()
+        texts = {claim_id: text for claim_id, text in rows}
         try:
             annotation["changed_spans"] = validate_spans(body.changed_spans, texts[pair.claim_a_id], texts[pair.claim_b_id])
         except (KeyError, ValueError) as exc:

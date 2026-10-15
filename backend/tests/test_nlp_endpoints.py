@@ -12,7 +12,7 @@ async def test_nlp_trigger_endpoint_admin(async_client: AsyncClient):
     from app.main import app
     
     # Mock admin user
-    app.dependency_overrides[get_current_user] = lambda: User(id=uuid.uuid4(), email="admin@test.com", role=RoleEnum.admin)
+    app.dependency_overrides[get_current_user] = lambda: User(id=uuid.uuid4(), email="admin@test.com", role=RoleEnum.admin, is_active=True)
     
     response = await async_client.post("/api/v1/nlp/trigger")
     assert response.status_code == 200
@@ -50,3 +50,10 @@ async def test_nlp_status_endpoint_unauth(async_client: AsyncClient):
     response = await async_client.get("/api/v1/nlp/status")
     assert response.status_code == 401
 
+
+
+@pytest.fixture(autouse=True)
+def approved_pipeline_test_operator(monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "DEVELOPER_UPLOAD_EMAILS", ["admin@test.com", "user@test.com"])
+    monkeypatch.setattr(get_settings(), "DEVELOPER_PIPELINE_ENABLED", True)

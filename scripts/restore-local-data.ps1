@@ -39,7 +39,7 @@ if ($sourceId -eq $targetId) { throw 'Source and destination containers must be 
 
 $summarySql = "SELECT json_build_object('claims', (SELECT count(*) FROM public.claims), 'articles', (SELECT count(*) FROM public.articles), 'version', (SELECT version_num FROM public.alembic_version))::text;"
 $sourceSummary = ((Invoke-Docker @('exec', $SourceContainer, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-U', $SourceUser, '-d', $SourceDatabase, '-Atc', $summarySql)) | Out-String).Trim() | ConvertFrom-Json
-if ($sourceSummary.version -notin @('gmee03', 'gmee04', 'gmee05')) { throw 'This recovery supports gmee03/gmee04/gmee05 databases only. No changes were made.' }
+if ($sourceSummary.version -notin @('gmee03', 'gmee04', 'gmee05', 'gmee06')) { throw 'This recovery supports gmee03/gmee04/gmee05/gmee06 databases only. No changes were made.' }
 if ($sourceSummary.claims -lt 1) { throw 'The source database has no claims. No changes were made.' }
 Write-Host "Found $($sourceSummary.claims) claims and $($sourceSummary.articles) articles in $SourceDatabase."
 

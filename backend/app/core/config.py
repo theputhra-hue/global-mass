@@ -94,6 +94,10 @@ class Settings(BaseSettings):
     # node). Set to false for API-only replicas and run scripts/run_nlp_cycle.py
     # as a separate process so heavy cycles never restart with the API.
     ENABLE_SCHEDULER: bool = False
+    # Upload access requires both this exact-email list AND an operator-granted
+    # admin role. Public registration cannot grant developer privileges.
+    DEVELOPER_UPLOAD_EMAILS: list[str] = []
+    DEVELOPER_PIPELINE_ENABLED: bool = False
 
     # Rate limiting. Disable in the test suite (tests share one IP and would
     # trip the login limiter against each other / against dev usage).

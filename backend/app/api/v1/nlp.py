@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db_session, require_role
+from app.api.developer_access import require_local_pipeline
 from app.models.article import Article, NLPStatusEnum
 from app.models.pipeline import JobTypeEnum
 from app.models.user import RoleEnum, User
@@ -14,7 +15,7 @@ from app.services.pipeline.jobs import JobAlreadyRunning, run_job
 router = APIRouter()
 
 
-@router.post("/trigger")
+@router.post("/trigger", dependencies=[Depends(require_local_pipeline)])
 async def trigger_nlp(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(require_role(RoleEnum.admin)),

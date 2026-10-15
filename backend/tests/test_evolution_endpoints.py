@@ -13,7 +13,7 @@ def _override_user(role: RoleEnum = RoleEnum.user) -> None:
     from app.main import app
 
     app.dependency_overrides[get_current_user] = lambda: User(
-        id=uuid.uuid4(), email="user@test.com", role=role
+        id=uuid.uuid4(), email="user@test.com", role=role, is_active=True
     )
 
 
@@ -65,3 +65,10 @@ async def test_evolution_clusters_auth(async_client: AsyncClient):
         assert resp.status_code == 200
     finally:
         _clear_overrides()
+
+
+@pytest.fixture(autouse=True)
+def approved_pipeline_test_operator(monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "DEVELOPER_UPLOAD_EMAILS", ["admin@test.com", "user@test.com"])
+    monkeypatch.setattr(get_settings(), "DEVELOPER_PIPELINE_ENABLED", True)

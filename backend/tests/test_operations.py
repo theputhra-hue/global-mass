@@ -2,6 +2,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +11,13 @@ from app.main import app
 from app.models.article import Article, NLPStatusEnum, ProcessingStatusEnum
 from app.models.source import Source, SourceTypeEnum
 from app.models.user import RoleEnum, User
+
+
+@pytest.fixture(autouse=True)
+def approved_operator(monkeypatch):
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "DEVELOPER_UPLOAD_EMAILS", ["operator@example.com"])
+    monkeypatch.setattr(get_settings(), "DEVELOPER_PIPELINE_ENABLED", True)
 
 
 async def test_operations_requires_administrator(async_client: AsyncClient) -> None:
@@ -42,7 +50,7 @@ async def test_recovery_defaults_dry_run_and_never_seizes_live_leases(
     db_session.add_all([expired, active])
     await db_session.commit()
     app.dependency_overrides[get_current_user] = lambda: User(
-        id=uuid.uuid4(), email="operator@example.com", role=RoleEnum.admin
+        id=uuid.uuid4(), email="operator@example.com", role=RoleEnum.admin, is_active=True
     )
     try:
         response = await async_client.post("/api/v1/operations/recover", json={"stage": "nlp"})

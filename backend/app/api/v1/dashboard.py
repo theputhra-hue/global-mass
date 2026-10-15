@@ -28,6 +28,15 @@ logger = logging.getLogger(__name__)
 _TIMEOUT_S = 3.0
 
 
+async def _optional_graph_driver() -> AsyncDriver | None:
+    # Driver acquisition can fail before the snapshot's section guards run.
+    try:
+        return await get_neo4j_driver()
+    except Exception:
+        logger.warning("dashboard: graph driver unavailable")
+        return None
+
+
 async def _postgres_metrics(db: AsyncSession) -> dict[str, Any]:
     async with asyncio.timeout(_TIMEOUT_S):
         articles_total = await db.scalar(select(func.count(Article.id))) or 0
@@ -105,7 +114,7 @@ async def _redis_metrics(redis_client: Redis) -> dict[str, Any]:
 @router.get("")
 async def dashboard_snapshot(
     db: AsyncSession = Depends(get_db_session),
-    neo4j_driver: AsyncDriver = Depends(get_neo4j_driver),
+    neo4j_driver: AsyncDriver | None = Depends(_optional_graph_driver),
     redis_client: Redis = Depends(get_redis_client),
 ) -> dict[str, Any]:
     """Aggregate telemetry snapshot. Each store reports independently;
@@ -123,6 +132,8 @@ async def dashboard_snapshot(
         snapshot["corpus"] = None
 
     try:
+        if neo4j_driver is None:
+            raise RuntimeError("Graph service unavailable")
         snapshot["graph"] = await _neo4j_metrics(neo4j_driver)
     except Exception as exc:
         logger.warning("dashboard: neo4j section degraded: %s", exc)

@@ -4,7 +4,6 @@ import asyncio
 import html as htmllib
 import logging
 import re
-import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -185,17 +184,6 @@ async def semantic_search(
                    "embedding_source": source}
                   for article, score, source in rows],
     }
-
-
-@router.get("/articles/{article_id}")
-async def article_detail(
-    article_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db_session),
-) -> dict[str, Any]:
-    article = await db.get(Article, article_id)
-    if article is None:
-        raise HTTPException(status_code=404, detail="article not found")
-    return _article_row(article, body=True)
 
 
 # ---------------------------------------------------------------- graph

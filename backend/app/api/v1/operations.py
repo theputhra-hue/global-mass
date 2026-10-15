@@ -7,14 +7,14 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db_session, require_role
+from app.api.deps import get_db_session
+from app.api.developer_access import require_developer, require_local_pipeline
 from app.models.article import Article
 from app.models.pipeline import JobTypeEnum, PipelineJob
-from app.models.user import RoleEnum
 from app.services.pipeline.jobs import job_to_dict
 from app.services.pipeline.ownership import Stage, recover_expired
 
-router = APIRouter(dependencies=[Depends(require_role(RoleEnum.admin))])
+router = APIRouter(dependencies=[Depends(require_developer)])
 
 
 @router.get("/jobs")
@@ -37,7 +37,7 @@ class RecoveryRequest(BaseModel):
     dry_run: bool = True
 
 
-@router.post("/recover")
+@router.post("/recover", dependencies=[Depends(require_local_pipeline)])
 async def recover_articles(
     body: RecoveryRequest, db: AsyncSession = Depends(get_db_session)
 ) -> dict[str, Any]:

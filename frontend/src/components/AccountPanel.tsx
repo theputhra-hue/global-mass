@@ -1,13 +1,15 @@
 import { useId, useState } from 'react';
 import { LogOut, RefreshCw, UserRound, X } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { useSession } from '../lib/session';
 import { Dialog } from './Dialog';
 import { QueryError } from './QueryError';
+import { publicationsApi } from '../api/publications';
 
 export function AccountPanel({ signInLabel = 'Sign in' }: { signInLabel?: string }) {
-  const { user } = useSession();
+  const { user, revision } = useSession();
+  const developerAccess = useQuery({ queryKey: ['publication-access', user?.id, revision], queryFn: publicationsApi.access, enabled: user?.role === 'admin', retry: false });
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -70,6 +72,7 @@ export function AccountPanel({ signInLabel = 'Sign in' }: { signInLabel?: string
                 <div><dt className="text-hermes-bone/50 font-mono text-xs">Role</dt><dd>{user.role}</dd></div>
               </dl>
               <div className="flex flex-wrap gap-3">
+                {developerAccess.data?.allowed && <><a href="#/dashboard/developer" className="btn-outline-dark" onClick={() => setOpen(false)}>Developer console</a><a href="#/dashboard/upload" className="btn-outline-dark" onClick={() => setOpen(false)}>Developer uploads</a></>}
                 <button type="button" disabled={pending} onClick={() => void refresh()} className="btn-brutal"><RefreshCw className="w-3.5 h-3.5" /> Rotate session</button>
                 <button type="button" disabled={pending} onClick={() => void logout()} className="btn-brutal"><LogOut className="w-3.5 h-3.5" /> Log out</button>
               </div>

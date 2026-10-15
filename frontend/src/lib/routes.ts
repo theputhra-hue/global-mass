@@ -4,7 +4,7 @@ import type { TabType } from '../components/Header';
 const TABS: TabType[] = ['overview', 'factcheck', 'fullgraph', 'timeline', 'masala', 'graph', 'vector', 'cache', 'corpus', 'eval', 'project', 'casebook'];
 
 function currentTab(): TabType {
-  const tab = window.location.hash.match(/^#\/dashboard\/([a-z]+)$/)?.[1] as TabType | undefined;
+  const tab = window.location.hash.split('?')[0].match(/^#\/dashboard\/([a-z]+)$/)?.[1] as TabType | undefined;
   return tab && TABS.includes(tab) ? tab : 'overview';
 }
 

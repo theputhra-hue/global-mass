@@ -8,11 +8,13 @@ from sqlalchemy import text
 
 from app.api.v1 import (
     alerts,
+    article_insights,
     auth,
     casebook,
     collection,
     corpus,
     dashboard,
+    developer,
     eval,
     evolution,
     graph,
@@ -22,6 +24,7 @@ from app.api.v1 import (
     operations,
     preprocessing,
     project,
+    publications,
     verdicts,
 )
 from app.core import scheduler
@@ -82,6 +85,7 @@ def create_app() -> FastAPI:
     api_router.include_router(operations.router, prefix="/operations", tags=["Operations"])
     api_router.include_router(evolution.router, prefix="/evolution", tags=["Evolution"])
     api_router.include_router(corpus.router, prefix="/corpus", tags=["Corpus"])
+    api_router.include_router(article_insights.router, prefix="/corpus", tags=["Article investigations"])
     api_router.include_router(verdicts.router, prefix="/verdicts", tags=["Verdicts"])
     api_router.include_router(graph.router, prefix="/graph", tags=["Graph"])
     api_router.include_router(lineage.router, prefix="/graph", tags=["Graph"])
@@ -89,6 +93,8 @@ def create_app() -> FastAPI:
     api_router.include_router(casebook.router, prefix="/casebook", tags=["Casebook"])
     api_router.include_router(project.router, prefix="/project", tags=["Project"])
     api_router.include_router(eval.router, prefix="/eval", tags=["Evaluation"])
+    api_router.include_router(publications.router, prefix="/publications", tags=["Developer uploads"])
+    api_router.include_router(developer.router, prefix="/developer", tags=["Developer console"])
 
     app.include_router(api_router, prefix="/api/v1")
 

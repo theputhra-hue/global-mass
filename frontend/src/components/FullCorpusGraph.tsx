@@ -5,6 +5,7 @@ import { graphApi, type FullGraph } from '../api/graph';
 import { setSelectedArticle } from '../lib/useSelectedArticle';
 import type { TabType } from './Header';
 import { usePollingPolicy } from '../lib/polling';
+import { articleHref } from '../lib/articleRoutes';
 import { safeHttpUrl } from '../lib/urls';
 import { QueryError } from './QueryError';
 import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, outletName, type GraphPoint } from '../lib/corpusGraph';
@@ -281,6 +282,7 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
       {selected && <div className="flex flex-wrap items-start justify-between gap-5 border-t border-hermes-bone/15 bg-black/15 p-5 sm:p-6">
         <div className="min-w-0 flex-1 basis-64"><div className="mb-2 text-[10px] uppercase tracking-widest" style={{ color: outletColor(selected.domain) }}>{outletName(selected.domain)}{selected.deg != null && ` · ${selected.deg} similarity links`}</div><h3 className="text-xl leading-snug">{selected.title}</h3></div>
         <div className="flex flex-wrap items-center gap-2">
+          {timelineArticleId && <a href={articleHref(timelineArticleId)} className="btn-brutal">Open article details <ArrowUpRight className="h-3.5 w-3.5" /></a>}
           <button disabled={!timelineArticleId || !setActiveTab} title={timelineArticleId ? 'Open this article’s story timeline' : 'This claim has no article_id; timeline drill-down is unsupported'} onClick={() => { if (!timelineArticleId) return; setSelectedArticle({ id: timelineArticleId, title: selected.title, domain: selected.domain }); setActiveTab?.('timeline'); }} className="btn-brutal">View in Timeline <Orbit className="h-3.5 w-3.5" /></button>
           {safeHttpUrl(selected.url) && <a href={safeHttpUrl(selected.url)} target="_blank" rel="noreferrer" className={controlClass}>Read original <ExternalLink className="h-3.5 w-3.5" /></a>}<button aria-label="Close node inspector" onClick={() => setSelectedId(null)} className={controlClass}><X className="h-4 w-4" /></button>
         </div>

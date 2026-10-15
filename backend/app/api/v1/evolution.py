@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_user, get_db_session, require_role
+from app.api.developer_access import require_local_pipeline
 from app.models.evolution import ClaimClusterRun
 from app.models.pipeline import JobTypeEnum
 from app.models.user import RoleEnum, User
@@ -16,7 +17,7 @@ from app.services.pipeline.jobs import JobAlreadyRunning, run_job
 router = APIRouter()
 
 
-@router.post("/graph/sync", dependencies=[Depends(require_role(RoleEnum.admin))])
+@router.post("/graph/sync", dependencies=[Depends(require_local_pipeline)])
 async def reconcile_graph(db: AsyncSession = Depends(get_db_session)) -> dict[str, Any]:
     """Rebuild the bounded graph projection from authoritative persisted records."""
     result = await Neo4jWriter().sync_persisted_graph(db)
@@ -25,7 +26,7 @@ async def reconcile_graph(db: AsyncSession = Depends(get_db_session)) -> dict[st
     return result
 
 
-@router.post("/trigger")
+@router.post("/trigger", dependencies=[Depends(require_local_pipeline)])
 async def trigger_evolution(
     force: bool = Query(False, description="Bypass debounce guard (minimum-corpus guard is still respected)"),
     db: AsyncSession = Depends(get_db_session),
