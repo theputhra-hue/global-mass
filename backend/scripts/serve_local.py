@@ -110,7 +110,7 @@ async def preflight() -> None:
 
     try:
         async with async_session_maker() as db:
-            heads = set((await db.execute(text("SELECT version_num FROM alembic_version"))).scalars())
+            heads: set[str] = set((await db.execute(text("SELECT version_num FROM alembic_version"))).scalars())
             expected = set(ScriptDirectory.from_config(Config("alembic.ini")).get_heads())
             if heads != expected:
                 raise LocalHostingError("Database schema differs from this checkout. Back up and rehearse migrations before serving.")
