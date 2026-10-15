@@ -8,7 +8,7 @@ describe('honest landing statistics', () => {
     const fetch = mockApi(() => { throw new Error('Anonymous landing must not fetch private workspace data'); });
     renderWithClient(<Landing />);
     expect(fetch).not.toHaveBeenCalled();
-    expect(screen.getByText('Sign in to view articles and live corpus data.')).toBeTruthy();
+    expect(screen.getByText('Sign in to view articles and collection data.')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Sign in to explore' }).getAttribute('href')).toBe('#/signin');
     expect(screen.queryByText('Connecting to real dashboard metrics…')).toBeNull();
     expect(within(screen.getByText('claims indexed').parentElement!).getByText('—')).toBeTruthy();
@@ -31,6 +31,7 @@ describe('honest landing statistics', () => {
     const fetch = mockApi((endpoint) => endpoint === '/dashboard' ? failure ? jsonResponse({ detail: 'Dashboard unavailable' }, 503) : jsonResponse(zeroDashboard) : emptyDashboardApi(endpoint));
     signInFixture();
     renderWithClient(<Landing />);
+    fireEvent.click(screen.getByText('More about the project & technical details'));
     expect(screen.getByText('Connecting to real dashboard metrics…')).toBeTruthy();
     expect(await screen.findByText('Dashboard unavailable')).toBeTruthy();
     expect(within(screen.getByText('claims indexed').parentElement!).getByText('—')).toBeTruthy();

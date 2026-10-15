@@ -12,13 +12,14 @@ const queryClient = new QueryClient({
 });
 
 describe('App Component', () => {
-  it('renders GMEE Command Center page', () => {
+  it('opens with a clear introduction and sign-in action', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>
     );
     expect(screen.getByText('GMEE')).toBeDefined();
-    expect(screen.getByText('Global Misinformation Evolution Engine')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Find a story. Look closer.' })).toBeDefined();
+    expect(screen.getByRole('link', { name: 'Sign in to explore' }).getAttribute('href')).toBe('#/signin');
   });
 });

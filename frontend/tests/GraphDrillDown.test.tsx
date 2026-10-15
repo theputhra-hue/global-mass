@@ -12,6 +12,13 @@ const articleGraph = { nodes: [{ id: articleId, title: 'Actual corpus article', 
 // The selected article hook is exercised by the actual TimelineTunnel tests;
 // here the real node selector drives the cross-tab store, without canvas hit mocks.
 describe('graph article identity drill-down', () => {
+  it('opens the article timeline when used in the cloud without local tab callbacks', async () => {
+    mockApi(() => jsonResponse(articleGraph));
+    renderWithClient(<FullCorpusGraph />);
+    await screen.findByRole('option', { name: 'Actual corpus article' });
+    fireEvent.change(screen.getByLabelText('Inspect a node (keyboard alternative)'), { target: { value: articleId } });
+    expect(screen.getByRole('link', { name: /View in Timeline/ }).getAttribute('href')).toBe(`#/dashboard/articles/${articleId}/timeline`);
+  });
   it('renders shared articles once and preserves links between cluster hubs', async () => {
     const navigate = vi.fn();
     const common = { domain: 'source.example', url: 'https://source.example/article', score: 0.9 };

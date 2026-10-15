@@ -36,7 +36,6 @@ export function PublicationNotice() {
   const { mode, publication } = usePublicationRuntime();
   if (mode !== 'published') return null;
   return <aside aria-label="Published data status" className="border-y border-hermes-bone/20 bg-hermes-panel px-4 md:px-8 py-4 text-xs font-mono text-hermes-bone/75">
-    {publication?.run_id ? <>Published results · Last published {new Date(publication.published_at!).toLocaleString()} · Analysis through {new Date(publication.analysis_completed_at!).toLocaleString()}. </> : <>Awaiting the first reviewed publication. </>}
-    AI analysis runs on the developers’ PC. This website serves saved results independently of that PC. Search uses text matching.
+    <div className="flex flex-wrap items-center justify-between gap-3"><p>{publication?.run_id ? <>Published archive · Updated {new Date(publication.published_at!).toLocaleDateString()}</> : publication ? 'Awaiting the first reviewed publication.' : 'Checking publication details…'}</p><details><summary className="cursor-pointer underline underline-offset-4">About these results</summary><p className="max-w-2xl mt-3 leading-relaxed">{publication?.analysis_completed_at && <>Saved analysis through {new Date(publication.analysis_completed_at).toLocaleString()}. </>}AI analysis runs on the developers’ PC. This website serves saved results independently of that PC. Search uses text matching. Publication dates and analysis dates are different.</p></details></div>
   </aside>;
 }

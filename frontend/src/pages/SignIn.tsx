@@ -31,7 +31,7 @@ export function SignIn() {
       <section className="w-full max-w-lg card-brutal-dark p-6 md:p-10">
         <p className="font-mono text-xs tracking-widest text-hermes-red-bright mb-4">GMEE / RESEARCH WORKSPACE</p>
         <h1 className="text-4xl mb-3">{register ? 'Create your account' : 'Welcome back'}</h1>
-        <p className="text-hermes-bone/65 text-sm mb-8">Sign in to explore the corpus, compare claims, and view the dashboard.</p>
+        <p className="text-hermes-bone/65 text-sm mb-8">Sign in to search articles, inspect saved statements, and compare wording.</p>
         {error != null && <QueryError title="Unable to sign in" error={error} />}
         <form onSubmit={(event) => void submit(event)} className="space-y-5">
           <div><label htmlFor="signin-email" className="block font-mono text-xs font-bold uppercase tracking-wider mb-2">Email</label><input id="signin-email" name="email" type="email" autoComplete="username" required disabled={pending} className="field-brutal w-full" /></div>

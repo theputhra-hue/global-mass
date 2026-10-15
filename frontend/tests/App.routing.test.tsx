@@ -55,4 +55,11 @@ describe('dashboard sign-in boundary', () => {
     renderWithClient(<App />);
     expect(screen.getByText(`Private dashboard: reader ${tab}`)).toBeTruthy();
   });
+  it('opens the tools directory while keeping operational tools out of the reader navigation', () => {
+    signInFixture();
+    window.history.replaceState(null, '', '/#/dashboard/tools');
+    renderWithClient(<App />);
+    expect(screen.getByRole('heading', { name: 'Tools & guides' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Explore articles' }).getAttribute('href')).toBe('#/dashboard');
+  });
 });
