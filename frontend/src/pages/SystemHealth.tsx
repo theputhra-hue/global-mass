@@ -17,6 +17,10 @@ import { CacheTelemetry } from '../components/CacheTelemetry';
 import CorpusExplorer from '../components/CorpusExplorer';
 import { FactCheck } from '../components/FactCheck';
 import { EvalLab } from '../components/EvalLab';
+import { OperationsPanel } from '../components/OperationsPanel';
+import { ProjectLab } from '../components/ProjectLab';
+import { Casebook } from '../components/Casebook';
+import type { MutationComparisonInput } from '../api/features';
 import FullCorpusGraph from '../components/FullCorpusGraph';
 import TimelineTunnel from '../components/TimelineTunnel';
 import MasalaLab from '../components/MasalaLab';
@@ -105,7 +109,9 @@ const SystemHealthContent: React.FC = () => {
   const polling = usePollingPolicy(0);
   const visible = useDocumentVisible();
   const [activeTab, setActiveTab] = useDashboardTab();
+  const compactWorkspace = activeTab === 'project' || activeTab === 'casebook';
   const [demoMode, setDemoMode] = useState(false);
+  const [comparisonDraft, setComparisonDraft] = useState<MutationComparisonInput>();
   const [telemetry, setTelemetry] = useState<DemoTelemetry>(DEMO_BASE);
 
   const { data, error, isLoading, isFetching, refetch } = useQuery({
@@ -117,6 +123,7 @@ const SystemHealthContent: React.FC = () => {
   // Each dependency reports independently; readiness never gates usable tabs.
   const dashboard = useQuery({
     queryKey: ['dashboard'],
+    enabled: !compactWorkspace,
     queryFn: ({ signal }) => fetchDashboard({ signal }),
     ...polling,
   });
@@ -170,9 +177,9 @@ const SystemHealthContent: React.FC = () => {
         <AdvancedTabGuide tab={activeTab} />
 
         {/* Decorative equalizer, never presented as measured telemetry. */}
-        <div className="mt-6 mb-8 border border-hermes-bone/15 bg-hermes-panel px-4 py-3">
+        {!compactWorkspace && <div className="mt-6 mb-8 border border-hermes-bone/15 bg-hermes-panel px-4 py-3">
           <AsciiEqualizer count={56} className="text-lg" label="Decorative equalizer — not live telemetry" />
-        </div>
+        </div>}
 
         {/* DEMO MODE banner */}
         {demoMode && (
@@ -200,7 +207,9 @@ const SystemHealthContent: React.FC = () => {
           </div>
         )}
 
-        <section aria-label="Dependency readiness" className="mb-6 card-brutal-dark p-4 space-y-3">
+        <details open={!compactWorkspace} className="mb-6">
+        <summary className={compactWorkspace ? 'cursor-pointer text-xs font-mono text-hermes-bone/55 py-3' : 'hidden'}>Service details · {headerStatus === 'ready' ? 'all stores ready' : 'data services unavailable or connecting'}</summary>
+        <section aria-label="Dependency readiness" className="card-brutal-dark p-4 space-y-3">
           {isLoading && <p role="status" className="font-mono text-xs">Connecting to backend readiness… Tabs can fetch independently.</p>}
           {error && <QueryError title="Readiness unavailable" error={error} onRetry={refetch} retrying={isFetching} />}
           {data && <>
@@ -219,9 +228,11 @@ const SystemHealthContent: React.FC = () => {
             <Play className="w-3.5 h-3.5" /> Launch Demo Telemetry
           </button>}
         </section>
-        {dashboard.isError && <div className="mb-6"><QueryError title="Dashboard metrics unavailable" error={dashboard.error} onRetry={() => dashboard.refetch()} retrying={dashboard.isFetching} />
+        </details>
+        {dashboard.isError && !compactWorkspace && <div className="mb-6"><QueryError title="Dashboard metrics unavailable" error={dashboard.error} onRetry={() => dashboard.refetch()} retrying={dashboard.isFetching} />
           {dash && <p className="font-mono text-xs mt-2">Showing the last real snapshot from {dash.generated_at}; values may be stale.</p>}
         </div>}
+        <OperationsPanel />
 
         {activeTab === 'overview' && isLoading && dashboard.isLoading && !demoMode ? <LoadingGrid /> : (
           /* Active Content Views Based on Tab */
@@ -302,6 +313,8 @@ const SystemHealthContent: React.FC = () => {
               </div>
             )}
 
+            {activeTab === 'project' && <ProjectLab navigate={setActiveTab} investigate={input => {setComparisonDraft(input);setActiveTab('casebook');}}/>}
+            {activeTab === 'casebook' && <Casebook initialComparison={comparisonDraft}/>}
             {activeTab === 'timeline' && <TimelineTunnel />}
             {activeTab === 'masala' && <MasalaLab />}
             {activeTab === 'fullgraph' && <FullCorpusGraph setActiveTab={setActiveTab} />}

@@ -1,10 +1,10 @@
 import React from 'react';
-import { Activity, RefreshCw, Layers, Database, Network, HardDrive, FlaskConical, Newspaper, ShieldCheck, Share2, Orbit, Sparkles, ClipboardCheck } from 'lucide-react';
+import { Activity, RefreshCw, Layers, Database, Network, HardDrive, FlaskConical, Newspaper, ShieldCheck, Share2, Orbit, Sparkles, ClipboardCheck, BookOpen, GraduationCap } from 'lucide-react';
 import { AsciiSpinner } from './AsciiSpinner';
 import { AccountPanel } from './AccountPanel';
 import { useDocumentVisible } from '../lib/polling';
 
-export type TabType = 'overview' | 'factcheck' | 'fullgraph' | 'timeline' | 'masala' | 'graph' | 'vector' | 'cache' | 'corpus' | 'eval';
+export type TabType = 'overview' | 'factcheck' | 'fullgraph' | 'timeline' | 'masala' | 'graph' | 'vector' | 'cache' | 'corpus' | 'eval' | 'project' | 'casebook';
 
 interface HeaderProps {
   activeTab: TabType;
@@ -46,7 +46,7 @@ const STATUS_STYLES = {
 
 const TICKER_ITEMS = [
   'GMEE // GLOBAL MISINFORMATION EVOLUTION ENGINE',
-  'REAL-TIME CLAIM PROPAGATION TELEMETRY',
+  'LIVE CORPUS & CLAIM CHANGE TELEMETRY',
   'PGVECTOR · NEO4J · REDIS',
   'V1.0'
 ];
@@ -155,6 +155,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Navigation Tabs — flat segmented control */}
           <nav aria-label="Dashboard sections" className="flex items-center gap-0 overflow-x-auto">
+            <TabButton id="project" label="Project Lab" icon={GraduationCap} badge="START" activeTab={activeTab} setActiveTab={setActiveTab} />
+            <TabButton id="casebook" label="Casebook" icon={BookOpen} badge="NEW" activeTab={activeTab} setActiveTab={setActiveTab} />
             <TabButton id="overview" label="Overview Vitals" icon={Layers} activeTab={activeTab} setActiveTab={setActiveTab} />
             <TabButton id="graph" label="Neo4j Graph Engine" icon={Network} badge="7687" activeTab={activeTab} setActiveTab={setActiveTab} />
             <TabButton id="vector" label="Postgres Vector" icon={Database} badge="pgvector" activeTab={activeTab} setActiveTab={setActiveTab} />

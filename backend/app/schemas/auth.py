@@ -8,8 +8,8 @@ from app.models.user import RoleEnum
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=10, description="Password must be at least 10 characters long")
-    full_name: str | None = None
+    password: str = Field(..., min_length=10, max_length=1024, description="Password must be at least 10 characters long")
+    full_name: str | None = Field(default=None, max_length=300)
     
     @field_validator('password')
     @classmethod
@@ -30,7 +30,7 @@ class UserResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(max_length=1024)
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -38,7 +38,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(min_length=1, max_length=512)
 
 class LogoutRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(min_length=1, max_length=512)

@@ -21,4 +21,5 @@ _backup
 .git
 eval_report.json
 eval_publication_report.md
+gmee_articles_export.csv
 # tests must remain available to the dedicated Dockerfile test target.

@@ -26,7 +26,11 @@ class NearDuplicateDetector:
         
     def _shingle(self, text: str) -> list[str]:
         """Create 3-gram shingles for text."""
-        words = text.split()
+        words = text.casefold().split()
+        # Empty MinHashes are identical; indexing short articles with them
+        # incorrectly groups every unrelated one/two-word article together.
+        if len(words) < 3:
+            return [" ".join(words)] if words else []
         return [" ".join(words[i:i+3]) for i in range(len(words) - 2)]
         
     def _create_minhash(self, text: str) -> MinHash:
@@ -93,19 +97,42 @@ class NearDuplicateDetector:
             earliest_article = None
             for key in result_keys:
                 match = self.article_map.get(key)
-                if not match:
+                if not match or match.id == new_article.id or not match.cleaned_content:
+                    continue
+                # LSH only generates candidates. Verify actual Jaccard before
+                # collapsing evidence provenance into one canonical source.
+                left = set(self._shingle(new_article.cleaned_content))
+                right = set(self._shingle(match.cleaned_content))
+                union = left | right
+                if not union or len(left & right) / len(union) < self.threshold:
                     continue
                 # If the matched article is already a duplicate of something else,
                 # its canonical root is definitely older than this match.
-                if not earliest_article or match.collected_at < earliest_article.collected_at:
+                if not earliest_article or self._sort_key(match) < self._sort_key(earliest_article):
                     earliest_article = match
             
             if earliest_article:
                 canonical_id = earliest_article.canonical_article_id or earliest_article.id
+                # Retrying the original root may encounter one of its own
+                # duplicates; never create a self-reference in provenance.
+                if canonical_id == new_article.id:
+                    canonical_id = None
                 
         # Insert the new article into the index so it can match against subsequent articles in this run
         new_key = str(new_article.id)
+        # Subsequent articles in this batch must see the same canonical root
+        # that will be persisted, including when only a duplicate bridges them.
+        new_article.canonical_article_id = canonical_id
+        if new_key in self.article_map:
+            self.lsh.remove(new_key)
         self.lsh.insert(new_key, m)
         self.article_map[new_key] = new_article
         
         return canonical_id
+
+    @staticmethod
+    def _sort_key(article: Article) -> tuple[datetime, str]:
+        observed = article.collected_at or datetime.max.replace(tzinfo=UTC)
+        if observed.tzinfo is None:
+            observed = observed.replace(tzinfo=UTC)
+        return observed, str(article.id)

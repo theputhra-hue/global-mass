@@ -26,6 +26,18 @@ model initialization belongs to the app's lazy feature path, not Docker boot.
 Read-only public views, authenticated scientific tools and admin-only triggers/
 exports/recovery/metrics are distinct trust boundaries.
 
+Project Lab evaluates a fixed, public set of authored controls with the real
+text-change engine; it never labels corpus data. The authenticated Casebook
+stores owner-scoped comparison snapshots in PostgreSQL (`gmee05`). Capture
+recomputes analysis on the server and hashes canonical JSON. Review edits use
+an owner-and-revision predicate, preserving captured inputs/outputs. React query
+keys include account/session identity; private responses prohibit caching.
+
+The optional loopback preview serves only built frontend assets and those
+fixed controls. It returns 503 for database/model APIs and readiness. This mode
+allows honest interface inspection during Docker outages; it does not replace
+or establish readiness of the complete deployment.
+
 ## Why the stores are separate
 
 PostgreSQL retains source text, claims, embeddings, typed relationships, audit,

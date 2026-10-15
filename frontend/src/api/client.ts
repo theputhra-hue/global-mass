@@ -111,42 +111,49 @@ async function performRequest<T>(
   }
 }
 
-let refreshInFlight: Promise<void> | null = null;
+let refreshInFlight: { revision: number; promise: Promise<void> } | null = null;
 
 export async function rotateAccessToken(): Promise<void> {
-  if (refreshInFlight) return refreshInFlight;
+  const revision = getSessionRevision();
+  if (refreshInFlight?.revision === revision) return refreshInFlight.promise;
   const refreshToken = getRefreshToken();
   if (!refreshToken) throw new ApiError(401, { detail: 'This session has no refresh token. Sign in again.' });
-  const revision = getSessionRevision();
   const rotation = (async () => {
     const next = await performRequest<SessionTokens>('POST', '/auth/refresh', { refresh_token: refreshToken }, { anonymous: true });
     if (revision !== getSessionRevision()) throw new ApiError(401, { detail: 'The session changed. Sign in again.' });
     if (!next?.access_token) throw new ApiError(200, next, 'The authentication response did not contain an access token.');
     setSessionTokens(next);
   })();
-  refreshInFlight = rotation;
+  refreshInFlight = { revision, promise: rotation };
   try {
     await rotation;
   } catch (error) {
     if (error instanceof ApiError && error.status === 401 && revision === getSessionRevision()) clearSession();
     throw error;
   } finally {
-    if (refreshInFlight === rotation) refreshInFlight = null;
+    if (refreshInFlight?.promise === rotation) refreshInFlight = null;
   }
 }
 
 async function request<T>(method: 'GET' | 'POST', endpoint: string, body: unknown, options: ApiRequestOptions = {}, download = false): Promise<T> {
   const revision = getSessionRevision();
   const token = getAccessToken();
+  const ensureCurrentSession = (data: T): T => {
+    if (options.authenticated && revision !== getSessionRevision()) {
+      throw new ApiError(401, null, 'The account changed during this request. Please retry.');
+    }
+    return data;
+  };
   try {
-    return await performRequest<T>(method, endpoint, body, options, download);
+    return ensureCurrentSession(await performRequest<T>(method, endpoint, body, options, download));
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401 || !options.authenticated) throw error;
     if (options.signal?.aborted) throw new ApiError(0, null, 'Request cancelled.', 'aborted');
     if (options.refreshOnUnauthorized !== false && getRefreshToken() && revision === getSessionRevision()) {
       // Concurrent protected requests share one rotation, never reuse the old refresh token.
       if (getAccessToken() === token) await rotateAccessToken();
-      try { return await performRequest<T>(method, endpoint, body, options, download); } catch (retryError) {
+      if (revision !== getSessionRevision()) throw new ApiError(401, null, 'The account changed during this request. Please retry.');
+      try { return ensureCurrentSession(await performRequest<T>(method, endpoint, body, options, download)); } catch (retryError) {
         if (retryError instanceof ApiError && retryError.status === 401 && revision === getSessionRevision()) clearSession();
         throw retryError;
       }

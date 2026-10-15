@@ -1,6 +1,9 @@
 # GMEE Dataset & Ingestion Specifications
 
-This document defines the database schemas, ingestion pipelines, entity relationships, and empirical volume statistics for the Global Misinformation Early-Warning Engine (GMEE).
+This document summarizes schemas, ingestion pipelines and historical volume
+statistics for the Global Misinformation Evolution Engine (GMEE). The models and
+Alembic migrations define the current schema; historical counts below were not
+re-established as part of this review and are not research results.
 
 ---
 
@@ -11,18 +14,35 @@ GMEE operates a polyglot persistence architecture separating relational storage,
 1. **PostgreSQL 16 + pgvector (`gmee`):**
    - Serves as the primary source of truth for all structured tabular data, users, raw ingested content, extracted claims, and audit logs.
    - Houses 768-dimensional normalized embeddings (`all-mpnet-base-v2`) on articles and claims.
-   - Employs an HNSW (Hierarchical Navigable Small World) cosine index on `claims.embedding` (`claims_embedding_hnsw_cosine_idx`) and an IVFFlat index on `articles.embedding`.
+   - Employs HNSW cosine indexes on `claims.embedding` (`claims_embedding_hnsw_cosine_idx`) and `articles.embedding` (`articles_embedding_ix`), plus a claim-text GIN index (migration `gmee04`).
 2. **Neo4j 5.20+ Community / Enterprise:**
-   - Propagation topology graph capturing `Article`, `Claim`, `Source`, `Entity`, and `Domain` nodes.
+   - Candidate relationship graph capturing `Article`, `Claim`, `Source`, `Entity`, and `Domain` nodes; adjacency does not establish observed propagation.
    - Traverses relationship edges (`SIMILAR_TO`, `EVOLVED_FROM`, `PUBLISHED_BY`, `MENTIONS`, `FROM_DOMAIN`, `DUPLICATE_OF`).
 3. **Redis 7:**
-   - Ingest deduplication bloom filters/sets, sliding-window rate limit counters, distributed leader election locks for the collection scheduler, and short-lived session caches.
+   - Rate limits, token revocation, bounded caches and scheduler coordination. PostgreSQL stores durable pipeline ownership and session records.
 
 ---
 
 ## 2. Relational Schemas (PostgreSQL)
 
 All relational models inherit from SQLAlchemy declarative base. The production PostgreSQL schema includes the following primary tables:
+
+### `investigations` (migration `gmee05`)
+Private account-owned case files are separate from evaluation annotations.
+- `id`, `owner_id`: UUID primary key and indexed user FK, cascading on user deletion.
+- `title` (VARCHAR 160), `notes` (TEXT), `status` (`open`, `reviewed`, `archived`).
+- `revision` (INTEGER): optimistic review-edit version, initially 1.
+- `snapshot` (JSONB): immutable `gmee-case-v1` inputs, server-computed analysis,
+  capture timestamp and interpretation limit.
+- `snapshot_sha256` (VARCHAR 64): SHA-256 of UTF-8 JSON with sorted keys,
+  compact separators, Unicode retained and non-finite values forbidden.
+- `created_at`, `updated_at` (TIMESTAMPTZ).
+
+The API caps storage at 200 cases per owner, locks that owner's row for quota
+decisions and atomically rejects stale review revisions. Archiving is reversible.
+Neither captured analyzer outputs nor analyst review status become human gold.
+The public Project Lab's twelve authored controls are code fixtures, not corpus
+records or an independent research dataset.
 
 ### `articles`
 Represents ingested news and discussion articles from external feeds.
@@ -38,12 +58,12 @@ Represents ingested news and discussion articles from external feeds.
 - `content_hash` (VARCHAR, SHA256 of lowercase `title + ":" + content`)
 - `collected_at` (TIMESTAMPTZ, Timestamp of ingestion)
 - `language` (VARCHAR, ISO code e.g. `en`)
-- `processing_status` (ENUM: `pending`, `processed`, `skipped_non_english`, `skipped_duplicate`, `failed`)
+- `processing_status` (ENUM: `raw`, `processing`, `processed`, `skipped_non_english`, `failed`)
 - `canonical_article_id` (UUID, Foreign Key referencing `articles.id` for near-duplicates)
 - `word_count` (INTEGER)
 - `domain` (VARCHAR, Extracted publisher host, indexed)
 - `processed_at` (TIMESTAMPTZ)
-- `nlp_status` (ENUM: `pending`, `completed`, `skipped`, `failed`)
+- `nlp_status` (ENUM: `pending`, `processing`, `completed`, `skipped`, `failed`)
 - `embedding` (`vector(768)`, Sentence-BERT vector of title + cleaned body)
 
 ### `claims`
@@ -53,6 +73,12 @@ Extracted atomic factual statements derived from processed articles.
 - `claim_text` (TEXT, Normalized atomic assertion)
 - `confidence` (FLOAT, Extraction confidence score 0.0–1.0)
 - `embedding` (`vector(768)`, HNSW cosine index `claims_embedding_hnsw_cosine_idx`)
+- `extracted_at` (TIMESTAMPTZ)
+- `verdict` (VARCHAR, Legacy corpus-evidence band)
+- `verdict_probability` (FLOAT, Historical field name for an uncalibrated heuristic score, not a probability of truth)
+- `verdict_rationale` (TEXT, Explanation of contributing signals)
+- `verdict_evidence` (JSONB, Retrieved neighbors, stance and provenance)
+
 ### `claim_entities`
 Named entities extracted from claims via spaCy NER for grounding verification.
 - `id` (UUID, Primary Key)
@@ -92,12 +118,17 @@ Persistent early-warning signals detected across the network.
 - `last_seen_at` (TIMESTAMPTZ)
 
 ### `eval_pairs` & `eval_pair_labels`
-Gold-standard evaluation dataset for retrieval and fact-checking baselines.
+Annotation candidates and votes. Rows become research gold only after independent
+authenticated human review and the frozen-export checks in [Evaluation](EVALUATION.md).
 - `eval_pairs`: `id` (UUID, PK), `claim_a_id` (UUID, FK `claims.id`), `claim_b_id` (UUID, FK `claims.id`), `bucket` (VARCHAR: `b95`, `b85`, `b75`, `b60`, `b40`, `b00`), `sim_score` (FLOAT), `sampled_at` (TIMESTAMPTZ)
 - `eval_pair_labels`: `id` (UUID, PK), `pair_id` (UUID, FK `eval_pairs.id`), `annotator` (VARCHAR), `label` (VARCHAR: `SAME_STORY`, `EVOLVED`, `DISTINCT`), `created_at` (TIMESTAMPTZ)
+- Research provenance additionally records label origin, authenticated annotator ID,
+  rubric/version, mutation types, exact spans/context, notes and revision history;
+  pairs carry dataset/event/split identity. Consult migrations `gmee01`–`gmee03`
+  and the ORM for the full column/constraint definitions.
 
 ### `verdict_feedback`
-Human-in-the-loop audit logs and crowd feedback.
+Anonymous client-keyed feedback; it is not independent gold annotation.
 - `id` (UUID, Primary Key)
 - `claim_id` (UUID, FK `claims.id`, Indexed)
 - `client_hash` (VARCHAR, Anonymized sha256 client fingerprint)
@@ -106,17 +137,12 @@ Human-in-the-loop audit logs and crowd feedback.
 - `comment` (TEXT, Nullable)
 - `created_at` (TIMESTAMPTZ)
 
-- `extracted_at` (TIMESTAMPTZ)
-- `verdict` (VARCHAR, One of `SUPPORTED`, `PARTIALLY_SUPPORTED`, `UNRESOLVED`, `WEAKLY_CORROBORATED`, `UNSUPPORTED`, `DISPUTED`)
-- `verdict_probability` (FLOAT, Posterior probability $P(\text{supported} \mid \text{evidence})$)
-- `verdict_rationale` (TEXT, Human-readable breakdown of contributing signals)
-- `verdict_evidence` (JSONB, Neighbors inspected, stances, entity overlap)
-
 ---
 
 ## 3. Graph Schemas (Neo4j)
 
-The Neo4j propagation graph maintains a typed property topology:
+The Neo4j relationship projection maintains a typed property topology. Edge
+counts below belong to an unverified historical snapshot, not live telemetry.
 
 ### Node Labels
 - `Article`: `{id, title, url, domain, published_at, word_count}`
@@ -135,9 +161,12 @@ The Neo4j propagation graph maintains a typed property topology:
 
 ---
 
-## 4. Current Dataset Volume Statistics
+## 4. Historical Dataset Volume Statistics
 
-Empirical counts from the production database instance:
+Retained historical counts with no attached frozen snapshot or provenance
+manifest. They must not be quoted as current production measurements or used to
+infer annotation quality. Use authenticated origin-aware reports and a reviewed
+export to establish current research data support.
 
 | Entity / Table | Count | Description |
 |---|---|---|
@@ -152,17 +181,20 @@ Empirical counts from the production database instance:
 | **Cluster Runs** | 85 | Historical HDBSCAN topic-evolution cycles executed |
 | **Cluster Assignments**| 304,091 | Claim-to-cluster trajectory records across runs |
 | **Neo4j Nodes** | 27,132 | Graph nodes across Article, Claim, Entity, and Source |
-| **Neo4j Relationships**| 80,107 | Propagation, evolution, and attribution links |
+| **Neo4j Relationships**| 80,107 | Candidate similarity/change and attribution links |
 | **Alerts Persisted** | 40 | Deduped early-warning records in `alerts` table |
-| **Eval Pairs Sampled** | 761 | Stratified similarity pairs for gold-standard benchmarking |
-| **Eval Labels Logged** | 13 | Human consensus gold labels collected via Eval Lab |
-| **Verdict Feedback** | 4 | Human-in-the-loop verdict validations |
+| **Eval Pairs Sampled** | 761 | Annotation candidates; no independent gold claim |
+| **Eval Labels Logged** | 13 | Historical votes; origin/independence not established by this count |
+| **Verdict Feedback** | 4 | Client feedback; not validated truth labels |
 
-### Verdict Distribution Breakdown
+### Historical Verdict Distribution Breakdown
+
+Here `s` denotes the stored uncalibrated heuristic score; it is not a calibrated
+probability. These bands and counts do not establish truth-label accuracy.
 - `UNSUPPORTED`: 6,034 claims (single-source assertions lacking corroborating coverage)
-- `UNRESOLVED`: 3,461 claims (ambiguous or borderline evidence, $0.38 \le P < 0.55$)
-- `PARTIALLY_SUPPORTED`: 34 claims ($0.55 \le P < 0.72$)
-- `SUPPORTED`: 56 claims ($P \ge 0.72$)
+- `UNRESOLVED`: 3,461 claims (historical score band, $0.38 \le s < 0.55$)
+- `PARTIALLY_SUPPORTED`: 34 claims ($0.55 \le s < 0.72$)
+- `SUPPORTED`: 56 claims ($s \ge 0.72$)
 - `WEAKLY_CORROBORATED`: 2 claims
 - Unscored / Pending: 363 claims
 
@@ -184,7 +216,7 @@ Raw Content Feeds (RSS / Reddit / NewsAPI / CSV)
        │
        ├────────────────────────────────────────┐
        ▼ `backend/scripts/embed_articles.py`     ▼ `backend/scripts/run_verdicts.py`
-  [articles.embedding]                     [claims.verdict_*] (Bayesian 5-Signal Engine)
+  [articles.embedding]                     [claims.verdict_*] (uncalibrated corpus-evidence score)
        │                                        │
        ▼ `backend/scripts/build_link_graph.py`   ▼ `backend/scripts/run_alerts.py`
   Neo4j Article/Claim Topology             [alerts] table (Ingestion & Disputed Surges)
@@ -211,7 +243,7 @@ Raw Content Feeds (RSS / Reddit / NewsAPI / CSV)
    python scripts/run_nlp_cycle.py 50
    ```
    - Batches pending articles through language filtering and text cleanup.
-   - Runs heuristic and LLM claim extraction (`Flan-T5` / Claude / OpenAI).
+   - Runs configured local FLAN-T5 or Anthropic extraction; no OpenAI extractor is implemented.
    - Generates 768-D sentence vectors via `sentence-transformers/all-mpnet-base-v2`.
    - Extracts named entity spans via spaCy `en_core_web_sm`.
 
@@ -220,7 +252,7 @@ Raw Content Feeds (RSS / Reddit / NewsAPI / CSV)
    python scripts/embed_articles.py
    ```
    - Embeds article `title + cleaned_content` into `articles.embedding`.
-   - Creates/verifies vector indexes on `articles`.
+   - Uses the article vector schema/index owned by Alembic migration `gmee04`.
 
 5. **Link Graph Assembly (`scripts/build_link_graph.py`):**
    ```bash
@@ -235,9 +267,8 @@ Raw Content Feeds (RSS / Reddit / NewsAPI / CSV)
    ```bash
    python scripts/run_verdicts.py 500
    ```
-   - Evaluates claims across the 5 verification signals (Corroboration, Contradiction, Outlet Prior, Entity Grounding, Linguistic Hedges).
-   - Uses pgvector KNN with cross-domain filtering and FLAN-T5 NLI entailment checking.
-   - Persists probabilistic scores and rationales to `claims.verdict_*`.
+   - Uses pgvector candidates, source/content independence grouping and configured DeBERTa stance.
+   - Persists heuristic scores, rationales and evidence to `claims.verdict_*`; source/style alone cannot create support.
 
 7. **Evaluation Benchmark Harness (`scripts/sample_eval_pairs.py` & `scripts/run_eval.py`):**
    ```bash
@@ -246,5 +277,6 @@ Raw Content Feeds (RSS / Reddit / NewsAPI / CSV)
    ```
    - `sample_eval_pairs.py`: Samples stratified claim pairs across 6 similarity buckets (`b95` through `b00`).
    - Pairs are served blinded to human annotators via the **Eval Lab** dashboard.
-   - `run_eval.py`: Computes AUROC with 95% bootstrap CI, best-F1, Brier score, ECE, and McNemar significance tests against TF-IDF and SBERT baselines, writing results to `eval_report.json`.
+   - `run_eval.py`: Writes origin-aware exploratory diagnostics. Raw cosine is not evaluated as a probability and same-sample threshold selection is not held-out performance.
+   - `export_research_dataset.py` and `run_research_experiment.py`: Use reviewed frozen human-gold splits for fitted baselines, grouped uncertainty, calibration, selective prediction and separate span/context evaluation. See [Research](RESEARCH.md); real experiments remain unperformed.
 

@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="139" failures="0" errors="0" time="28.3186728">
+    <testsuite name="tests/AccountPanel.test.tsx" timestamp="2026-10-15T12:16:22.848Z" hostname="Prabhas" tests="7" failures="0" errors="0" skipped="0" time="1.4607186">
+        <testcase classname="tests/AccountPanel.test.tsx" name="memory-only account UI &gt; portals dialogs outside transformed or blurred header ancestors" time="0.4053011">
+        </testcase>
+        <testcase classname="tests/AccountPanel.test.tsx" name="memory-only account UI &gt; logs in and verifies /me using a bearer token without persisting credentials" time="0.2002258">
+        </testcase>
+        <testcase classname="tests/AccountPanel.test.tsx" name="memory-only account UI &gt; registers with the existing optional full_name contract" time="0.2719555">
+        </testcase>
+        <testcase classname="tests/AccountPanel.test.tsx" name="memory-only account UI &gt; shows authentication errors without claiming a signed-in identity" time="0.137974">
+        </testcase>
+        <testcase classname="tests/AccountPanel.test.tsx" name="memory-only account UI &gt; rotates refresh tokens in memory and logs out with the actual rotated credentials" time="0.1899749">
+        </testcase>
+        <testcase classname="tests/AccountPanel.test.tsx" name="memory-only account UI &gt; clears local credentials and reports uncertainty if server logout fails" time="0.1438257">
+        </testcase>
+        <testcase classname="tests/AccountPanel.test.tsx" name="memory-only account UI &gt; labels the dialog, traps keyboard focus, closes on Escape and restores the opener" time="0.1022466">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/api.client.test.ts" timestamp="2026-10-15T12:16:22.852Z" hostname="Prabhas" tests="24" failures="0" errors="0" skipped="0" time="0.2637083">
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; requests live /graph/full data without a fixture fallback" time="0.0597633">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; requests live /graph/claims data without a fixture fallback" time="0.0082782">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; requests live /graph/timeline?article_id=actual-id data without a fixture fallback" time="0.0027343">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; requests live /corpus/stats data without a fixture fallback" time="0.0020228">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; requests live /corpus/articles?q=river data without a fixture fallback" time="0.0020026">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; does not replace a graph failure with fabricated nodes" time="0.0089472">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; applies authentication and cancellation before mutation requests" time="0.0098639">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; uses the real ready aggregate value" time="0.0279415">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; preserves per-dependency readiness JSON from HTTP 503" time="0.0030589">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; does not mistake a non-readiness 503 or old ok aggregate for readiness" time="0.0032224">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; retains status/body and validation details in ApiError" time="0.0043602">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; bounds a hanging request and aborts its fetch signal" time="0.0222582">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; also bounds a hanging response body" time="0.0031203">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; distinguishes caller cancellation from network errors and clears timers" time="0.0025019">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; does not send an already aborted request" time="0.0014481">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; requires a memory bearer token and never sends cookie credentials" time="0.0090639">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; handles successful empty 204 logout responses" time="0.0024251">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; shares one refresh rotation across concurrent unauthorized requests" time="0.0657744">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; clears a rejected session rather than retrying unauthorized requests forever" time="0.0027091">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; discards protected data returned after logout" time="0.0021089">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; does not let a late login replace the account from a newer login" time="0.0047819">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; does not resurrect the account from a late identity verification" time="0.0023197">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; does not clear a new account when an older logout finishes" time="0.0019948">
+        </testcase>
+        <testcase classname="tests/api.client.test.ts" name="typed API requests and readiness &gt; scopes in-flight refresh rotation to its original account" time="0.002347">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/App.test.tsx" timestamp="2026-10-15T12:16:22.860Z" hostname="Prabhas" tests="1" failures="0" errors="0" skipped="0" time="0.4442948">
+        <testcase classname="tests/App.test.tsx" name="App Component &gt; renders GMEE Command Center page" time="0.4344033">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/Casebook.test.tsx" timestamp="2026-10-15T12:16:22.861Z" hostname="Prabhas" tests="3" failures="0" errors="0" skipped="0" time="1.0786011">
+        <testcase classname="tests/Casebook.test.tsx" name="Private casebook &gt; does not fetch private cases without an account" time="0.201258">
+        </testcase>
+        <testcase classname="tests/Casebook.test.tsx" name="Private casebook &gt; captures server analysis, opens a snapshot and handles a stale review conflict" time="0.8649293">
+        </testcase>
+        <testcase classname="tests/Casebook.test.tsx" name="Private casebook &gt; exports saved notes, raw inputs, method and original snapshot fingerprint" time="0.0029053">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ClaimCheck.test.tsx" timestamp="2026-10-15T12:16:22.862Z" hostname="Prabhas" tests="9" failures="0" errors="0" skipped="0" time="1.6708267">
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; requires authentication without sending a request or showing fake evidence" time="0.1816991">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; sends claim_text, an ISO publication cutoff and limit 8 with bearer auth" time="0.464154">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; displays actual passages, stances, source URLs and limitations; rejects unsafe URLs" time="0.2591012">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; renders SUPPORTED_BY_CORPUS as a corpus assessment rather than true/false" time="0.1201475">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; renders CONTRADICTED_BY_CORPUS as a corpus assessment rather than true/false" time="0.1503087">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; renders MIXED_EVIDENCE as a corpus assessment rather than true/false" time="0.1535357">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; renders INSUFFICIENT_EVIDENCE as a corpus assessment rather than true/false" time="0.1361774">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; does not treat retrieval failure as insufficient evidence and retries the actual request" time="0.1581493">
+        </testcase>
+        <testcase classname="tests/ClaimCheck.test.tsx" name="corpus evidence checking &gt; keeps the initial form empty and prevents an undersized claim" time="0.0368537">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ClusterDossier.test.tsx" timestamp="2026-10-15T12:16:22.865Z" hostname="Prabhas" tests="3" failures="0" errors="0" skipped="0" time="0.4571223">
+        <testcase classname="tests/ClusterDossier.test.tsx" name="&lt;ClusterDossier/&gt; — rich but honest cluster inspector &gt; renders the hub head with outlet color dot, hub chip and coverage span" time="0.3601807">
+        </testcase>
+        <testcase classname="tests/ClusterDossier.test.tsx" name="&lt;ClusterDossier/&gt; — rich but honest cluster inspector &gt; computes publish-time lag vs the hub, including scoop badges" time="0.0388683">
+        </testcase>
+        <testcase classname="tests/ClusterDossier.test.tsx" name="&lt;ClusterDossier/&gt; — rich but honest cluster inspector &gt; shows similarity meters and the match-range footer chip" time="0.0493051">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/CorpusExplorer.test.tsx" timestamp="2026-10-15T12:16:22.867Z" hostname="Prabhas" tests="3" failures="0" errors="0" skipped="0" time="1.2074458">
+        <testcase classname="tests/CorpusExplorer.test.tsx" name="&lt;CorpusExplorer/&gt; — real corpus listing &gt; lists articles from the corpus API with their domain" time="0.4586779">
+        </testcase>
+        <testcase classname="tests/CorpusExplorer.test.tsx" name="&lt;CorpusExplorer/&gt; — real corpus listing &gt; passes search terms into the list query after submitting" time="0.375735">
+        </testcase>
+        <testcase classname="tests/CorpusExplorer.test.tsx" name="&lt;CorpusExplorer/&gt; — real corpus listing &gt; does not offer an empty next page when the total exactly fills a page" time="0.3623498">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/corpusGraph.test.ts" timestamp="2026-10-15T12:16:22.869Z" hostname="Prabhas" tests="3" failures="0" errors="0" skipped="0" time="0.2634678">
+        <testcase classname="tests/corpusGraph.test.ts" name="corpus graph progressive disclosure &gt; accounts for every article, including unknown outlets, and distinguishes internal links" time="0.0462391">
+        </testcase>
+        <testcase classname="tests/corpusGraph.test.ts" name="corpus graph progressive disclosure &gt; searches one hop from original matches regardless of edge order" time="0.0035383">
+        </testcase>
+        <testcase classname="tests/corpusGraph.test.ts" name="corpus graph progressive disclosure &gt; keeps a dense clique separated and fits every node inside the viewport" time="0.2054744">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/Dialog.test.tsx" timestamp="2026-10-15T12:16:22.870Z" hostname="Prabhas" tests="2" failures="0" errors="0" skipped="0" time="0.4553149">
+        <testcase classname="tests/Dialog.test.tsx" name="dialog focus and lifecycle &gt; handles Escape and focus trapping only in the top dialog" time="0.3726528">
+        </testcase>
+        <testcase classname="tests/Dialog.test.tsx" name="dialog focus and lifecycle &gt; keeps scrolling locked when a lower dialog closes first" time="0.0760058">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/EarlyWarning.test.tsx" timestamp="2026-10-15T12:16:22.871Z" hostname="Prabhas" tests="4" failures="0" errors="0" skipped="0" time="0.7360965">
+        <testcase classname="tests/EarlyWarning.test.tsx" name="&lt;EarlyWarning/&gt; — persisted alerts + 24h snapshot &gt; renders persisted alert rows with severity and kind labels" time="0.4737662">
+        </testcase>
+        <testcase classname="tests/EarlyWarning.test.tsx" name="&lt;EarlyWarning/&gt; — persisted alerts + 24h snapshot &gt; surfaces the stateless 24h spike snapshot alongside the feed" time="0.0802542">
+        </testcase>
+        <testcase classname="tests/EarlyWarning.test.tsx" name="&lt;EarlyWarning/&gt; — persisted alerts + 24h snapshot &gt; shows the quiet state when no alerts are open" time="0.0665607">
+        </testcase>
+        <testcase classname="tests/EarlyWarning.test.tsx" name="&lt;EarlyWarning/&gt; — persisted alerts + 24h snapshot &gt; never fabricates rows when the backend is unreachable" time="0.1049832">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/EvalLab.test.tsx" timestamp="2026-10-15T12:16:22.873Z" hostname="Prabhas" tests="16" failures="0" errors="0" skipped="0" time="3.5044932">
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; requires an account, never a locally stored annotator handle" time="0.242781">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; requests a blinded pair using the authenticated identity and no annotator parameter" time="0.3644894">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; records labels with optional mutation types and notes, then advances" time="0.6218985">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; selects uncertainty only on the training split" time="0.1544623">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; ignores vote hotkeys while typing notes and prevents duplicate pending votes" time="0.2832751">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; distinguishes pair/progress failure from an empty or completed dataset and supports retry" time="0.2313856">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; shows origin counts and returned warnings, and tolerates null kappa" time="0.0969344">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; renders legitimate zero coverage without claiming every gold pair was labeled" time="0.0453985">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; preserves a pair on label failure and offers a real retry" time="0.2625925">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; discards an old account’s failed vote and draft when the session changes" time="0.2736304">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; does not expose admin export controls to ordinary accounts" time="0.120441">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; anchors selected spans to Unicode codepoints and includes their type and context" time="0.2675852">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; distinguishes an explicitly empty span annotation from an unannotated field" time="0.1360448">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; loads the separate blinded disagreement queue for an administrator" time="0.0896082">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; requires the current rubric before accepting a vote and offers retry" time="0.1854681">
+        </testcase>
+        <testcase classname="tests/EvalLab.test.tsx" name="Eval Lab authenticated labeling &gt; downloads the actual admin export response bytes with the required dataset_version" time="0.1188619">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/FactCheck.test.tsx" timestamp="2026-10-15T12:16:22.879Z" hostname="Prabhas" tests="6" failures="0" errors="0" skipped="0" time="1.4729857">
+        <testcase classname="tests/FactCheck.test.tsx" name="stored FactCheck evidence and uncertainty &gt; renders the stored score as heuristic/unvalidated, not calibrated probability" time="0.3206643">
+        </testcase>
+        <testcase classname="tests/FactCheck.test.tsx" name="stored FactCheck evidence and uncertainty &gt; never substitutes 50% for a missing stored score" time="0.1153975">
+        </testcase>
+        <testcase classname="tests/FactCheck.test.tsx" name="stored FactCheck evidence and uncertainty &gt; distinguishes successful empty data from errors and can retry the real feed" time="0.3055236">
+        </testcase>
+        <testcase classname="tests/FactCheck.test.tsx" name="stored FactCheck evidence and uncertainty &gt; records anonymous feedback from the actual accessible evidence drawer" time="0.338277">
+        </testcase>
+        <testcase classname="tests/FactCheck.test.tsx" name="stored FactCheck evidence and uncertainty &gt; does not leave a failed detail request in a perpetual loading dialog" time="0.2815235">
+        </testcase>
+        <testcase classname="tests/FactCheck.test.tsx" name="stored FactCheck evidence and uncertainty &gt; reports statistics and outlet errors separately from the usable verdict feed" time="0.1013984">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/GraphDrillDown.test.tsx" timestamp="2026-10-15T12:16:22.881Z" hostname="Prabhas" tests="4" failures="0" errors="0" skipped="0" time="2.0216655">
+        <testcase classname="tests/GraphDrillDown.test.tsx" name="graph article identity drill-down &gt; renders shared articles once and preserves links between cluster hubs" time="0.6119323">
+        </testcase>
+        <testcase classname="tests/GraphDrillDown.test.tsx" name="graph article identity drill-down &gt; routes a claim node using article_id, never the claim UUID" time="0.6407741">
+        </testcase>
+        <testcase classname="tests/GraphDrillDown.test.tsx" name="graph article identity drill-down &gt; disables unsupported claim timeline navigation when article_id is absent" time="0.3596545">
+        </testcase>
+        <testcase classname="tests/GraphDrillDown.test.tsx" name="graph article identity drill-down &gt; opens an outlet, clears an empty search, and returns to the complete overview" time="0.4005809">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/Header.test.tsx" timestamp="2026-10-15T12:16:22.883Z" hostname="Prabhas" tests="6" failures="0" errors="0" skipped="0" time="1.2699352">
+        <testcase classname="tests/Header.test.tsx" name="dashboard chrome &gt; reflects the connecting readiness state" time="0.2867037">
+        </testcase>
+        <testcase classname="tests/Header.test.tsx" name="dashboard chrome &gt; reflects the ready readiness state" time="0.091351">
+        </testcase>
+        <testcase classname="tests/Header.test.tsx" name="dashboard chrome &gt; reflects the not_ready readiness state" time="0.0951329">
+        </testcase>
+        <testcase classname="tests/Header.test.tsx" name="dashboard chrome &gt; reflects the error readiness state" time="0.1108251">
+        </testcase>
+        <testcase classname="tests/Header.test.tsx" name="dashboard chrome &gt; activates real dashboard sections and labels polling/refresh controls" time="0.609644">
+        </testcase>
+        <testcase classname="tests/Header.test.tsx" name="dashboard chrome &gt; marks an explicit demo separately and never fabricates a ready status" time="0.0669443">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/Landing.test.tsx" timestamp="2026-10-15T12:16:22.885Z" hostname="Prabhas" tests="2" failures="0" errors="0" skipped="0" time="1.2373603">
+        <testcase classname="tests/Landing.test.tsx" name="honest landing statistics &gt; renders real zero counts without fabricated hero fallback counts" time="0.8263631">
+        </testcase>
+        <testcase classname="tests/Landing.test.tsx" name="honest landing statistics &gt; keeps initial/unavailable counts unknown and offers actual retry" time="0.4017297">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/lib.sound.test.ts" timestamp="2026-10-15T12:16:22.886Z" hostname="Prabhas" tests="4" failures="0" errors="0" skipped="0" time="0.0444378">
+        <testcase classname="tests/lib.sound.test.ts" name="lib/sound &gt; starts unmuted and toggles mute state" time="0.0215428">
+        </testcase>
+        <testcase classname="tests/lib.sound.test.ts" name="lib/sound &gt; hum() returns a stop function that stops both oscillators" time="0.0036176">
+        </testcase>
+        <testcase classname="tests/lib.sound.test.ts" name="lib/sound &gt; whoosh(), arrive(), win(), lose() create nodes on a live context without throwing" time="0.0094578">
+        </testcase>
+        <testcase classname="tests/lib.sound.test.ts" name="lib/sound &gt; every effect is a no-op while muted (ac() gate)" time="0.001298">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/MetricCard.test.tsx" timestamp="2026-10-15T12:16:22.888Z" hostname="Prabhas" tests="2" failures="0" errors="0" skipped="0" time="0.1475652">
+        <testcase classname="tests/MetricCard.test.tsx" name="MetricCard &gt; renders title, value and trend chip" time="0.1152345">
+        </testcase>
+        <testcase classname="tests/MetricCard.test.tsx" name="MetricCard &gt; shows DOWN styling state without crashing on negative trend" time="0.0232337">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/MutationComparator.test.tsx" timestamp="2026-10-15T12:16:22.890Z" hostname="Prabhas" tests="5" failures="0" errors="0" skipped="0" time="1.377831">
+        <testcase classname="tests/MutationComparator.test.tsx" name="authenticated mutation comparator &gt; requires sign-in without inventing a comparison or making a private request" time="0.209186">
+        </testcase>
+        <testcase classname="tests/MutationComparator.test.tsx" name="authenticated mutation comparator &gt; submits original texts and displays real typed spans and nested propagation limitations" time="0.5771804">
+        </testcase>
+        <testcase classname="tests/MutationComparator.test.tsx" name="authenticated mutation comparator &gt; accepts legacy segment/additive analysis fields without manufacturing missing changes" time="0.1706556">
+        </testcase>
+        <testcase classname="tests/MutationComparator.test.tsx" name="authenticated mutation comparator &gt; shows an API error with a real retry instead of an empty/success result" time="0.2191542">
+        </testcase>
+        <testcase classname="tests/MutationComparator.test.tsx" name="authenticated mutation comparator &gt; exposes loading and caller cancellation without leaving a perpetual spinner" time="0.193427">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/OperationsPanel.test.tsx" timestamp="2026-10-15T12:16:22.892Z" hostname="Prabhas" tests="4" failures="0" errors="0" skipped="0" time="0.8458492">
+        <testcase classname="tests/OperationsPanel.test.tsx" name="Pipeline operations &gt; shows controls only to administrators" time="0.0790779">
+        </testcase>
+        <testcase classname="tests/OperationsPanel.test.tsx" name="Pipeline operations &gt; requires preview before recovery and sends the selected stage" time="0.4257114">
+        </testcase>
+        <testcase classname="tests/OperationsPanel.test.tsx" name="Pipeline operations &gt; respects the dashboard polling pause for recent jobs" time="0.1106829">
+        </testcase>
+        <testcase classname="tests/OperationsPanel.test.tsx" name="Pipeline operations &gt; does not reuse another administrator account’s cached job history" time="0.2220458">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/ProjectLab.test.tsx" timestamp="2026-10-15T12:16:22.893Z" hostname="Prabhas" tests="2" failures="0" errors="0" skipped="0" time="0.9410789">
+        <testcase classname="tests/ProjectLab.test.tsx" name="Project Lab &gt; discloses controls and offline mode, shows the returned result and passes original texts into investigation" time="0.8117282">
+        </testcase>
+        <testcase classname="tests/ProjectLab.test.tsx" name="Project Lab &gt; reports API failure instead of inventing scores" time="0.1166773">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/SystemHealth.demo.test.tsx" timestamp="2026-10-15T12:16:22.894Z" hostname="Prabhas" tests="3" failures="0" errors="0" skipped="0" time="1.8293492">
+        <testcase classname="tests/SystemHealth.demo.test.tsx" name="explicit optional infrastructure simulator &gt; starts connecting, with no automatic fabricated telemetry" time="0.3566359">
+        </testcase>
+        <testcase classname="tests/SystemHealth.demo.test.tsx" name="explicit optional infrastructure simulator &gt; does not activate demo when readiness fails; launch and exit are real explicit controls" time="0.9577209">
+        </testcase>
+        <testcase classname="tests/SystemHealth.demo.test.tsx" name="explicit optional infrastructure simulator &gt; does not switch an explicitly chosen demo off behind the user’s back when ready" time="0.5050585">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/SystemHealth.tabs.test.tsx" timestamp="2026-10-15T12:16:22.896Z" hostname="Prabhas" tests="15" failures="0" errors="0" skipped="0" time="3.8281463">
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; renders ready and legitimate zero infrastructure counts, not demo fallbacks" time="0.6804545">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; retains readiness dependencies on 503 and keeps Postgres-backed tabs usable" time="0.9192503">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; shows only actual Redis memory and marks unreported cache metrics unknown" time="0.1539201">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;overview&quot; tab even if readiness cannot be reached" time="0.1494329">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;graph&quot; tab even if readiness cannot be reached" time="0.2067054">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;vector&quot; tab even if readiness cannot be reached" time="0.177597">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;cache&quot; tab even if readiness cannot be reached" time="0.1624133">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;corpus&quot; tab even if readiness cannot be reached" time="0.1279436">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;factcheck&quot; tab even if readiness cannot be reached" time="0.1581664">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;fullgraph&quot; tab even if readiness cannot be reached" time="0.1725494">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;timeline&quot; tab even if readiness cannot be reached" time="0.1150879">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;masala&quot; tab even if readiness cannot be reached" time="0.1953406">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; mounts the real &quot;eval&quot; tab even if readiness cannot be reached" time="0.0872739">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; syncs tabs with hash changes and actual browser Back navigation" time="0.3247493">
+        </testcase>
+        <testcase classname="tests/SystemHealth.tabs.test.tsx" name="real readiness, independent tabs and shared polling &gt; pauses every mounted background query and focus refetch, while new tabs can still fetch" time="0.1885007">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/Telemetry.test.tsx" timestamp="2026-10-15T12:16:22.901Z" hostname="Prabhas" tests="4" failures="0" errors="0" skipped="0" time="0.9151411">
+        <testcase classname="tests/Telemetry.test.tsx" name="&lt;LiveAuditFeed/&gt; &gt; renders real ingest rows" time="0.3390517">
+        </testcase>
+        <testcase classname="tests/Telemetry.test.tsx" name="&lt;LiveAuditFeed/&gt; &gt; shows the unavailable-state on API failure" time="0.0814489">
+        </testcase>
+        <testcase classname="tests/Telemetry.test.tsx" name="&lt;CacheTelemetry/&gt; &gt; renders supplied cache metrics verbatim" time="0.0988709">
+        </testcase>
+        <testcase classname="tests/Telemetry.test.tsx" name="&lt;VectorTelemetry/&gt; — semantic search surface &gt; displays corpus stats and runs a semantic search query" time="0.3871176">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/TextSpans.test.tsx" timestamp="2026-10-15T12:16:22.903Z" hostname="Prabhas" tests="2" failures="0" errors="0" skipped="0" time="0.0827216">
+        <testcase classname="tests/TextSpans.test.tsx" name="Original text span highlighting &gt; uses Unicode code points, merges overlap and preserves source text" time="0.0698872">
+        </testcase>
+        <testcase classname="tests/TextSpans.test.tsx" name="Original text span highlighting &gt; ignores malformed/empty ranges without inserting markup from text" time="0.0049132">
+        </testcase>
+    </testsuite>
+    <testsuite name="tests/TimelineTunnel.test.tsx" timestamp="2026-10-15T12:16:22.904Z" hostname="Prabhas" tests="5" failures="0" errors="0" skipped="0" time="0.7625158">
+        <testcase classname="tests/TimelineTunnel.test.tsx" name="&lt;TimelineTunnel/&gt; — graph → focused story drill-down &gt; with a selected story, fetches ONLY that story (article_id) and shows the focus chip" time="0.2072209">
+        </testcase>
+        <testcase classname="tests/TimelineTunnel.test.tsx" name="&lt;TimelineTunnel/&gt; — graph → focused story drill-down &gt; All stories clears the selection and returns to the generic tunnel" time="0.0477295">
+        </testcase>
+        <testcase classname="tests/TimelineTunnel.test.tsx" name="&lt;TimelineTunnel/&gt; — graph → focused story drill-down &gt; without a selection, fetches the global timeline with no article_id filter" time="0.201689">
+        </testcase>
+        <testcase classname="tests/TimelineTunnel.test.tsx" name="&lt;TimelineTunnel/&gt; — graph → focused story drill-down &gt; orders rings newest-first so diving deeper reads back to the first report" time="0.1725708">
+        </testcase>
+        <testcase classname="tests/TimelineTunnel.test.tsx" name="&lt;TimelineTunnel/&gt; — graph → focused story drill-down &gt; focused empty state offers a way back instead of a blank tunnel" time="0.1256481">
+        </testcase>
+    </testsuite>
+</testsuites>

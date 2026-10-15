@@ -15,11 +15,9 @@ def prf(tp: int, fp: int, fn: int) -> dict[str, float | None]:
     """Precision / recall / F1 with zero-division safety."""
     precision = tp / (tp + fp) if (tp + fp) else None
     recall = tp / (tp + fn) if (tp + fn) else None
-    f1 = (
-        2 * precision * recall / (precision + recall)
-        if precision is not None and recall is not None and (precision + recall)
-        else None
-    )
+    # F1 is defined as zero when supported predictions miss every positive.
+    # Deriving it from P/R incorrectly turns that real failure into missing data.
+    f1 = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else None
     return {"precision": precision, "recall": recall, "f1": f1}
 
 
@@ -89,7 +87,7 @@ def best_f1_threshold(scores: list[float], labels: list[bool]) -> dict[str, floa
     A pair is predicted positive when score >= threshold. Ties in F1 resolve
     to the highest threshold (most conservative).
     """
-    if not scores or all(y == labels[0] for y in labels):
+    if not scores or len(scores) != len(labels) or any(not math.isfinite(s) for s in scores) or all(y == labels[0] for y in labels):
         return {"threshold": None, **{k: (None if k != "f1" else 0.0) for k in ("precision", "recall", "f1")}}
 
     best: dict[str, float | None] = {"threshold": None, "precision": None, "recall": None, "f1": -1.0}
@@ -268,7 +266,7 @@ def mcnemar_test(
             c += 1
     if b + c == 0:
         return {"b": float(b), "c": float(c), "statistic": 0.0, "p_value": 1.0}
-    statistic = (abs(b - c) - 1) ** 2 / (b + c)
+    statistic = max(0, abs(b - c) - 1) ** 2 / (b + c)
     p_value = math.erfc(math.sqrt(statistic / 2)) if statistic > 0 else 1.0
     return {
         "b": float(b),

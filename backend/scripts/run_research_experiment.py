@@ -8,7 +8,9 @@ Requires schema_version=gmee-research-v1, one dataset_version, explicit
 pair_id/event_id/split, claim/article IDs, actual text_a/text_b, stored
 cosine_score, gold_label and >=2 unanimous authenticated human_labels.
 Optional features: lexical_jaccard/entity_jaccard; optional independently
-agreed gold_mutation_types. No DB, model downloads, or weak-gold override.
+agreed gold_mutation_types, gold_changed_spans and gold_context_relation.
+Includes dev-only empirical abstention selection and held-out coverage/risk;
+never a guaranteed risk bound. No DB, model downloads, or weak-gold override.
 """
 
 from __future__ import annotations
@@ -30,9 +32,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, required=True, help="New/empty output directory; previous results are never overwritten")
     parser.add_argument("--seed", type=int, default=1729)
     parser.add_argument("--bootstrap", type=int, default=1000, help="Paired connected-event component resamples (20–10000)")
+    parser.add_argument("--selective-target-risk", type=float, default=0.1, help="Maximum empirical dev error for the abstention policy; not a guaranteed test error bound")
+    parser.add_argument("--selective-min-dev", type=int, default=5, help="Minimum retained dev examples when selecting an abstention cutoff")
     args = parser.parse_args(argv)
     try:
-        config = ExperimentConfig(seed=args.seed, bootstrap=args.bootstrap)
+        config = ExperimentConfig(seed=args.seed, bootstrap=args.bootstrap, selective_target_risk=args.selective_target_risk, selective_min_dev=args.selective_min_dev)
         config.validate()
         if args.output_dir.exists() and (not args.output_dir.is_dir() or any(args.output_dir.iterdir())):
             raise DatasetError("--output-dir must be new/empty; preserve existing results by selecting a new run directory")

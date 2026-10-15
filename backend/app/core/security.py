@@ -44,7 +44,12 @@ def create_access_token(user_id: str, role: str, jti: str) -> str:
 
 def decode_access_token(token: str) -> dict[str, Any] | None:
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(
+            token, settings.JWT_SECRET, algorithms=["HS256"],
+            options={"require": ["sub", "jti", "exp", "iat"]},
+        )
+        if not isinstance(payload.get("sub"), str) or not isinstance(payload.get("jti"), str):
+            return None
         return payload
     except jwt.PyJWTError:
         return None

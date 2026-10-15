@@ -10,6 +10,7 @@ from .evolution import (
     FeedbackVerdict,
     RelationshipTypeEnum,
 )
+from .investigation import Investigation
 from .pipeline import JobStatusEnum, JobTypeEnum, PipelineJob
 from .session import Session
 from .source import Source, SourceTypeEnum
@@ -27,6 +28,7 @@ __all__ = [
     "EvalPair",
     "EvalPairLabel",
     "FeedbackVerdict",
+    "Investigation",
     "JobStatusEnum",
     "JobTypeEnum",
     "NLPStatusEnum",

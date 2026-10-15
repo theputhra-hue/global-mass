@@ -29,16 +29,32 @@ For an existing Render frontend with ML inference on a local PC, see the
 [hybrid hosting runbook](docs/HYBRID_HOSTING.md). This avoids trying to fit the
 full model stack into a 512 MB free web-service instance.
 
+For the new guided Project Lab, private Investigation Studio, demonstration
+walkthrough and completion strategy, see [Major-project upgrade](docs/MAJOR_PROJECT_UPGRADE.md).
+The [verification record](docs/VERIFICATION.md) distinguishes current checks
+from the Docker-dependent rollout.
+
+**Inspect without Docker:** after `npm ci` and `npm run build` in `frontend`,
+run `Start-Preview.bat` at the repository root. Open
+[Project Lab](http://localhost:4173/#/project). This read-only preview
+runs the real authored text controls; accounts, saved cases, corpus and model
+services require the full stack. It creates no substitute corpus or labels.
+
+The public `#/project` route exposes fixed engineering controls only. The
+reader and advanced `#/dashboard/*` workspaces preserve the dedicated sign-in
+boundary. See [integration and verification](docs/INTEGRATION_REVIEW.md) for
+the upstream merge scope and outstanding deployment gates.
+
 ### Prerequisites
 
 - Docker Desktop (the whole stack runs in Compose)
-- For local backend/frontend development: Python 3.11+ and Node 20
+- For local backend/frontend development: Python 3.11+ and Node 24 LTS
 - Compose with `env_file.required` and `config --no-env-resolution` support
 - A private root `.env` with real runtime credentials; there are no safe public defaults
 
 ### 1. Clone & configure
 
-Open the repository root (`GMEE V2`). If `.env` does not already exist, copy
+Open the repository root (`GMEE`). If `.env` does not already exist, copy
 [`infra/runtime.env.example`](infra/runtime.env.example) to root `.env` and fill
 the empty password/JWT fields locally. On POSIX, `cp -n infra/runtime.env.example
 .env` preserves an existing file. Do not commit, print or upload `.env`.
@@ -73,10 +89,10 @@ publish no host ports. The SPA binds to `127.0.0.1:3000` for a separately manage
 TLS gateway; backend source is not bind-mounted. This is a deployment baseline,
 not evidence that capacity, disaster recovery or public-exposure gates passed.
 
-> **Demo Telemetry:** if the frontend cannot reach the backend it automatically
-> switches to a clearly-labeled simulated telemetry mode so the dashboard stays
-> presentable during development. Exit anytime from the yellow banner; polling
-> is fully suspended while simulated. Simulated telemetry never establishes
+> **Demo Telemetry:** select “Launch Demo Telemetry” to view a clearly labeled
+> simulated infrastructure preview. Unavailable live services remain visibly
+> unavailable until this mode is selected. Exit from the yellow banner; polling
+> is suspended while simulated. Simulated telemetry never establishes
 > readiness, supplies scientific labels, or proves an API feature works.
 
 ## Development (without Docker)
@@ -87,8 +103,11 @@ Backend:
 cd backend
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install --no-deps 'torch==2.14.1+cpu' --index-url https://download.pytorch.org/whl/cpu
+pip install -c requirements.lock -e ".[dev]"
 # Configure host-local connection URLs first; the container URLs are different.
+python -m spacy download en_core_web_sm
+python scripts/prepare_models.py  # download local embedding/extraction/stance weights
 alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -119,7 +138,8 @@ Locally (backend):
 ```bash
 cd backend
 ./.venv/Scripts/python.exe -m pytest tests/ -q     # POSIX: python -m pytest tests/ -q
-pytest --cov=app --cov-fail-under=70               # what CI enforces
+pytest --cov=app --cov-fail-under=70               # offline unit gates
+pytest -m model -o addopts=''                     # real pretrained NLP smoke
 ```
 
 Locally (frontend):
@@ -160,8 +180,28 @@ is **HTTP end-to-end smoke, not browser E2E**. Browser rendering, accessibility,
 load, restore and research experiments remain separate gates. Manual fixture
 commands and branch-protection guidance are in [Operations](docs/OPERATIONS.md).
 
+## Local administrator and pipeline controls
+
+Register a normal account in the UI. An operator with database access can assign
+its role explicitly from `backend`:
+
+```bash
+python scripts/set_user_role.py --email your-account@example.com --role admin
+```
+
+Log in again to see Pipeline operations: collection, preprocessing, NLP,
+evolution, graph reconciliation, durable run inspection and expired-work
+recovery preview. Public registration always creates an ordinary user.
+
+Graph/corpus screens query the live backend. Optional demo telemetry is labeled
+and selected explicitly; it never intercepts corpus or graph requests.
+
+See [Verification](docs/VERIFICATION.md) for completed checks and research
+requirements.
+
 ## Documentation
 
+- [`docs/PROJECT_REVIEW.md`](docs/PROJECT_REVIEW.md) — B.Tech rating, strengths, repaired defects and publication assessment
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — system design, data flow, service map
 - [`docs/API.md`](docs/API.md) — REST endpoint reference
 - [`docs/DATASET.md`](docs/DATASET.md) — dataset schemas, volumes, and ingestion pipelines
@@ -196,6 +236,3 @@ commands and branch-protection guidance are in [Operations](docs/OPERATIONS.md).
 ├── infra/                         # docker-compose + images
 └── docs/                          # API, audit, operations and research protocols
 ```
-.
-.
-.

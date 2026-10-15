@@ -40,6 +40,7 @@ yarn-error.log*
 .env
 .env.local
 .venv
+.audit-venv/
 venv/
 ENV/
 
@@ -82,4 +83,9 @@ gmee_backend_source.zip
 # Host-specific deployment state, logs and model preparation manifests.
 .local-deployment/
 backend/integration-results.xml
+
+# Recovery archives contain private credentials and original corpus data.
+local-backups/
+*.dump
+backend/gmee_articles_export.csv
 

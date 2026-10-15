@@ -38,6 +38,12 @@ from app.services.verdict.evidence import (
     PassageSource,
     check_claim,
 )
+from app.services.verdict.external import (
+    ExternalAssessment,
+    ExternalCheckResult,
+    ExternalEvidenceUnavailableError,
+    check_external_claim,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +89,16 @@ class VerdictCheckEvidence(BaseModel):
     title: str
     domain: str | None
     published_at: datetime | None
-    similarity: float
+    similarity: float | None
     stance: Stance
     syndication_group: str
+    retrieval_method: Literal["vector", "keyword", "hybrid"] = "vector"
+    collected_at: datetime | None = None
+    extracted_at: datetime | None = None
+    passage_start: int | None = None
+    passage_end: int | None = None
+    passage_sha256: str = ""
+    abstention_reason: str | None = None
 
 
 class VerdictCheckResponse(BaseModel):
@@ -119,52 +132,45 @@ async def check_verdict(
         ) from exc
 
 
-@router.post("/check-external")
+class ExternalCheckSource(BaseModel):
+    title: str
+    url: str
+    passage: str
+    stance: Stance
+    abstention_reason: str | None
+    revision_id: int
+    published_at: datetime
+    retrieved_at: datetime
+    passage_start: int
+    passage_end: int
+    passage_sha256: str
+    source_group: str
+
+
+class ExternalCheckResponse(BaseModel):
+    claim: str
+    verdict: ExternalAssessment
+    assessment: ExternalAssessment
+    explanation: str
+    sources: list[ExternalCheckSource]
+    observed_at: datetime
+    method_version: str
+    warnings: list[str]
+
+
+@router.post("/check-external", response_model=ExternalCheckResponse)
 async def check_verdict_external(
     body: VerdictCheckBody,
     _current_user: User = Depends(get_current_user),
-) -> dict[str, Any]:
-    """Authenticated, external web grounding using Wikipedia Action API."""
-    import urllib.parse
-
-    import httpx
-
-    from app.services.nlp.llm_client import get_llm_client
-    
-    query = urllib.parse.quote(body.claim_text[:100]) # use first 100 chars for search
-    url = f"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={query}&utf8=&format=json"
-    
+) -> ExternalCheckResult:
+    """Revision-bound Wikipedia passages; local NLI requires no hosted API key."""
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=10.0)
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception as e:
-        logger.error(f"Wikipedia search failed: {e}")
-        raise HTTPException(status_code=503, detail="External search unavailable")
-        
-    search_results = data.get("query", {}).get("search", [])
-    if not search_results:
-        return {
-            "claim": body.claim_text,
-            "verdict": "UNVERIFIABLE",
-            "explanation": "No relevant external sources found.",
-            "sources": []
-        }
-        
-    # Build context from top 3 results
-    top_results = search_results[:3]
-    context = "\n\n".join([f"Source: Wikipedia - {r['title']}\nSnippet: {_v_clean(r['snippet'], 500)}" for r in top_results])
-    
-    llm = get_llm_client()
-    result = await llm.check_external_claim(body.claim_text, context)
-    
-    return {
-        "claim": body.claim_text,
-        "verdict": result.get("verdict", "UNVERIFIABLE"),
-        "explanation": result.get("explanation", ""),
-        "sources": [{"title": r["title"], "url": f"https://en.wikipedia.org/wiki/{urllib.parse.quote(r['title'])}"} for r in top_results]
-    }
+        return await check_external_claim(
+            body.claim_text, as_of=body.as_of, limit=body.limit
+        )
+    except ExternalEvidenceUnavailableError as exc:
+        logger.warning("External evidence unavailable: %s", exc)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 def _parse_evidence(value: Any) -> dict[str, Any] | None:
@@ -362,13 +368,20 @@ async def outlet_leaderboard() -> dict[str, Any]:
 
 
 @router.get("/game/mutations")
-async def mutation_chains(min_versions: int = 3, limit: int = 8) -> dict[str, Any]:
+async def mutation_chains(
+    min_versions: int = Query(3, ge=2, le=100),
+    limit: int = Query(8, ge=1, le=30),
+) -> dict[str, Any]:
     """Claim mutation chains: same assertion, wording drifting outlet to
-    outlet. Union-find over pgvector near-duplicate pairs (sim >= 0.90)."""
+    outlet. Union-find over pgvector near-duplicate pairs (sim >= 0.84).
+
+    These are similarity groups, not observed transmissions or truth labels.
+    """
     import time as _time
 
-    now = _time.time()
-    cached = _MUT_CACHE.get("chains")
+    now = _time.monotonic()
+    cache_key = (min_versions, limit)
+    cached = _MUT_CACHE.get(cache_key)
     if cached and now - cached[0] < _MUT_TTL:
         return {"chains": cached[1]}
 
@@ -418,19 +431,19 @@ async def mutation_chains(min_versions: int = 3, limit: int = 8) -> dict[str, An
         ids.add(s_)
         ids.add(d_)
         edges.append((s_, d_))
-    for i in ids:
+    for i in sorted(ids):
         parent.setdefault(i, i)
-    for s_, d_ in edges:
+    for s_, d_ in sorted(edges):
         ra, rb = find(s_), find(d_)
         if ra != rb:
             parent[ra] = rb
 
     groups: dict[str, list[str]] = {}
-    for i in ids:
+    for i in sorted(ids):
         groups.setdefault(find(i), []).append(i)
 
     big = [g for g in groups.values() if len(g) >= min_versions]
-    big.sort(key=len, reverse=True)
+    big.sort(key=lambda group: (-len(group), group[0]))
     big = big[:limit]
 
     chains: list[dict[str, Any]] = []
@@ -445,7 +458,7 @@ async def mutation_chains(min_versions: int = 3, limit: int = 8) -> dict[str, An
                                a.title AS article_title
                         FROM claims c JOIN articles a ON a.id = c.article_id
                         WHERE c.id::text = ANY(:ids)
-                        ORDER BY a.published_at ASC NULLS LAST
+                        ORDER BY a.published_at ASC NULLS LAST, c.id
                         """
                     ),
                     {"ids": g},
@@ -466,7 +479,7 @@ async def mutation_chains(min_versions: int = 3, limit: int = 8) -> dict[str, An
             if len(versions) >= min_versions and len(domains) >= 2:
                 chains.append(
                     {
-                        "chain_id": g[0][:8],
+                        "chain_id": hashlib.sha256("|".join(g).encode()).hexdigest()[:16],
                         "size": len(versions),
                         "distinct_outlets": len(domains),
                         "versions": versions,
@@ -474,7 +487,13 @@ async def mutation_chains(min_versions: int = 3, limit: int = 8) -> dict[str, An
                 )
     chains.sort(key=lambda c: (-int(c["distinct_outlets"]), -int(c["size"])))
     result = chains[:limit]
-    _MUT_CACHE["chains"] = (now, result)
+    # Bound memory even when callers vary valid query parameters.
+    for key, (created, _) in list(_MUT_CACHE.items()):
+        if now - created >= _MUT_TTL:
+            del _MUT_CACHE[key]
+    if len(_MUT_CACHE) >= 128:
+        del _MUT_CACHE[min(_MUT_CACHE, key=lambda key: _MUT_CACHE[key][0])]
+    _MUT_CACHE[cache_key] = (now, result)
     return {"chains": result}
 
 
@@ -724,5 +743,5 @@ async def verdict_detail(
 
 # ------------------------------------------------------- mutation chains
 
-_MUT_CACHE: dict[str, tuple[float, object]] = {}
+_MUT_CACHE: dict[tuple[int, int], tuple[float, object]] = {}
 _MUT_TTL = 600.0  # seconds

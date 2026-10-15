@@ -1,0 +1,78 @@
+{
+  "created_at_utc": "2026-10-15T12:22:05.123812+00:00",
+  "scope": "Major-project upgrade; supersedes earlier tooling/workflow evidence, not independent human research results.",
+  "backend_offline": {
+    "tests": 578,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "evidence": "upgrade-backend.xml",
+    "coverage_percent": 83.72,
+    "deselected_integration_model": 14,
+    "platform": "Windows Python 3.12.14",
+    "sqlite_test_deprecation_warnings": 12
+  },
+  "frontend": {
+    "tests": 139,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "evidence": "upgrade-frontend.xml",
+    "files": 25,
+    "lint": "passed",
+    "production_build": "passed",
+    "coverage": {
+      "statements": 85.34,
+      "branches": 75.08,
+      "functions": 77.82,
+      "lines": 90.52
+    }
+  },
+  "mypy": {
+    "strict": true,
+    "files": 177,
+    "result": "passed"
+  },
+  "ruff": "passed",
+  "infrastructure": {
+    "offline_tests": 23,
+    "powershell_ast_files": 5,
+    "image_proxy_ci_render_markdown_checks": "passed",
+    "compose_final": "pending Docker recovery"
+  },
+  "npm_audit": {
+    "full": {
+      "findings": 0,
+      "evidence": "upgrade-frontend-audit.json"
+    },
+    "production": {
+      "findings": 0,
+      "evidence": "upgrade-frontend-production-audit.json"
+    }
+  },
+  "preview": {
+    "url": "http://localhost:4173/#/dashboard/project",
+    "mode": "read-only offline preview",
+    "real_engineering_controls": 12,
+    "controls_passed": 12,
+    "lexical_baseline_passed": 9,
+    "research_gold": false,
+    "browser_checks": [
+      "desktop layout",
+      "390px mobile, no page overflow",
+      "group and example selection",
+      "report download",
+      "casebook account gate"
+    ],
+    "screenshot": "upgrade-project-lab.jpg"
+  },
+  "pending": [
+    "gmee05 real PostgreSQL migration",
+    "PostgreSQL casebook concurrent-edit integration test",
+    "rebuilt production images and nginx HTTP smoke",
+    "authenticated full-stack browser workflow",
+    "disposable fixture cleanup after Docker recovery",
+    "independent human annotations and held-out research experiments"
+  ],
+  "environment": "User chose to handle Docker/WSL recovery afterward. No original data volume reset/deletion."
+}

@@ -12,6 +12,16 @@ function openLogin() {
 }
 
 describe('memory-only account UI', () => {
+  it('portals dialogs outside transformed or blurred header ancestors', () => {
+    signInFixture();
+    renderWithClient(<header style={{ backdropFilter: 'blur(4px)' }}><AccountPanel /></header>);
+    fireEvent.click(screen.getByRole('button', { name: 'Account' }));
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.closest('header')).toBeNull();
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
+    fireEvent.click(screen.getByRole('button', { name: 'Close account' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
   it('logs in and verifies /me using a bearer token without persisting credentials', async () => {
     const fetch = mockApi((endpoint) => endpoint === '/auth/login'
       ? jsonResponse({ access_token: 'login-access', refresh_token: 'login-refresh', token_type: 'bearer' })
@@ -30,17 +40,18 @@ describe('memory-only account UI', () => {
     expect(screen.queryByText('login-access')).toBeNull();
   });
 
-  it('registers from the dedicated sign-in page', async () => {
+  it('registers with an optional full name from the dedicated sign-in page', async () => {
     const fetch = mockApi((endpoint) => endpoint === '/auth/register'
       ? jsonResponse({ access_token: 'registered-access', refresh_token: 'registered-refresh' }, 201)
       : jsonResponse(accountFixture));
     openLogin();
     fireEvent.click(screen.getByRole('button', { name: 'New to GMEE? Create an account' }));
+    fireEvent.change(screen.getByLabelText('Full name (optional)'), { target: { value: '  Corpus Reviewer  ' } });
     expect(screen.getByLabelText('Password').getAttribute('minlength')).toBe('10');
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
     await waitFor(() => expect(getAccessToken()).toBe('registered-access'));
     expect(String(fetch.mock.calls[0][0])).toContain('/auth/register');
-    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ email: accountFixture.email, password: 'strong-password' });
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ email: accountFixture.email, password: 'strong-password', full_name: 'Corpus Reviewer' });
   });
 
   it('shows authentication errors without claiming a signed-in identity', async () => {

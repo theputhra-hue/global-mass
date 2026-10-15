@@ -13,7 +13,7 @@ from tests.test_evidence_api import response_payload
 from tests.test_evidence_check import QUERY, VECTOR, fake_db
 
 
-def stored_claim(embedding=VECTOR) -> Any:
+def stored_claim(embedding=VECTOR) -> dict[str, Any]:
     return {
         "id": str(UUID(int=10)),
         "article_id": str(UUID(int=1010)),

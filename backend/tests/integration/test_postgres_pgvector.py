@@ -5,19 +5,20 @@ that matters most is never exercised: the `<=>` cosine operator, the HNSW index
 on claims.embedding, and the unique edge constraint added by migration
 a4c7e1f9b2d6. These tests cover exactly that gap.
 
-They SKIP when no Postgres is reachable, so local runs and the default CI job
-stay green. The `integration` CI job (see .github/workflows/backend-ci.yml)
-provides the pgvector service container, migrates it, then runs:
+They skip when no Postgres is reachable during optional local runs. CI sets
+GMEE_REQUIRE_INTEGRATION=1 so a missing database is a failure. The backend CI
+job provides a fresh pgvector service, migrates it, then runs:
 
     pytest tests/integration -m integration
 """
 
 from __future__ import annotations
 
+import os
 import uuid
 from collections.abc import AsyncGenerator, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import text
@@ -41,6 +42,8 @@ async def _require_postgres() -> AsyncGenerator[None, None]:
         async with async_session_maker() as db:
             await db.execute(text("SELECT 1"))
     except Exception as exc:
+        if os.environ.get("GMEE_REQUIRE_INTEGRATION") == "1":
+            pytest.fail(f"Required Postgres not reachable ({type(exc).__name__})")
         pytest.skip(f"Postgres not reachable ({type(exc).__name__})")
     yield
     await engine.dispose()
@@ -107,7 +110,7 @@ async def test_concurrent_refresh_issues_only_one_successor() -> None:
 @pytest.mark.asyncio
 async def test_pgvector_cosine_operator() -> None:
     distance = await _scalar("SELECT ('[1,0,0]'::vector <=> '[0,1,0]'::vector)")
-    assert float(distance) == pytest.approx(1.0)
+    assert float(cast(float, distance)) == pytest.approx(1.0)
 
 
 @pytest.mark.asyncio
@@ -133,7 +136,7 @@ async def test_unique_edge_constraint_exists() -> None:
         "SELECT count(*) FROM pg_constraint "
         "WHERE conname = 'uq_claim_relationships_edge'"
     )
-    assert int(n) == 1
+    assert int(cast(int, n)) == 1
 
 
 @pytest.mark.asyncio
@@ -152,7 +155,7 @@ async def test_database_is_migrated_to_the_script_head() -> None:
 
 @pytest.mark.asyncio
 async def test_duplicate_mutation_edge_is_rejected() -> None:
-    """End-to-end check of uq_claim_relationships_edge (migration a4c7e1f9b2d6)."""
+    """Check uniqueness on a fresh database, rolling back every fixture row."""
     from app.db.postgres import async_session_maker
     from app.models.article import Article
     from app.models.claim import Claim
@@ -160,15 +163,34 @@ async def test_duplicate_mutation_edge_is_rejected() -> None:
     from app.models.source import Source, SourceTypeEnum
 
     async with async_session_maker() as db:
-        source = Source(id=uuid.uuid4(), name="constraint fixture", type=SourceTypeEnum.rss, url_or_identifier="https://example.invalid/feed")
+        fixture_id = uuid.uuid4()
+        source = Source(
+            name=f"Integration fixture {fixture_id}",
+            type=SourceTypeEnum.rss,
+            url_or_identifier=f"https://example.invalid/integration/{fixture_id}",
+            is_active=False,
+        )
         db.add(source)
         await db.flush()
-        article = Article(id=uuid.uuid4(), source_id=source.id, title="fixture", url=f"https://example.invalid/{uuid.uuid4()}", content_hash="fixture")
+        article = Article(
+            source_id=source.id,
+            title="Synthetic database constraint fixture",
+            url=f"https://example.invalid/integration/{fixture_id}/article",
+            content_hash=fixture_id.hex,
+            raw_metadata={"origin": "integration_test", "scientific_evidence": False},
+        )
         db.add(article)
         await db.flush()
-        from_id, to_id = uuid.uuid4(), uuid.uuid4()
-        db.add_all([Claim(id=cid, article_id=article.id, claim_text="fixture") for cid in (from_id, to_id)])
+        claims = [
+            Claim(
+                article_id=article.id,
+                claim_text=f"Synthetic integration constraint fixture {index}.",
+            )
+            for index in range(2)
+        ]
+        db.add_all(claims)
         await db.flush()
+        from_id, to_id = (claim.id for claim in claims)
         db.add(ClaimRelationship(
             from_claim_id=from_id, to_claim_id=to_id,
             relationship_type=RelationshipTypeEnum.SIMILAR_TO, score=0.75,
@@ -183,6 +205,41 @@ async def test_duplicate_mutation_edge_is_rejected() -> None:
             await db.flush()
 
         await db.rollback()  # leave the database exactly as it was found
+
+
+@pytest.mark.asyncio
+async def test_article_embedding_is_in_the_migrated_schema() -> None:
+    """Search and corpus stats must work before any optional backfill runs."""
+    from app.db.postgres import async_session_maker
+
+    async with async_session_maker() as db:
+        row = (
+            await db.execute(text(
+                "SELECT format_type(a.atttypid, a.atttypmod) "
+                "FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid "
+                "WHERE c.relname = 'articles' AND a.attname = 'embedding' "
+                "AND NOT a.attisdropped"
+            ))
+        ).scalar_one_or_none()
+    assert row == "vector(768)", "article search requires the migrated embedding column"
+
+
+@pytest.mark.asyncio
+async def test_corpus_endpoints_on_migrated_postgres() -> None:
+    """Fresh-schema SQL regressions cannot be hidden by frontend demo data."""
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        stats = await client.get("/api/v1/corpus/stats")
+        assert stats.status_code == 200, stats.text
+        assert {"total", "embedded", "nlp_counts"} <= set(stats.json())
+        articles = await client.get("/api/v1/corpus/articles", params={"limit": 5})
+        assert articles.status_code == 200, articles.text
+        assert {"total", "items"} <= set(articles.json())
 
 
 @pytest.mark.asyncio
@@ -215,11 +272,7 @@ async def test_mutation_chains_endpoint_runs_on_pgvector() -> None:
 
 @pytest.mark.asyncio
 async def test_corpus_stats_and_search_use_claim_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Article counts must not inflate when an article has multiple embedded claims."""
-    from contextlib import asynccontextmanager
-
-    from sqlalchemy.ext.asyncio import AsyncSession
-
+    """Keep legacy claim-vector search without duplicating document-backed articles."""
     from app.api.v1 import corpus
     from app.db.postgres import async_session_maker
     from app.models.article import Article, ProcessingStatusEnum
@@ -228,28 +281,48 @@ async def test_corpus_stats_and_search_use_claim_embeddings(monkeypatch: pytest.
     from app.services.nlp.embedding_service import EmbeddingService
 
     async with async_session_maker() as db:
-        @asynccontextmanager
-        async def session() -> AsyncGenerator[AsyncSession, None]:
-            yield db
-
-        monkeypatch.setattr(corpus, "async_session_maker", session)
-        before = await corpus.corpus_stats()
-        source = Source(id=uuid.uuid4(), name="corpus fixture", type=SourceTypeEnum.rss, url_or_identifier="https://example.invalid/feed")
+        before = await corpus.corpus_stats(db=db)
+        fixture_id = uuid.uuid4()
+        source = Source(
+            id=uuid.uuid4(), name="corpus fixture", type=SourceTypeEnum.rss,
+            url_or_identifier=f"https://example.invalid/{fixture_id}/feed",
+            is_active=False,
+        )
         db.add(source)
         await db.flush()
-        article = Article(id=uuid.uuid4(), source_id=source.id, title="fixture", url=f"https://example.invalid/{uuid.uuid4()}", content_hash="fixture", processing_status=ProcessingStatusEnum.processed)
-        db.add(article)
+        article = Article(
+            id=uuid.uuid4(), source_id=source.id, title="claim-only fixture",
+            url=f"https://example.invalid/{fixture_id}/claim-only", content_hash="claim-only",
+            processing_status=ProcessingStatusEnum.processed,
+            raw_metadata={"origin": "integration_test", "scientific_evidence": False},
+        )
+        document_article = Article(
+            id=uuid.uuid4(), source_id=source.id, title="document-vector fixture",
+            url=f"https://example.invalid/{fixture_id}/document", content_hash="document",
+            processing_status=ProcessingStatusEnum.processed,
+            embedding=[0.8, 0.6] + [0.0] * 766,
+            raw_metadata={"origin": "integration_test", "scientific_evidence": False},
+        )
+        db.add_all([article, document_article])
         await db.flush()
         vector = [1.0] + [0.0] * 767
-        db.add_all([Claim(id=uuid.uuid4(), article_id=article.id, claim_text=f"fixture {i}", embedding=vector) for i in range(2)])
+        db.add_all([
+            Claim(id=uuid.uuid4(), article_id=parent.id, claim_text=f"fixture {i}", embedding=vector)
+            for parent in (article, document_article) for i in range(2)
+        ])
         await db.flush()
-        after = await corpus.corpus_stats()
-        assert after["total"] == before["total"] + 1
-        assert after["embedded"] == before["embedded"] + 1
-        monkeypatch.setattr(EmbeddingService, "is_loaded", lambda: True)
-        monkeypatch.setattr(EmbeddingService, "generate_embedding", lambda _: vector)
-        result = await corpus.semantic_search(q="fixture", limit=30)
+        after = await corpus.corpus_stats(db=db)
+        assert after["total"] == before["total"] + 2
+        assert after["embedded"] == before["embedded"] + 2
+        monkeypatch.setattr(EmbeddingService, "generate_embedding", lambda _, **kwargs: vector)
+        result = await corpus.semantic_search(q="fixture", limit=30, db=db)
         matches = [row for row in result["items"] if row["id"] == str(article.id)]
         assert len(matches) == 1
         assert matches[0]["score"] == pytest.approx(1.0)
+        assert matches[0]["embedding_source"] == "claim"
+        document_matches = [row for row in result["items"] if row["id"] == str(document_article.id)]
+        assert len(document_matches) == 1
+        # A closer matching claim must not replace the article's document vector.
+        assert document_matches[0]["score"] == pytest.approx(0.8)
+        assert document_matches[0]["embedding_source"] == "article"
         await db.rollback()
