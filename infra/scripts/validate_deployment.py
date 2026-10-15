@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -329,6 +330,38 @@ def validate_ci_and_render() -> None:
     print("PASS CI path/strict-test contracts and static Render policy")
 
 
+def validate_model_dependency_pin() -> None:
+    """Pip requires direct-URL constraints to match the requested URL exactly."""
+    project = tomllib.loads((ROOT / "backend/pyproject.toml").read_text(encoding="utf-8"))
+    requested = [
+        item for item in project["project"]["optional-dependencies"]["dev"]
+        if item.startswith("en-core-web-sm @ ")
+    ]
+    constrained = [
+        line.strip() for line in (ROOT / "backend/requirements.lock").read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("en-core-web-sm @ ")
+    ]
+    require(
+        len(requested) == 1 and constrained == requested,
+        "The spaCy model direct URL, including its hash, must match in pyproject and constraints.",
+    )
+    url = requested[0].split(" @ ", 1)[1]
+    require(
+        re.fullmatch(r"https://github\.com/explosion/spacy-models/.+\.whl#sha256=[0-9a-f]{64}", url) is not None,
+        "The spaCy model must retain its official download URL and SHA-256 pin.",
+    )
+    for relative in ("backend/Dockerfile", ".github/workflows/backend-ci.yml"):
+        urls = re.findall(
+            r"https://github\.com/explosion/spacy-models/releases/download/en_core_web_sm-[^'\"\s]+",
+            (ROOT / relative).read_text(encoding="utf-8"),
+        )
+        require(
+            bool(urls) and all(candidate == url for candidate in urls),
+            f"{relative}: model install URLs must match the hashed dependency constraint.",
+        )
+    print("PASS identical hashed spaCy model URL across package, constraints, Docker and CI")
+
+
 def validate_doc_links() -> None:
     documents = [
         ROOT / name for name in ("README.md", "ARCHITECTURE.md", "CHANGELOG.md")
@@ -354,6 +387,7 @@ def main() -> int:
         validate_compose()
         validate_images_and_proxy()
         validate_ci_and_render()
+        validate_model_dependency_pin()
         validate_doc_links()
     except (ValidationError, KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
         print(f"Static deployment validation failed: {exc}", file=sys.stderr)

@@ -16,7 +16,7 @@ COPY scripts ./scripts
 RUN python -m pip install --upgrade pip && \
     python -m pip install --no-deps 'torch==2.14.1+cpu' --index-url https://download.pytorch.org/whl/cpu && \
     python -m pip install -c requirements.lock -e . && \
-    python -m pip install -c requirements.lock 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl'
+    python -m pip install -c requirements.lock 'https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl#sha256=1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85'
 
 # Tests run in a Python image with dev dependencies, never in the runtime SPA.
 FROM base AS test
