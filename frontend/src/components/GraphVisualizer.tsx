@@ -7,6 +7,7 @@ import type { TabType } from './Header';
 import { usePollingPolicy } from '../lib/polling';
 import { safeHttpUrl } from '../lib/urls';
 import { QueryError } from './QueryError';
+import { articleHref } from '../lib/articleRoutes';
 
 /**
  * GraphVisualizer — REAL story clusters from Neo4j.
@@ -237,6 +238,7 @@ export const GraphVisualizer: React.FC<{ setActiveTab?: (tab: TabType) => void }
             <p className="font-mono text-xs text-hermes-bone/50">Select a node…</p>
           )}
 
+          {sel && <a href={articleHref(sel.id, 'overview', { back: window.location.hash })} className="btn-outline-dark mt-3 w-fit">Open details</a>}
           {/* View in Timeline — always visible when a node is selected */}
           {sel && (
             <button

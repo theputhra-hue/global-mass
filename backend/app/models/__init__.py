@@ -11,6 +11,7 @@ from .evolution import (
     RelationshipTypeEnum,
 )
 from .pipeline import JobStatusEnum, JobTypeEnum, PipelineJob
+from .publication import PublicationUpload
 from .session import Session
 from .source import Source, SourceTypeEnum
 from .user import RoleEnum, User
@@ -32,6 +33,7 @@ __all__ = [
     "NLPStatusEnum",
     "PipelineJob",
     "ProcessingStatusEnum",
+    "PublicationUpload",
     "RelationshipTypeEnum",
     "RoleEnum",
     "Session",

@@ -6,6 +6,7 @@ import { useSession } from '../lib/session';
 import { safeHttpUrl } from '../lib/urls';
 import { QueryError } from './QueryError';
 import { SignInNotice } from './SignInNotice';
+import { articleHref } from '../lib/articleRoutes';
 
 const ASSESSMENTS: Record<CorpusAssessment, string> = {
   SUPPORTED_BY_CORPUS: 'Supported by corpus',
@@ -14,8 +15,8 @@ const ASSESSMENTS: Record<CorpusAssessment, string> = {
   INSUFFICIENT_EVIDENCE: 'Insufficient evidence',
 };
 
-function CheckForm() {
-  const [claim, setClaim] = useState('');
+function CheckForm({ initialClaim = '' }: { initialClaim?: string }) {
+  const [claim, setClaim] = useState(initialClaim);
   const [asOf, setAsOf] = useState('');
   const controller = useRef<AbortController | null>(null);
   const id = useId();
@@ -115,6 +116,7 @@ function CheckForm() {
               {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-hermes-red-bright inline-flex items-center gap-1 break-all">{evidence.title || url}<ExternalLink className="w-3 h-3 shrink-0" /></a> : <p className="text-xs font-mono text-hermes-bone/55">{evidence.title && `${evidence.title} · `}Source link unavailable (HTTP/HTTPS required).</p>}
               {evidence.passage_source && <p className="text-xs text-hermes-bone/55">Passage source: {evidence.passage_source}{evidence.passage_source === 'extracted_claim' ? ' (extracted claim text, not an article-body quotation)' : ''}</p>}
               <p className="text-xs text-hermes-bone/50">Published: {evidence.published_at || 'not supplied'} · article {evidence.article_id} · claim {evidence.claim_id}</p>
+              <a href={articleHref(evidence.article_id, 'claims', { claim: evidence.claim_id, back: window.location.hash })} className="btn-outline-dark">Open article details</a>
               {evidence.syndication_group && <p className="text-xs text-amber-300">Syndication group: {evidence.syndication_group}. Shared-group passages may not be independent corroboration.</p>}
             </article>;
           })}
@@ -124,13 +126,13 @@ function CheckForm() {
   );
 }
 
-export function ClaimCheck() {
+export function ClaimCheck({ initialClaim = '' }: { initialClaim?: string }) {
   const { user, revision } = useSession();
   return (
     <section aria-labelledby="claim-check-title" className="card-brutal-dark p-6 space-y-4">
       <h2 id="claim-check-title" className="font-display text-2xl flex items-center gap-2"><FileSearch className="w-5 h-5" /> Corpus Evidence Check</h2>
       <p className="text-sm text-hermes-bone/65">Check a supplied claim against retrieved corpus passages, with source links, model stances and explicit uncertainty. This is not an independent fact verification service.</p>
-      {user ? <CheckForm key={revision} /> : <SignInNotice feature="corpus evidence checking" />}
+      {user ? <CheckForm key={`${revision}:${initialClaim}`} initialClaim={initialClaim} /> : <SignInNotice feature="corpus evidence checking" />}
     </section>
   );
 }

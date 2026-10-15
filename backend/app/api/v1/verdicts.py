@@ -239,6 +239,7 @@ async def list_verdicts(
                    c.verdict_probability AS probability,
                    c.confidence AS extraction_confidence,
                    a.domain AS outlet, a.title AS article_title, a.url AS article_url,
+                   a.id::text AS article_id,
                    c.extracted_at, c.verdict_evidence AS score_evidence
             FROM (SELECT COUNT(*) AS total FROM matching) totals
             LEFT JOIN page ON TRUE
@@ -695,7 +696,7 @@ async def verdict_detail(
                    c.verdict_rationale, c.verdict_evidence,
                    c.confidence AS extraction_confidence,
                    a.domain AS outlet, a.title AS article_title,
-                   a.url AS article_url, a.published_at,
+                   a.url AS article_url, a.published_at, a.id::text AS article_id,
                    COALESCE((SELECT json_agg(json_build_object('text', ce.entity_text, 'type', ce.entity_type))
                              FROM claim_entities ce WHERE ce.claim_id = c.id), '[]'::json) AS entities
             FROM claims c JOIN articles a ON a.id = c.article_id

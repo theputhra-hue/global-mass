@@ -3,11 +3,15 @@ import { SystemHealth } from './pages/SystemHealth';
 import { ReaderDashboard } from './pages/ReaderDashboard';
 import { Landing } from './pages/Landing';
 import { SignIn } from './pages/SignIn';
+import { DeveloperUpload } from './pages/DeveloperUpload';
+import { DeveloperConsole } from './pages/DeveloperConsole';
 import { useSession } from './lib/session';
+import { ArticleInvestigation } from './pages/ArticleInvestigation';
+import { navigateHash, parseArticleRoute, signInDestination } from './lib/articleRoutes';
 
 function currentRoute() {
   const hash = window.location.hash;
-  return hash.startsWith('#/dashboard') ? hash.slice(2) : hash.startsWith('#/signin') ? 'signin' : 'landing';
+  return hash.startsWith('#/dashboard') || hash.startsWith('#/signin') ? hash.slice(2) : 'landing';
 }
 function App() {
   const [route, setRoute] = useState(currentRoute);
@@ -22,11 +26,20 @@ function App() {
     };
   }, []);
   useEffect(() => {
-    if (route.startsWith('dashboard') && !user) window.location.replace('#/signin');
-    if (route === 'signin' && user) window.location.replace('#/dashboard');
+    if (route.startsWith('dashboard') && !user) {
+      const target = `#/signin?next=${encodeURIComponent(`#/${route}`)}`;
+      if (window.location.hash !== target) navigateHash(target, true);
+    }
+    if (route.startsWith('signin') && user) {
+      const target = signInDestination(`#/${route}`);
+      if (window.location.hash !== target) navigateHash(target, true);
+    }
   }, [route, user]);
-  const readerView = (route === 'dashboard' || route === 'signin') ? 'home' : route.split('/')[1];
+  const pathname = route.split('?')[0];
+  const detail = parseArticleRoute(route);
+  const readerView = (pathname === 'dashboard' || pathname === 'signin') ? 'home' : pathname.split('/')[1];
   const reader = ['home', 'browse', 'compare', 'check'].includes(readerView);
-  return <div className="App">{route === 'landing' ? <Landing /> : user ? reader ? <ReaderDashboard key={readerView} view={readerView} /> : <SystemHealth /> : <SignIn />}</div>;
+  const advanced = /^dashboard\/(overview|graph|vector|cache|fullgraph|timeline|masala|factcheck|eval|corpus)$/.test(pathname);
+  return <div className="App">{route === 'landing' ? <Landing /> : user ? pathname === 'dashboard/developer' ? <DeveloperConsole key={user.id} /> : pathname === 'dashboard/upload' ? <DeveloperUpload key={user.id} /> : detail ? <ArticleInvestigation key={`${user.id}:${detail.id}`} route={detail} /> : reader ? <ReaderDashboard key={route} view={readerView} /> : advanced ? <SystemHealth /> : pathname === 'signin' ? <ReaderDashboard view="home" /> : <main className="min-h-screen bg-hermes-ink text-hermes-bone p-8"><h1 className="text-4xl">Page not found</h1><a href="#/dashboard" className="btn-brutal mt-5">Return to collection</a></main> : <SignIn />}</div>;
 }
 export default App;

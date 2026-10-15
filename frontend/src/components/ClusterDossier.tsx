@@ -1,7 +1,7 @@
 import React from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { TimelineCluster } from '../api/timeline';
-import { safeHttpUrl } from '../lib/urls';
+import { articleHref } from '../lib/articleRoutes';
 import { Dialog } from './Dialog';
 
 /**
@@ -92,7 +92,7 @@ export const ClusterDossier: React.FC<{
                 className="w-2.5 h-2.5 rounded-full shrink-0 mt-2"
                 style={{ background: colorFor(cluster.domain) }}
               />
-              <a href={safeHttpUrl(cluster.url)} target="_blank" rel="noreferrer" className="group min-w-0">
+              <a href={articleHref(cluster.id, 'overview', { back: window.location.hash })}   className="group min-w-0">
                 <h3 className="font-display text-lg leading-snug text-white group-hover:text-hermes-red-bright transition-colors">
                   {cluster.title}
                 </h3>
@@ -129,9 +129,9 @@ export const ClusterDossier: React.FC<{
               return (
                 <a
                   key={m.id}
-                  href={safeHttpUrl(m.url)}
-                  target="_blank"
-                  rel="noreferrer"
+                  href={articleHref(m.id, 'overview', { back: window.location.hash })}
+
+
                   className="group flex items-center gap-3 border border-hermes-bone/10 bg-hermes-panel-deep px-3 py-2 hover:border-hermes-bone/30 transition-colors"
                 >
                   <span
@@ -163,7 +163,7 @@ export const ClusterDossier: React.FC<{
                       </Chip>
                     </span>
                   )}
-                  <ExternalLink className="w-3 h-3 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />
+                  <ArrowRight className="w-3 h-3 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />
                 </a>
               );
             })}

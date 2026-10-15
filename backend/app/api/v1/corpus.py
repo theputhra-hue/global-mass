@@ -210,27 +210,6 @@ async def semantic_search(
     return {"query": q, "count": len(items), "items": items}
 
 
-@router.get("/articles/{article_id}")
-async def article_detail(article_id: str) -> dict[str, Any]:
-    async with async_session_maker() as db:
-        row = (
-            await db.execute(
-                text(
-                    """
-                    SELECT id::text, title, url, author, domain, language,
-                           published_at, collected_at, word_count, nlp_status,
-                           COALESCE(cleaned_content, content, '') AS body
-                    FROM articles WHERE id = CAST(:aid AS uuid)
-                    """
-                ),
-                {"aid": article_id},
-            )
-        ).first()
-    if row is None:
-        raise HTTPException(status_code=404, detail="article not found")
-    return dict(row._mapping)
-
-
 # ---------------------------------------------------------------- graph
 
 

@@ -8,6 +8,7 @@ import { QueryError } from '../components/QueryError';
 import { MutationComparator } from '../components/MutationComparator';
 import { FactCheck } from '../components/FactCheck';
 import { safeHttpUrl } from '../lib/urls';
+import { articleHref, navigateHash } from '../lib/articleRoutes';
 
 const actions = [
   { href: '#/dashboard/browse', title: 'Explore articles', text: 'Find coverage by title or author, then read the original source.', icon: BookOpen },
@@ -15,15 +16,22 @@ const actions = [
   { href: '#/dashboard/check', title: 'Find evidence for a claim', text: 'Look for supporting or conflicting passages in this collection.', icon: ShieldCheck },
 ];
 export function ReaderDashboard({ view = 'home' }: { view?: string }) {
-  const [draft, setDraft] = useState('');
-  const [search, setSearch] = useState('');
-  const [offset, setOffset] = useState(0);
+  const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const [draft, setDraft] = useState(params.get('q') || '');
+  const [search, setSearch] = useState(params.get('q') || '');
+  const initialOffset = Number(params.get('offset') || 0);
+  const [offset, setOffset] = useState(Number.isSafeInteger(initialOffset) && initialOffset >= 0 ? initialOffset : 0);
+  const resultsHref = `#/dashboard${view === 'home' ? '' : `/${view}`}?${new URLSearchParams({ q: search, offset: String(offset) })}`;
   const home = view === 'home';
   const browsing = home || view === 'browse';
   const summary = useQuery({ queryKey: ['dashboard'], queryFn: ({ signal }) => fetchDashboard({ signal }), staleTime: 30_000 });
   const articles = useQuery({ queryKey: ['reader-articles', search, offset], queryFn: ({ signal }) => corpusApi.list({ q: search, limit: 6, offset }, { signal }), enabled: browsing });
   const number = (value?: number) => value === undefined ? '—' : value.toLocaleString();
-  function submit(event: FormEvent) { event.preventDefault(); setSearch(draft.trim()); setOffset(0); }
+  function move(nextQuery: string, nextOffset: number) {
+    setSearch(nextQuery); setOffset(nextOffset);
+    navigateHash(`#/dashboard${view === 'home' ? '' : `/${view}`}?${new URLSearchParams({ q: nextQuery, offset: String(nextOffset) })}`);
+  }
+  function submit(event: FormEvent) { event.preventDefault(); move(draft.trim(), 0); }
   return <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate">
     <div className="fixed inset-0 -z-10 pointer-events-none grain-overlay" aria-hidden="true" />
     <header className="border-b border-hermes-bone/15 px-4 md:px-8 py-5 flex flex-wrap items-center justify-between gap-4">
@@ -56,8 +64,8 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
         {!articles.isError && articles.data && <>
           <p className="text-xs text-hermes-bone/60">{number(articles.data.total)} matching articles{search ? ` for “${search}”` : ''}</p>
           {articles.data.items.length === 0 && <p className="border border-dashed border-hermes-bone/25 p-8">{search ? 'No matching articles. Try a shorter phrase or another author.' : 'No articles are available yet.'}</p>}
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{articles.data.items.map(article => { const url = safeHttpUrl(article.url); return <article key={article.id} className="card-brutal-dark p-6 flex flex-col"><p className="text-xs text-hermes-bone/65 mb-3">{article.domain || 'Source unavailable'} · {article.published_at ? new Date(article.published_at).toLocaleDateString() : 'Publication date unknown'}</p><h3 className="text-2xl leading-snug mb-5">{article.title}</h3>{url ? <a href={url} target="_blank" rel="noopener noreferrer" className="btn-outline-dark mt-auto self-start">Read original source <ExternalLink className="w-3 h-3" /><span className="sr-only"> (opens in a new tab)</span></a> : <p className="text-xs">Source link unavailable</p>}</article>; })}</div>
-          <div className="flex gap-3"><button disabled={offset === 0 || articles.isFetching} onClick={() => setOffset(Math.max(0, offset - 6))} className="btn-brutal">Previous</button><button disabled={offset + 6 >= articles.data.total || articles.isFetching} onClick={() => setOffset(offset + 6)} className="btn-brutal">Next articles</button></div>
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{articles.data.items.map(article => { const url = safeHttpUrl(article.url); return <article key={article.id} className="card-brutal-dark p-6 flex flex-col"><p className="text-xs text-hermes-bone/65 mb-3">{article.domain || 'Source unavailable'} · {article.published_at ? new Date(article.published_at).toLocaleDateString() : 'Publication date unknown'}</p><h3 className="text-2xl leading-snug mb-5">{article.title}</h3><a href={articleHref(article.id, 'overview', { back: resultsHref })} className="btn-brutal mb-4 self-start">Open details <ArrowRight className="w-3 h-3" /></a>{url ? <a href={url} target="_blank" rel="noopener noreferrer" className="btn-outline-dark mt-auto self-start">Read original source <ExternalLink className="w-3 h-3" /><span className="sr-only"> (opens in a new tab)</span></a> : <p className="text-xs">Source link unavailable</p>}</article>; })}</div>
+          <div className="flex gap-3"><button disabled={offset === 0 || articles.isFetching} onClick={() => move(search, Math.max(0, offset - 6))} className="btn-brutal">Previous</button><button disabled={offset + 6 >= articles.data.total || articles.isFetching} onClick={() => move(search, offset + 6)} className="btn-brutal">Next articles</button></div>
         </>}
       </section>}
       {view === 'compare' && <MutationComparator />}

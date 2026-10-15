@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { authApi } from '../api/auth';
 import { QueryError } from '../components/QueryError';
+import { navigateHash, signInDestination } from '../lib/articleRoutes';
 
 export function SignIn() {
   const [register, setRegister] = useState(false);
@@ -12,12 +13,13 @@ export function SignIn() {
     if (pending) return;
     const values = new FormData(event.currentTarget);
     const input = { email: String(values.get('email')).trim(), password: String(values.get('password')) };
+    const destination = signInDestination();
     setPending(true);
     setError(null);
     try {
       if (register) await authApi.register(input);
       else await authApi.login(input);
-      window.location.hash = '/dashboard';
+      navigateHash(destination, true);
     } catch (failure) { setError(failure); }
     finally { setPending(false); }
   }

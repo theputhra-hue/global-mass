@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Network, ExternalLink, Layers, Zap, Search, RotateCcw, Orbit } from 'lucide-react';
 import { graphApi, FullGraph, GraphNode } from '../api/graph';
+import { articleHref } from '../lib/articleRoutes';
 import { setSelectedArticle } from '../lib/useSelectedArticle';
 import type { TabType } from './Header';
 import { usePollingPolicy } from '../lib/polling';
@@ -499,7 +500,7 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
               {selected.domain?.replace('www.', '')}
             </span>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
             <button
               disabled={!timelineArticleId || !setActiveTab}
               title={timelineArticleId ? 'Open this article’s story timeline' : 'This claim has no article_id; timeline drill-down is unsupported'}
@@ -516,6 +517,7 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
             >
               View in Timeline <Orbit className="w-3.5 h-3.5" />
             </button>
+            {timelineArticleId && <a href={articleHref(timelineArticleId, mode === 'claims' ? 'claims' : 'overview', { claim: mode === 'claims' ? selected.id : undefined, back: window.location.hash })} className="btn-outline-dark">Open details</a>}
             {safeHttpUrl(selected.url) && (
               <a href={safeHttpUrl(selected.url)} target="_blank" rel="noreferrer" className="btn-ghost-brutal shrink-0 !text-hermes-bone !border-hermes-bone/30">
                 Read original <ExternalLink className="w-3.5 h-3.5" />

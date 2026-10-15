@@ -15,9 +15,9 @@ function returnedSpanText(value: unknown, side: 'older' | 'newer'): string | und
   return typeof legacy === 'string' ? legacy : undefined;
 }
 
-function ComparisonForm() {
-  const [older, setOlder] = useState('');
-  const [newer, setNewer] = useState('');
+function ComparisonForm({ initialOlder = '', initialNewer = '' }: { initialOlder?: string; initialNewer?: string }) {
+  const [older, setOlder] = useState(initialOlder);
+  const [newer, setNewer] = useState(initialNewer);
   const controller = useRef<AbortController | null>(null);
   const id = useId();
   useEffect(() => () => controller.current?.abort(), []);
@@ -96,13 +96,13 @@ function ComparisonForm() {
   );
 }
 
-export function MutationComparator() {
+export function MutationComparator({ initialOlder = '', initialNewer = '' }: { initialOlder?: string; initialNewer?: string }) {
   const { user, revision } = useSession();
   return (
     <section aria-labelledby="mutation-comparator-title" className="card-brutal-dark p-6 space-y-4">
       <h2 id="mutation-comparator-title" className="text-2xl font-display flex items-center gap-2"><Dna className="w-5 h-5" /> Mutation Comparator</h2>
       <p className="text-sm text-hermes-bone/65">Compare two supplied versions for changed numbers, entities and wording. Text changes do not prove misinformation, direction of transmission, or observed propagation.</p>
-      {user ? <ComparisonForm key={revision} /> : <SignInNotice feature="the mutation comparator" />}
+      {user ? <ComparisonForm key={`${revision}:${initialOlder}:${initialNewer}`} initialOlder={initialOlder} initialNewer={initialNewer} /> : <SignInNotice feature="the mutation comparator" />}
     </section>
   );
 }
