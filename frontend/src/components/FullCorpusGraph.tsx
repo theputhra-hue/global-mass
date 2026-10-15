@@ -8,23 +8,22 @@ import { usePollingPolicy } from '../lib/polling';
 import { articleHref } from '../lib/articleRoutes';
 import { safeHttpUrl } from '../lib/urls';
 import { QueryError } from './QueryError';
-import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, outletKey, outletName, overviewScene, type GraphPoint } from '../lib/corpusGraph';
+import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, outletName, type GraphPoint } from '../lib/corpusGraph';
 
 const EMPTY_GRAPH: FullGraph = { nodes: [], edges: [], counts: { nodes: 0, edges: 0 } };
 const controlClass = 'inline-flex items-center justify-center gap-2 px-3 py-2 text-xs text-hermes-bone/70 hover:bg-white/5 hover:text-hermes-bone focus-visible:outline-offset-[-3px]';
 
-/** A complete outlet overview, with individual articles revealed on demand. */
+/** The original connected corpus: one real article or claim per node. */
 const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ setActiveTab }) => {
   const [mode, setMode] = useState<'articles' | 'claims'>('articles');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [outletFilter, setOutletFilter] = useState('');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
-  const [showConnections, setShowConnections] = useState(false);
+  const [showConnections, setShowConnections] = useState(true);
   const [hovered, setHovered] = useState<GraphPoint | null>(null);
   const [renderVersion, setRenderVersion] = useState(0);
   const [zoom, setZoom] = useState(100);
-  const [canvasWidth, setCanvasWidth] = useState(1000);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef({ ox: 0, oy: 0, scale: 1 });
@@ -38,12 +37,20 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
     staleTime: 30000,
   });
   const graph = g.data ?? EMPTY_GRAPH;
-  const overview = !outletFilter && !query;
+  const hasFilters = !!outletFilter || !!query;
   const groups = useMemo(() => groupOutlets(graph), [graph]);
   const filtered = useMemo(() => filterGraph(graph, outletFilter, query), [graph, outletFilter, query]);
-  const scene = useMemo(() => overview ? overviewScene(groups, canvasWidth) : articleScene(filtered), [overview, groups, filtered, canvasWidth]);
+  const scene = useMemo(() => articleScene(filtered), [filtered]);
   const nodeOptions = useMemo(() => filtered.nodes.map((node) => <option key={node.id} value={node.id}>{node.title}</option>), [filtered]);
   const index = useMemo(() => new Map(scene.nodes.map((node) => [node.id, node])), [scene]);
+  const degrees = useMemo(() => {
+    const result = new Map<string, number>();
+    for (const edge of scene.edges) {
+      result.set(edge.a, (result.get(edge.a) ?? 0) + 1);
+      result.set(edge.b, (result.get(edge.b) ?? 0) + 1);
+    }
+    return result;
+  }, [scene]);
   const selected = graph.nodes.find((node) => node.id === selectedId) ?? null;
   const focusedId = hovered?.id ?? selected?.id ?? null;
   const neighbors = useMemo(() => {
@@ -61,12 +68,11 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
   const resetView = useCallback(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
-    setCanvasWidth(wrap.clientWidth);
-    viewRef.current = fitScene(scene.nodes, wrap.clientWidth, wrap.clientHeight, overview);
+    viewRef.current = fitScene(scene.nodes, wrap.clientWidth, wrap.clientHeight, false);
     baseScaleRef.current = viewRef.current.scale;
     setZoom(100);
     redraw();
-  }, [scene, overview, redraw]);
+  }, [scene, redraw]);
 
   useEffect(() => {
     setHovered(null);
@@ -92,8 +98,9 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
     const { ox, oy, scale } = viewRef.current;
     const screenPoint = (node: GraphPoint) => ({ x: width / 2 + ox + node.x * scale, y: height / 2 + oy + node.y * scale });
 
-    // Overview links aggregate only cross-outlet edges. Within-outlet links
-    // remain in the article view; drawing them as loops would obscure counts.
+    // Keep every real edge, with low-contrast strokes for dense networks.
+    // Inspection brings the selected node and its direct neighbors forward.
+    const edgeOpacity = Math.max(0.035, Math.min(0.22, 12 / Math.sqrt(scene.edges.length || 1)));
     for (const edge of scene.edges) {
       const hot = edge.a === focusedId || edge.b === focusedId;
       if (!hot && !showConnections) continue;
@@ -102,8 +109,9 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
       const p = screenPoint(a), q = screenPoint(b);
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
       ctx.strokeStyle = hot ? outletColor(a.domain) : '#B7A6A0';
-      ctx.globalAlpha = hot ? 0.48 : focusedId ? 0.025 : overview ? 0.13 : 0.045;
-      ctx.lineWidth = hot ? 1.2 : 0.7;
+      const density = Math.sqrt(Math.max(1, Math.min(degrees.get(edge.a) ?? 1, degrees.get(edge.b) ?? 1)));
+      ctx.globalAlpha = hot ? 0.8 : (focusedId ? 0.015 : edgeOpacity) / density;
+      ctx.lineWidth = hot ? 1.4 : 0.65;
       ctx.stroke();
     }
     const term = query.toLowerCase();
@@ -113,33 +121,20 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
       const focus = node.id === focusedId;
       const related = neighbors.has(node.id);
       const match = !!term && node.title.toLowerCase().includes(term);
-      const radius = overview ? node.radius * Math.min(scale, 1.5) : Math.max(1.8, node.radius * Math.min(scale, 2));
+      const radius = Math.max(focus ? 4 : 1.25, node.radius * Math.min(scale, 2));
       const color = outletColor(node.domain);
-      ctx.globalAlpha = focusedId && !related ? 0.23 : 1;
+      ctx.globalAlpha = focusedId && !related ? 0.16 : 0.92;
       ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = overview ? '#171417' : color;
+      ctx.fillStyle = color;
       ctx.fill();
-      if (overview) {
-        ctx.fillStyle = color;
-        ctx.globalAlpha = focusedId && !related ? 0.035 : focus ? 0.23 : 0.10;
-        ctx.fill();
-        ctx.globalAlpha = focusedId && !related ? 0.2 : focus ? 1 : 0.65;
-        ctx.strokeStyle = color; ctx.lineWidth = focus ? 2 : 1; ctx.stroke();
-        ctx.fillStyle = '#F4EEEA';
-        ctx.font = `500 ${Math.max(11, Math.min(16, 14 * scale))}px Inter, system-ui, sans-serif`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(node.count!.toLocaleString(), p.x, p.y);
-        ctx.font = `${Math.max(10, Math.min(12, 12 * scale))}px Inter, system-ui, sans-serif`;
-        ctx.fillStyle = '#E3D9D4';
-        ctx.fillText(node.title, p.x, p.y + radius + 20);
-      } else if (focus || match || node.id === selectedId) {
+      if (focus || match || node.id === selectedId) {
         ctx.globalAlpha = 1;
         ctx.beginPath(); ctx.arc(p.x, p.y, radius + 3, 0, Math.PI * 2);
         ctx.strokeStyle = focus ? '#FFF7F2' : color; ctx.lineWidth = 1; ctx.stroke();
       }
     }
     ctx.globalAlpha = 1;
-  }, [scene, index, focusedId, neighbors, selectedId, query, overview, showConnections, renderVersion, g.isLoading, g.isError]);
+  }, [scene, index, degrees, focusedId, neighbors, selectedId, query, showConnections, renderVersion, g.isLoading, g.isError]);
 
   const zoomAt = useCallback((factor: number, mx?: number, my?: number) => {
     const wrap = wrapRef.current;
@@ -176,7 +171,7 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
       const dx = mx - (wrap.clientWidth / 2 + ox + node.x * scale);
       const dy = my - (wrap.clientHeight / 2 + oy + node.y * scale);
       const distance = dx * dx + dy * dy;
-      const radius = overview ? node.radius * Math.min(scale, 1.5) + 6 : Math.max(7, node.radius * Math.min(scale, 2) + 3);
+      const radius = Math.max(7, node.radius * Math.min(scale, 2) + 3);
       if (distance < radius * radius && distance < closest) { picked = node; closest = distance; }
     }
     return picked;
@@ -197,7 +192,7 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
     if (drag) {
       if (Math.hypot(x - drag.startX, y - drag.startY) > 4) drag.moved = true;
       if (drag.moved) {
-        if (drag.node && !overview) {
+        if (drag.node) {
           drag.node.x += (x - drag.x) / viewRef.current.scale;
           drag.node.y += (y - drag.y) / viewRef.current.scale;
         } else { viewRef.current.ox += x - drag.x; viewRef.current.oy += y - drag.y; }
@@ -213,14 +208,12 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
     dragRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (!drag || drag.moved) return;
-    if (overview && drag.node) openOutlet(drag.node.id);
-    else setSelectedId(drag.node?.id ?? null);
+    setSelectedId(drag.node?.id ?? null);
   };
   const clearFilters = () => { setOutletFilter(''); setQuery(''); setSearch(''); setSelectedId(null); };
   const changeMode = (next: 'articles' | 'claims') => { setMode(next); clearFilters(); };
   const inspectNode = (id: string) => {
     const node = graph.nodes.find((item) => item.id === id);
-    if (node && overview) setOutletFilter(outletKey(node.domain));
     setSelectedId(node?.id ?? null);
   };
   const timelineArticleId = selected?.article_id || (mode === 'articles' ? selected?.id : undefined);
@@ -231,7 +224,7 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
         <div>
           <div className="flex items-center gap-2.5"><Network className="h-5 w-5 text-hermes-bone/55" /><h2 className="text-2xl font-display">Whole-Corpus Graph</h2></div>
-          <p className="mt-1.5 text-xs text-hermes-bone/55">Explore the coverage. Follow the connections.</p>
+          <p className="mt-1.5 text-xs text-hermes-bone/55">Explore the original article and claim network. Follow the connections between stories.</p>
         </div>
         <div className="flex border border-hermes-bone/15 bg-black/10" aria-label="Graph type">
           <button onClick={() => changeMode('articles')} aria-pressed={mode === 'articles'} className={`${controlClass} ${mode === 'articles' ? '!bg-hermes-bone/10 !text-hermes-bone' : ''}`}><Layers className="w-3.5 h-3.5" /> Articles</button>
@@ -256,30 +249,30 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: outletColor(outlet.id) }} /><span className="flex-1 whitespace-nowrap">{outletName(outlet.id)}</span><span className="hidden font-mono text-[10px] text-hermes-bone/40 lg:inline">{outlet.count.toLocaleString()}</span>
             </button>)}
           </nav>
-          <p className="hidden border-t border-hermes-bone/10 px-4 py-4 text-[11px] leading-relaxed text-hermes-bone/40 lg:block">Each circle groups one outlet.<br />Select an outlet to explore its {mode}.<br /><br />Hover to reveal connections.</p>
+          <p className="hidden border-t border-hermes-bone/10 px-4 py-4 text-[11px] leading-relaxed text-hermes-bone/40 lg:block">Each dot is one {mode === 'articles' ? 'article' : 'claim'}.<br />Color identifies its outlet.<br /><br />Select a dot to highlight its connections, or filter an outlet above.</p>
         </aside>
-        <div className="min-w-0 bg-[#141114]">
+        <div className="min-w-0 bg-[radial-gradient(ellipse_at_center,#201b23_0%,#141114_75%)]">
           <div className="flex min-h-[64px] flex-wrap items-center justify-between gap-2 border-b border-hermes-bone/[0.07] px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
-              {!overview && <button onClick={clearFilters} aria-label="Back to outlet overview" className={`${controlClass} !p-1.5`}><ArrowLeft className="h-4 w-4" /></button>}
-              <div className="min-w-0"><h3 className="!font-sans text-sm">{query ? `Results for “${query}”` : outletFilter ? outletName(outletFilter) : 'The corpus at a glance'}</h3><p className="mt-1 text-[11px] text-hermes-bone/40">{overview ? `All ${mode} included · grouped by outlet` : `${filtered.nodes.length.toLocaleString()} ${mode} · ${filtered.edges.length.toLocaleString()} links${query ? ' · matches + direct neighbors' : ''}`}</p></div>
+              {hasFilters && <button onClick={clearFilters} aria-label="Back to full network" className={`${controlClass} !p-1.5`}><ArrowLeft className="h-4 w-4" /></button>}
+              <div className="min-w-0"><h3 className="!font-sans text-sm">{query ? `Results for “${query}”` : outletFilter ? outletName(outletFilter) : 'The connected corpus'}</h3><p className="mt-1 text-[11px] text-hermes-bone/40">{`${filtered.nodes.length.toLocaleString()} ${mode} · ${filtered.edges.length.toLocaleString()} ${mode === 'claims' ? 'near-duplicate' : 'similarity'} link${filtered.edges.length === 1 ? '' : 's'}${query ? ' · matches + direct neighbors' : ''}`}</p></div>
             </div>
             {query && <button onClick={() => { setQuery(''); setSearch(''); setSelectedId(null); }} className={controlClass}><X className="h-3 w-3" /> Clear search</button>}
           </div>
-          <div ref={wrapRef} className="relative h-[440px] overflow-hidden sm:h-[570px]" style={overview && canvasWidth < 480 ? { height: Math.max(440, Math.ceil(groups.outlets.length / 2) * 100 + 80) } : undefined}>
+          <div ref={wrapRef} className="relative h-[440px] overflow-hidden sm:h-[570px]">
             {g.isLoading ? <div role="status" aria-label="Loading corpus graph" className="flex h-full items-center justify-center text-sm text-hermes-bone/50">Loading corpus graph…</div>
               : g.isError ? <div className="p-6"><QueryError title="Corpus graph unavailable" error={g.error} onRetry={() => g.refetch()} retrying={g.isFetching} /></div>
                 : <>
                   <canvas ref={canvasRef} aria-hidden="true" className={`block touch-none ${hovered ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { dragRef.current = null; }} onLostPointerCapture={() => { dragRef.current = null; }} onPointerLeave={() => setHovered(null)} />
-                  {!scene.nodes.length && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"><Search className="h-6 w-6 text-hermes-bone/30" /><p className="text-sm text-hermes-bone/70">{query || outletFilter ? `No ${mode} match these filters.` : 'No graph nodes returned.'}</p>{!overview && <button onClick={clearFilters} className={controlClass}>Clear filters</button>}</div>}
-                  {hovered && !overview && <div className="pointer-events-none absolute left-4 top-3 max-w-[min(340px,calc(100%-32px))] border border-hermes-bone/15 bg-[#211b20] px-3 py-2.5 shadow-lg"><p className="mb-1 text-[10px]" style={{ color: outletColor(hovered.domain) }}>{outletName(hovered.domain)}</p><p className="line-clamp-2 text-xs leading-relaxed text-hermes-bone/85">{hovered.title}</p></div>}
+                  {!scene.nodes.length && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"><Search className="h-6 w-6 text-hermes-bone/30" /><p className="text-sm text-hermes-bone/70">{query || outletFilter ? `No ${mode} match these filters.` : 'No graph nodes returned.'}</p>{hasFilters && <button onClick={clearFilters} className={controlClass}>Clear filters</button>}</div>}
+                  {hovered && <div className="pointer-events-none absolute left-4 top-3 max-w-[min(340px,calc(100%-32px))] border border-hermes-bone/15 bg-[#211b20] px-3 py-2.5 shadow-lg"><p className="mb-1 text-[10px]" style={{ color: outletColor(hovered.domain) }}>{outletName(hovered.domain)}</p><p className="line-clamp-2 text-xs leading-relaxed text-hermes-bone/85">{hovered.title}</p></div>}
                 </>}
             <div className="absolute bottom-4 right-4 flex items-center divide-x divide-hermes-bone/10 border border-hermes-bone/15 bg-[#211b20] shadow-lg">
               <button onClick={() => zoomAt(1 / 1.25)} disabled={zoom <= 50} aria-label="Zoom out" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Minus className="h-3.5 w-3.5" /></button><span className="w-12 text-center text-[10px] font-mono text-hermes-bone/55">{zoom}%</span>
               <button onClick={() => zoomAt(1.25)} disabled={zoom >= 800} aria-label="Zoom in" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Plus className="h-3.5 w-3.5" /></button><button onClick={resetView} aria-label="Reset graph view" title="Fit graph to view" className={`${controlClass} !px-2.5`}><Maximize2 className="h-3.5 w-3.5" /></button>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hermes-bone/[0.07] px-4 py-3 text-[10px] text-hermes-bone/40 sm:px-5"><span>{overview ? `Circle size = ${mode === 'claims' ? 'claim' : 'article'} count` : 'Nearby nodes share a connected component'}{focusGroup && ` · ${focusGroup.internalLinks.toLocaleString()} links within this outlet`}</span><span>{overview ? 'Click to explore' : 'Click to inspect'}<span className="hidden sm:inline"> · Drag to pan · Ctrl/⌘ + scroll to zoom</span></span></div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hermes-bone/[0.07] px-4 py-3 text-[10px] text-hermes-bone/40 sm:px-5"><span>{mode === 'articles' ? 'Dots = articles · Lines = similarity' : 'Dots = claims · Lines = near-duplicates'}{focusGroup && ` · ${focusGroup.internalLinks.toLocaleString()} links within this outlet`}</span><span>Click a node to inspect<span className="hidden sm:inline"> · Drag to pan · Ctrl/⌘ + scroll to zoom</span></span></div>
         </div>
       </div>
       {g.data && <div className="flex flex-wrap items-center gap-3 border-t border-hermes-bone/10 px-5 py-3 sm:px-6">

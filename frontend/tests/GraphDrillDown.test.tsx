@@ -63,20 +63,37 @@ describe('graph article identity drill-down', () => {
     clearSelectedArticle();
   });
 
-  it('opens an outlet, clears an empty search, and returns to the complete overview', async () => {
+  it('opens an outlet, clears an empty search, and returns to the complete connected network', async () => {
     mockApi(() => jsonResponse(articleGraph));
     renderWithClient(<FullCorpusGraph />);
     await screen.findByRole('option', { name: 'Actual corpus article' });
-    expect(screen.getByText('The corpus at a glance')).toBeTruthy();
-    expect((screen.getByRole('checkbox', { name: 'Show all connections' }) as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText('The connected corpus')).toBeTruthy();
+    expect((screen.getByRole('checkbox', { name: 'Show all connections' }) as HTMLInputElement).checked).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: /source.example/ }));
-    expect(screen.getByRole('button', { name: 'Back to outlet overview' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back to full network' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Graph title search'), { target: { value: 'no matching title' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search graph titles' }));
     expect(screen.getByText('No articles match these filters.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(screen.getByText('The corpus at a glance')).toBeTruthy();
+    expect(screen.getByText('The connected corpus')).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Actual corpus article' })).toBeTruthy();
+  });
+
+  it('keeps individual connected articles visible when inspecting the full network', async () => {
+    mockApi(() => jsonResponse({
+      nodes: [...articleGraph.nodes, { id: 'neighbor', title: 'Connected coverage', domain: 'another.example' }],
+      edges: [{ src: articleId, dst: 'neighbor', score: 0.9 }],
+      counts: { nodes: 2, edges: 1 },
+    }));
+    renderWithClient(<FullCorpusGraph />);
+    await screen.findByRole('option', { name: 'Connected coverage' });
+    expect(screen.getByText('2 articles · 1 similarity link')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Inspect a node (keyboard alternative)'), { target: { value: articleId } });
+    expect(screen.getByText('The connected corpus')).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Connected coverage' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back to full network' })).toBeNull();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show all connections' }));
+    expect((screen.getByRole('checkbox', { name: 'Show all connections' }) as HTMLInputElement).checked).toBe(false);
   });
 });
 

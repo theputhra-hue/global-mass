@@ -67,25 +67,6 @@ export function groupOutlets(graph: FullGraph) {
   };
 }
 
-export function overviewScene(groups: ReturnType<typeof groupOutlets>, availableWidth = 1000): GraphScene {
-  const columns = Math.max(1, Math.min(availableWidth < 480 ? 2 : availableWidth < 740 ? 3 : 4, Math.ceil(Math.sqrt(groups.outlets.length * 1.3))));
-  const rows = Math.ceil(groups.outlets.length / columns);
-  const largest = groups.outlets[0]?.count ?? 1;
-  return {
-    nodes: groups.outlets.map((group, i) => {
-      const row = Math.floor(i / columns);
-      const inRow = Math.min(columns, groups.outlets.length - row * columns);
-      return {
-        id: group.id, domain: group.id, title: outletName(group.id), count: group.count,
-        x: (i % columns - (inRow - 1) / 2) * 190 + (row % 2 ? 18 : -18),
-        y: (row - (rows - 1) / 2) * 145,
-        radius: 23 + Math.sqrt(group.count / largest) * 17,
-      };
-    }),
-    edges: groups.edges,
-  };
-}
-
 // Search expands exactly one hop from the original matches, after outlet filtering.
 export function filterGraph(graph: FullGraph, outlet: string, query: string): FullGraph {
   let nodes = graph.nodes.filter((node) => !outlet || outletKey(node.domain) === outlet);
@@ -105,8 +86,129 @@ export function filterGraph(graph: FullGraph, outlet: string, query: string): Fu
   return { nodes, edges, counts: { nodes: nodes.length, edges: edges.length } };
 }
 
-// Pack connected components into separate, stable regions. No accumulating spring
-// forces: even a complete graph keeps its nodes apart instead of becoming a blob.
+interface LayoutNode { node: GraphNode; x: number; y: number; vx: number; vy: number; degree: number }
+
+// A finite force pass gives real relationships spatial meaning. The grid bounds
+// repulsion work in crowded regions; degree normalization prevents cliques from
+// collapsing, and the scene rests once computed (no permanent animation loop).
+function arrangeComponent(members: GraphNode[], adjacency: Map<string, Set<string>>, edges: GraphEdge[]): GraphPoint[] {
+  const nodes: LayoutNode[] = members.map((node, i) => {
+    const angle = i * Math.PI * (3 - Math.sqrt(5));
+    const radius = 19 * Math.sqrt(i);
+    return { node, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, vx: 0, vy: 0, degree: adjacency.get(node.id)!.size };
+  });
+  const index = new Map(nodes.map((node) => [node.node.id, node]));
+  const springs = edges.map((edge) => ({ a: index.get(edge.src)!, b: index.get(edge.dst)!, score: edge.score }));
+  const iterations = nodes.length > 2000 ? 56 : 88;
+  const cellSize = 70;
+  for (let iteration = 0; iteration < iterations && nodes.length > 1; iteration++) {
+    const cells = new Map<string, { members: LayoutNode[]; x: number; y: number }>();
+    for (const node of nodes) {
+      const key = `${Math.floor(node.x / cellSize)},${Math.floor(node.y / cellSize)}`;
+      const cell = cells.get(key) ?? { members: [], x: 0, y: 0 };
+      cell.members.push(node); cell.x += node.x; cell.y += node.y;
+      cells.set(key, cell);
+    }
+    const cooling = 1 - iteration / iterations * 0.82;
+    for (const node of nodes) {
+      const gx = Math.floor(node.x / cellSize), gy = Math.floor(node.y / cellSize);
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const cell = cells.get(`${gx + dx},${gy + dy}`);
+          if (!cell) continue;
+          if (cell.members.length <= 16) {
+            for (const other of cell.members) {
+              if (other === node) continue;
+              const rx = node.x - other.x, ry = node.y - other.y;
+              const distance = Math.sqrt(rx * rx + ry * ry + 25);
+              const force = 780 / (distance * distance);
+              node.vx += rx / distance * force; node.vy += ry / distance * force;
+            }
+          } else {
+            // Aggregate a crowded cell rather than allowing quadratic work.
+            const containsNode = dx === 0 && dy === 0;
+            const count = cell.members.length - (containsNode ? 1 : 0);
+            const rx = node.x - (cell.x - (containsNode ? node.x : 0)) / count;
+            const ry = node.y - (cell.y - (containsNode ? node.y : 0)) / count;
+            const distance = Math.sqrt(rx * rx + ry * ry + 25);
+            const force = 780 * count / (distance * distance);
+            node.vx += rx / distance * force; node.vy += ry / distance * force;
+          }
+        }
+      }
+    }
+    for (const { a, b, score } of springs) {
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      const strength = 0.085 / Math.sqrt(Math.max(1, Math.min(a.degree, b.degree)));
+      const target = 38 + 12 * (1 - Math.max(0, Math.min(1, Number.isFinite(score) ? score : 0)));
+      const force = (distance - target) / distance * strength;
+      a.vx += dx * force; a.vy += dy * force;
+      b.vx -= dx * force; b.vy -= dy * force;
+    }
+    for (const node of nodes) {
+      node.vx = (node.vx - node.x * 0.0005) * 0.7;
+      node.vy = (node.vy - node.y * 0.0005) * 0.7;
+      const speed = Math.hypot(node.vx, node.vy) || 1;
+      const step = Math.min(1, 18 * cooling / speed);
+      node.x += node.vx * step; node.y += node.vy * step;
+    }
+  }
+
+  // Assign nearby free hexagonal slots after cooling. This guarantees readable
+  // spacing even for complete graphs, with bounded local search and a shared
+  // fallback cursor instead of repeated unbounded collision resolution.
+  const occupied = new Set<string>();
+  const spacing = 16, rowHeight = spacing * Math.sqrt(3) / 2;
+  const directions = [[1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1]];
+  let fallbackRing = 0, fallbackSide = 0, fallbackStep = 0, fallbackQ = 0, fallbackR = 0;
+  const nextFallback = () => {
+    const slot = [fallbackQ, fallbackR];
+    if (fallbackRing === 0) { fallbackRing = 1; fallbackQ = -1; fallbackR = 0; }
+    else {
+      fallbackQ += directions[fallbackSide][0]; fallbackR += directions[fallbackSide][1];
+      if (++fallbackStep === fallbackRing) {
+        fallbackStep = 0;
+        if (++fallbackSide === 6) { fallbackSide = 0; fallbackRing++; fallbackQ = -fallbackRing; fallbackR = 0; }
+      }
+    }
+    return slot;
+  };
+  return nodes.map(({ node, x, y, degree }) => {
+    const r = Math.round(y / rowHeight), q = Math.round(x / spacing - r / 2);
+    let slot: number[] | undefined;
+    if (!occupied.has(`${q},${r}`)) slot = [q, r];
+    for (let ring = 1; !slot && ring <= 6; ring++) {
+      let cq = q - ring, cr = r;
+      for (const [dq, dr] of directions) {
+        for (let step = 0; step < ring; step++) {
+          if (!occupied.has(`${cq},${cr}`)) { slot = [cq, cr]; break; }
+          cq += dq; cr += dr;
+        }
+        if (slot) break;
+      }
+    }
+    while (!slot) {
+      const candidate = nextFallback();
+      if (!occupied.has(`${candidate[0]},${candidate[1]}`)) slot = candidate;
+    }
+    occupied.add(`${slot[0]},${slot[1]}`);
+    // Stable, slight offsets avoid an artificial lattice appearance while
+    // preserving a minimum 14-unit gap between node centers.
+    let hash = 2166136261;
+    for (let i = 0; i < node.id.length; i++) hash = Math.imul(hash ^ node.id.charCodeAt(i), 16777619);
+    const angle = (hash >>> 0) / 0x100000000 * Math.PI * 2;
+    return {
+      id: node.id, domain: node.domain, title: node.title,
+      x: spacing * (slot[0] + slot[1] / 2) + Math.cos(angle),
+      y: rowHeight * slot[1] + Math.sin(angle),
+      radius: 2.8 + Math.min(2.2, Math.log2(1 + degree) * 0.35),
+    };
+  });
+}
+
+// Connected components keep their own topology at the center. Unlinked articles
+// form an organic outer halo rather than dominating the view as a tile matrix.
 export function articleScene(graph: FullGraph): GraphScene {
   const adjacency = new Map<string, Set<string>>(graph.nodes.map((node) => [node.id, new Set()]));
   const validEdges: GraphEdge[] = [];
@@ -118,41 +220,69 @@ export function articleScene(graph: FullGraph): GraphScene {
   }
   const byId = new Map(graph.nodes.map((node) => [node.id, node]));
   const visited = new Set<string>();
-  const components: { members: GraphNode[]; radius: number }[] = [];
-  for (const node of graph.nodes) {
+  const components: { members: GraphNode[]; edges: GraphEdge[] }[] = [];
+  const componentFor = new Map<string, number>();
+  for (const node of [...graph.nodes].sort((a, b) => a.id.localeCompare(b.id))) {
     if (visited.has(node.id)) continue;
     const stack = [node.id], members: GraphNode[] = [];
     visited.add(node.id);
     while (stack.length) {
       const id = stack.pop()!;
       members.push(byId.get(id)!);
+      componentFor.set(id, components.length);
       for (const neighbor of adjacency.get(id)!) {
         if (!visited.has(neighbor)) { visited.add(neighbor); stack.push(neighbor); }
       }
     }
     members.sort((a, b) => adjacency.get(b.id)!.size - adjacency.get(a.id)!.size || a.id.localeCompare(b.id));
-    components.push({ members, radius: members.length === 1 ? 12 : 12 * Math.sqrt(members.length) + 12 });
+    components.push({ members, edges: [] });
   }
-  components.sort((a, b) => b.radius - a.radius || a.members[0].id.localeCompare(b.members[0].id));
-  const width = Math.max(components[0]?.radius * 2 || 1,
-    Math.sqrt(components.reduce((area, c) => area + (c.radius * 2 + 18) ** 2, 0) * 1.6));
+  for (const edge of validEdges) components[componentFor.get(edge.src)!].edges.push(edge);
+  const arranged = components.filter(({ members }) => members.length > 1).map(({ members, edges }) => {
+    edges.sort((a, b) => a.src.localeCompare(b.src) || a.dst.localeCompare(b.dst) || a.score - b.score);
+    const points = arrangeComponent(members, adjacency, edges);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const point of points) {
+      minX = Math.min(minX, point.x - point.radius); minY = Math.min(minY, point.y - point.radius);
+      maxX = Math.max(maxX, point.x + point.radius); maxY = Math.max(maxY, point.y + point.radius);
+    }
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    let radius = 0;
+    for (const point of points) radius = Math.max(radius, Math.hypot(point.x - cx, point.y - cy) + point.radius);
+    return { points, cx, cy, radius };
+  }).sort((a, b) => b.radius - a.radius || a.points[0].id.localeCompare(b.points[0].id));
   const nodes: GraphPoint[] = [];
-  let left = 0, top = 0, rowHeight = 0;
-  for (const { members, radius } of components) {
-    const diameter = radius * 2;
-    if (left > 0 && left + diameter > width) { top += rowHeight + 18; left = 0; rowHeight = 0; }
-    members.forEach((node, i) => {
-      const r = members.length === 1 ? 0 : 12 * Math.sqrt(i);
-      const angle = i * Math.PI * (3 - Math.sqrt(5));
-      nodes.push({
-        id: node.id, domain: node.domain, title: node.title,
-        x: left + radius + Math.cos(angle) * r, y: top + radius + Math.sin(angle) * r,
-        radius: 2.8 + Math.min(2.2, Math.log2(1 + adjacency.get(node.id)!.size) * 0.35),
-      });
-    });
-    left += diameter + 18;
-    rowHeight = Math.max(rowHeight, diameter);
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  let outerRadius = 0, ringRadius = 0, ringMax = 0, firstRadius = 0, previousRadius = 0, angle = 0, phase = 0;
+  for (let i = 0; i < arranged.length; i++) {
+    const component = arranged[i];
+    let cx = 0, cy = 0;
+    if (i === 0) outerRadius = component.radius;
+    else {
+      const step = 2 * Math.asin(Math.min(1, (previousRadius + component.radius + 20) / (2 * ringRadius)));
+      const closure = 2 * Math.asin(Math.min(1, (firstRadius + component.radius + 20) / (2 * ringRadius)));
+      if (ringRadius === 0 || angle + step + closure > Math.PI * 2) {
+        outerRadius = Math.max(outerRadius, ringRadius + ringMax);
+        ringRadius = outerRadius + component.radius + 20;
+        ringMax = firstRadius = component.radius;
+        angle = 0; phase += goldenAngle;
+      } else angle += step;
+      cx = Math.cos(phase + angle) * ringRadius;
+      cy = Math.sin(phase + angle) * ringRadius;
+      previousRadius = component.radius;
+    }
+    for (const node of component.points) nodes.push({ ...node, x: cx + node.x - component.cx, y: cy + node.y - component.cy });
   }
+  outerRadius = Math.max(outerRadius, ringRadius + ringMax);
+  const innerRadius = arranged.length ? outerRadius + 28 : 0;
+  const isolated = components.filter(({ members }) => members.length === 1).map(({ members }) => members[0]);
+  // Constant area per article creates an even, spacious annulus; these are
+  // individual articles with no inferred edges, never synthetic outlet nodes.
+  isolated.forEach((node, i) => {
+    const radius = Math.sqrt(innerRadius * innerRadius + 115 * (i + 1));
+    const angle = i * goldenAngle;
+    nodes.push({ id: node.id, domain: node.domain, title: node.title, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, radius: 2.8 });
+  });
   return { nodes, edges: validEdges.map((edge) => ({ a: edge.src, b: edge.dst, weight: edge.score })) };
 }
 
