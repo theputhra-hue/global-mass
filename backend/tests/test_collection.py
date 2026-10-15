@@ -233,3 +233,17 @@ def approved_pipeline_test_operator(monkeypatch):
     from app.core.config import get_settings
     monkeypatch.setattr(get_settings(), "DEVELOPER_UPLOAD_EMAILS", ["admin@test.com", "user@test.com"])
     monkeypatch.setattr(get_settings(), "DEVELOPER_PIPELINE_ENABLED", True)
+
+
+@pytest.fixture(autouse=True)
+def isolated_graph_projection(monkeypatch: pytest.MonkeyPatch):
+    """Pipeline unit tests do not contact a live Neo4j projection."""
+    from unittest.mock import AsyncMock
+
+    from app.services.evolution.neo4j_writer import Neo4jWriter
+    monkeypatch.setattr(Neo4jWriter, "sync_persisted_graph", AsyncMock(return_value={"success": True}))
+    from app.services.nlp_orchestrator import NLPOrchestrator, NLPSummary
+
+    # The chained NLP stage has its own model/integration tests. These unit
+    # fixtures must not download weights or turn collection tests into inference.
+    monkeypatch.setattr(NLPOrchestrator, "run_nlp_cycle", AsyncMock(return_value=NLPSummary()))

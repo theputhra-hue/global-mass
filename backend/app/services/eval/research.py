@@ -23,6 +23,7 @@ from typing import Any
 
 import numpy as np
 
+from app.services.eval.annotation import MUTATION_TYPES
 from app.services.eval.dataset import (
     POSITIVE_LABELS,
     SPLITS,
@@ -32,6 +33,7 @@ from app.services.eval.dataset import (
     validate_dataset,
 )
 from app.services.eval.features import lexical_jaccard
+from app.services.eval.grounding import grounding_evaluation, grounding_prediction
 from app.services.eval.metrics import (
     auroc,
     average_precision,
@@ -41,9 +43,15 @@ from app.services.eval.metrics import (
     precision_recall_curve,
     reliability_bins,
 )
+from app.services.eval.selective import (
+    apply_abstention_policy,
+    binary_log_loss,
+    prediction_confidences,
+    risk_coverage_curve,
+    select_abstention_policy,
+)
 
-PROTOCOL_VERSION = "gmee-experiment-v1"
-MUTATION_TYPES = ("NUMERIC_DRIFT", "ENTITY_SUBSTITUTION", "HEDGING_SHIFT", "FRAMING_SHIFT", "WORDING_DRIFT", "NEAR_DUPLICATE")
+PROTOCOL_VERSION = "gmee-experiment-v2"
 
 
 @dataclass(frozen=True)
@@ -53,14 +61,18 @@ class ExperimentConfig:
     logistic_c: float = 1.0
     calibration_c: float = 1_000_000.0
     calibration_max_folds: int = 3
+    selective_target_risk: float = 0.1
+    selective_min_dev: int = 5
 
     def validate(self) -> None:
-        if not 20 <= self.bootstrap <= 10000:
+        if type(self.bootstrap) is not int or not 20 <= self.bootstrap <= 10000:
             raise DatasetError("bootstrap must be 20–10000 (default 1000); fewer resamples do not support the reported percentile intervals")
-        if not 0 <= self.seed < 2**32:
+        if type(self.seed) is not int or not 0 <= self.seed < 2**32:
             raise DatasetError("seed must be an integer in [0, 2**32)")
-        if not math.isfinite(self.logistic_c) or self.logistic_c <= 0 or not math.isfinite(self.calibration_c) or self.calibration_c <= 0 or self.calibration_max_folds < 2:
+        if not math.isfinite(self.logistic_c) or self.logistic_c <= 0 or not math.isfinite(self.calibration_c) or self.calibration_c <= 0 or type(self.calibration_max_folds) is not int or self.calibration_max_folds < 2:
             raise DatasetError("Regularization must be positive/finite and grouped calibration needs at least two folds")
+        if not math.isfinite(self.selective_target_risk) or not 0 <= self.selective_target_risk <= 1 or type(self.selective_min_dev) is not int or self.selective_min_dev < 1:
+            raise DatasetError("selective_target_risk must be finite in [0, 1] and selective_min_dev a positive integer")
 
 
 def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -108,8 +120,8 @@ def environment_versions() -> dict[str, str]:
 
 def source_hashes() -> dict[str, str]:
     backend = Path(__file__).resolve().parents[3]
-    paths = [f"app/services/eval/{name}.py" for name in ("research", "dataset", "features", "provenance", "metrics", "artifacts")]
-    paths += ["app/services/verdict/mutation_diff.py", "scripts/run_research_experiment.py", "scripts/export_research_dataset.py"]
+    paths = [f"app/services/eval/{name}.py" for name in ("research", "dataset", "features", "provenance", "annotation", "metrics", "artifacts", "selective", "grounding")]
+    paths += ["app/services/verdict/mutation_diff.py", "app/services/evolution/text_changes.py", "app/services/evolution/quantities.py", "scripts/run_research_experiment.py", "scripts/export_research_dataset.py"]
     return {name: hashlib.sha256((backend / name).read_bytes()).hexdigest() for name in paths if (backend / name).is_file()}
 
 
@@ -131,6 +143,8 @@ def binary_metrics(scores: list[float], labels: list[bool], threshold: float, ca
         "auroc": auroc(scores, labels) if both else None,
         "brier": brier_score(scores, labels) if calibrated else None,
         "ece": expected_calibration_error(scores, labels) if calibrated else None,
+        "log_loss": binary_log_loss(scores, labels) if calibrated else None,
+        "log_loss_definition": "natural logarithm; probabilities clipped to [1e-15, 1-1e-15]" if calibrated else None,
         "calibration_status": "train-only sigmoid calibrated probability" if calibrated else "not applicable: raw score is not a probability",
         "confusion": {"tp": tp, "fp": fp, "fn": fn, "tn": tn},
     }
@@ -303,16 +317,19 @@ def grouped_bootstrap_differences(
             metrics[name] = {"f1": _f1(values, sampled_labels, thresholds[name]), "auroc": auroc(values, sampled_labels), "auprc": average_precision(values, sampled_labels)}
         for a, b in comparison_names:
             for metric in differences[(a, b)]:
-                differences[(a, b)][metric].append(_metric_difference(metrics[a][metric], metrics[b][metric]))
+                a_value, b_value = metrics[a][metric], metrics[b][metric]
+                if a_value is not None and b_value is not None:
+                    differences[(a, b)][metric].append(a_value - b_value)
     comparisons = []
-    for (a, b), samples in differences.items():
+    for (a, b), sampled_metrics in differences.items():
         entry: dict[str, Any] = {"a": a, "b": b, "difference": "a-minus-b", "metrics": {}}
-        for metric, values in samples.items():
+        for metric, sampled_values in sampled_metrics.items():
             interval = None
-            if len(values) >= 10:
-                low, high = np.quantile(values, [0.025, 0.975], method="linear")
-                interval = {"low": float(low), "high": float(high), "mean": float(np.mean(values))}
-            entry["metrics"][metric] = {"observed": _metric_difference(observed[a][metric], observed[b][metric]), "ci95": interval}
+            if len(sampled_values) >= 10:
+                low, high = np.quantile(sampled_values, [0.025, 0.975], method="linear")
+                interval = {"low": float(low), "high": float(high), "mean": float(np.mean(sampled_values))}
+            a_observed, b_observed = observed[a][metric], observed[b][metric]
+            entry["metrics"][metric] = {"observed": a_observed - b_observed if a_observed is not None and b_observed is not None else None, "ci95": interval}
         comparisons.append(entry)
     return {
         "unit": "connected event/claim/article/identical-text component", "paired": True,
@@ -389,7 +406,8 @@ def run_experiment(
     methods, states, warnings = fit_methods(records, validation, config)
     split_indices = {split: [i for i, r in enumerate(records) if r["split"] == split] for split in SPLITS}
     predicted_mutations = {}
-    if any(r.get("gold_mutation_types") is not None for r in records):
+    predicted_grounding = {}
+    if any(r.get(key) is not None for r in records for key in ("gold_mutation_types", "gold_changed_spans", "gold_context_relation")):
         if mutation_analyzer is None:
             from app.services.verdict.mutation_diff import diff_versions
 
@@ -400,6 +418,7 @@ def run_experiment(
             if not isinstance(types, list) or any(not isinstance(t, str) for t in types):
                 raise DatasetError(f"Mutation analyzer returned invalid types for {record['pair_id']}; no result written")
             predicted_mutations[record["pair_id"]] = sorted(set(types))
+            predicted_grounding[record["pair_id"]] = grounding_prediction(result, record["text_a"], record["text_b"])
     normalized_sha = hashlib.sha256(records_bytes(records)).hexdigest()
     report = {
         "protocol_version": PROTOCOL_VERSION, "status": "held_out_human_evaluation", "publication_ready": False,
@@ -410,6 +429,7 @@ def run_experiment(
         "versions": environment_versions(), "source_sha256": source_hashes(),
         "validation": validation, "methods": {}, "test_error_analysis": {},
         "mutation_evaluation": mutation_evaluation(records, predicted_mutations),
+        "grounding_evaluation": grounding_evaluation(records, predicted_grounding),
         "warnings": [
             "No minimum sample count, human agreement level, or bootstrap interval alone guarantees publication validity. The sample floor only prevents undefined/unsupported computations.",
             "Stratified sampling and active-learning train selection can bias prevalence-sensitive precision/AUPRC/calibration; review the target population and frozen sampling protocol.",
@@ -436,6 +456,9 @@ def run_experiment(
             "dev_selection": selected,
         }
         calibrated = method["score_kind"] == "calibrated_probability"
+        selective_policy = select_abstention_policy(
+            dev_scores, dev_labels, float(threshold), config.selective_target_risk, config.selective_min_dev,
+        ) if calibrated else None
         for split in ("dev", "test"):
             indices = split_indices[split]
             values = [method["scores"][i] for i in indices]
@@ -445,6 +468,14 @@ def run_experiment(
             if split == "test":
                 test_scores[name] = values
                 entry["test_reliability"] = reliability_bins(values, labels) if calibrated else []
+                entry["selective_evaluation"] = {
+                    "status": "evaluated", "policy": selective_policy,
+                    "test_operating_point": apply_abstention_policy(values, labels, float(threshold), selective_policy),
+                    "test_risk_coverage": risk_coverage_curve(values, labels, float(threshold)),
+                    "test_curve_usage": "descriptive diagnostic only; never used to choose the confidence cutoff",
+                } if selective_policy is not None else {
+                    "status": "unavailable", "reason": "Raw cosine/TF-IDF are not probabilities of the predicted class",
+                }
                 report["test_error_analysis"][name] = _errors([records[i] for i in indices], values, float(threshold))
         report["methods"][name] = entry
         for i, record in enumerate(records):
@@ -460,6 +491,12 @@ def run_experiment(
                 "correct": (score >= threshold) == gold,
                 "gold_mutation_types": record.get("gold_mutation_types"),
                 "predicted_mutation_types": predicted_mutations.get(record["pair_id"]),
+                "gold_changed_spans": record.get("gold_changed_spans"),
+                "predicted_changed_spans": predicted_grounding.get(record["pair_id"], {}).get("changed_spans"),
+                "gold_context_relation": record.get("gold_context_relation"),
+                "predicted_context_relation": predicted_grounding.get(record["pair_id"], {}).get("context_relation"),
+                "predicted_class_confidence": prediction_confidences([score], float(threshold))[0] if calibrated else None,
+                "selective_accepted": (selective_policy["min_confidence"] is not None and prediction_confidences([score], float(threshold))[0] >= selective_policy["min_confidence"]) if selective_policy is not None else None,
                 "human_user_ids": sorted({v["annotator_user_id"] for v in record["human_labels"]}),
             })
             predictions.append(prediction)

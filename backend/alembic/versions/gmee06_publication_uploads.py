@@ -5,8 +5,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision = "gmee04"
-down_revision = "gmee03"
+revision = "gmee06"
+down_revision = "gmee05"
 branch_labels = None
 depends_on = None
 

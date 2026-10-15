@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -59,7 +60,7 @@ async def register_user(db: AsyncSession, user_in: UserCreate, device_info: str 
             detail="Email already registered"
         )
         
-    hashed_password = security.hash_password(user_in.password)
+    hashed_password = await asyncio.to_thread(security.hash_password, user_in.password)
     new_user = await user_repository.create(db, user_in.email, hashed_password, user_in.full_name, RoleEnum.user)
     
     from sqlalchemy import exc
@@ -86,14 +87,16 @@ async def authenticate_user(db: AsyncSession, redis: Redis, login_in: LoginReque
         )
         
     user = await user_repository.get_by_email(db, login_in.email)
-    if not user or not security.verify_password(user.hashed_password, login_in.password) or not user.is_active:
+    if not user or not user.is_active or not await asyncio.to_thread(
+        security.verify_password, user.hashed_password, login_in.password
+    ):
         raise generic_error
         
     return await _issue_tokens_and_session(db, user, device_info)
 
 async def rotate_refresh_token(db: AsyncSession, refresh_in: RefreshRequest, device_info: str | None) -> TokenResponse:
     token_hash = security.hash_refresh_token(refresh_in.refresh_token)
-    db_session = await session_repository.get_by_refresh_token_hash(db, token_hash)
+    db_session = await session_repository.get_by_refresh_token_hash(db, token_hash, for_update=True)
     
     if not db_session:
         raise credentials_exception
@@ -127,7 +130,7 @@ async def rotate_refresh_token(db: AsyncSession, refresh_in: RefreshRequest, dev
 
 async def logout_user(db: AsyncSession, redis: Redis, logout_in: LogoutRequest, current_user: User, auth_header: str | None) -> None:
     token_hash = security.hash_refresh_token(logout_in.refresh_token)
-    db_session = await session_repository.get_by_refresh_token_hash(db, token_hash)
+    db_session = await session_repository.get_by_refresh_token_hash(db, token_hash, for_update=True)
     
     now_utc = datetime.now(UTC)
     if db_session and not db_session.revoked and db_session.user_id == current_user.id:
@@ -135,8 +138,9 @@ async def logout_user(db: AsyncSession, redis: Redis, logout_in: LogoutRequest, 
         await db.commit()
         
     # Blocklist access token
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
+    parts = auth_header.split() if auth_header else []
+    if len(parts) == 2 and parts[0].casefold() == "bearer":
+        token = parts[1]
         payload = security.decode_access_token(token)
         if payload and "jti" in payload and "exp" in payload:
             jti = payload["jti"]

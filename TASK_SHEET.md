@@ -6,6 +6,12 @@ This is the working checklist for the next development phase. Update it as work
 is verified; a design, implemented function, passing unit test, and validated
 release are different milestones.
 
+The [major-project integration record](docs/INTEGRATION_REVIEW.md) tracks the
+new research/Casebook/Project Lab work merged onto upstream `8d8ff3c`, including
+preserved reader/sign-in and hybrid-hosting behavior. This supplements the
+historical baseline below. It does not mark the queued-worker roadmap, human
+study or public deployment gates complete.
+
 ## 1. Project target and working rules
 
 - Team: two researchers; the coding assistant implements and verifies authorized engineering work.

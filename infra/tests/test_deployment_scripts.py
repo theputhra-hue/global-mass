@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -396,6 +397,32 @@ class StaticComposeSafetyTests(unittest.TestCase):
             self.assertEqual(
                 validator.compose_model(["infra/docker-compose.yml"]), {"services": {}}
             )
+
+
+class DependencyPinSafetyTests(unittest.TestCase):
+    def test_actual_install_entrypoints_share_the_hashed_model_constraint(self) -> None:
+        validator = load_script("gmee_pin_validator", "infra/scripts/validate_deployment.py")
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.validate_model_dependency_pin()
+
+    def test_missing_url_hash_in_constraint_or_installer_is_rejected(self) -> None:
+        validator = load_script("gmee_pin_failure_validator", "infra/scripts/validate_deployment.py")
+        files = (
+            "backend/pyproject.toml", "backend/requirements.lock",
+            "backend/Dockerfile", ".github/workflows/backend-ci.yml",
+        )
+        for broken in files[1:]:
+            with self.subTest(broken=broken), tempfile.TemporaryDirectory(prefix="gmee-pin-") as directory:
+                fixture = Path(directory)
+                for relative in files:
+                    target = fixture / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    content = (ROOT / relative).read_text(encoding="utf-8")
+                    if relative == broken:
+                        content = re.sub(r"#sha256=[0-9a-f]{64}", "", content)
+                    target.write_text(content, encoding="utf-8")
+                with patch.object(validator, "ROOT", fixture), self.assertRaises(validator.ValidationError):
+                    validator.validate_model_dependency_pin()
 
 
 if __name__ == "__main__":

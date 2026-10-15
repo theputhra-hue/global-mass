@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface DialogProps {
   labelledBy: string;
@@ -8,6 +9,11 @@ interface DialogProps {
   backdropClassName?: string;
 }
 
+// Portals can overlap (for example signing in from another dialog). Only the
+// front dialog handles keyboard events, and scrolling stays locked until all close.
+const openDialogs: HTMLElement[] = [];
+let originalBodyOverflow = '';
+
 export function Dialog({ labelledBy, onClose, children, className, backdropClassName }: DialogProps) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
@@ -16,27 +22,31 @@ export function Dialog({ labelledBy, onClose, children, className, backdropClass
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const element = ref.current;
-    const previousOverflow = document.body.style.overflow;
+    if (!element) return;
+    if (openDialogs.length === 0) originalBodyOverflow = document.body.style.overflow;
+    openDialogs.push(element);
     document.body.style.overflow = 'hidden';
-    element?.focus();
+    element.focus();
     const onKey = (event: KeyboardEvent) => {
+      if (openDialogs[openDialogs.length - 1] !== element) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopPropagation();
         closeRef.current();
       } else if (event.key === 'Tab' && element) {
         const focusable = Array.from(element.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
-        ));
+          'button, a[href], input, select, textarea, summary, [contenteditable="true"], [tabindex]',
+        )).filter((candidate) => candidate.tabIndex >= 0 && !candidate.matches(':disabled, input[type="hidden"]')
+          && !candidate.closest('[hidden], [inert], [aria-hidden="true"]'));
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
         if (!first) {
           event.preventDefault();
           element.focus();
-        } else if (event.shiftKey && (document.activeElement === first || document.activeElement === element)) {
+        } else if (event.shiftKey && (document.activeElement === first || document.activeElement === element || !element.contains(document.activeElement))) {
           event.preventDefault();
           last.focus();
-        } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === element)) {
+        } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === element || !element.contains(document.activeElement))) {
           event.preventDefault();
           first.focus();
         }
@@ -45,12 +55,15 @@ export function Dialog({ labelledBy, onClose, children, className, backdropClass
     document.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('keydown', onKey, true);
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus?.isConnected) previousFocus.focus();
+      const wasTopmost = openDialogs[openDialogs.length - 1] === element;
+      const index = openDialogs.indexOf(element);
+      if (index >= 0) openDialogs.splice(index, 1);
+      if (openDialogs.length === 0) document.body.style.overflow = originalBodyOverflow;
+      if (wasTopmost && previousFocus?.isConnected) previousFocus.focus();
     };
   }, []);
 
-  return (
+  return createPortal(
     <div
       className={backdropClassName ?? 'fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4'}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
@@ -65,6 +78,7 @@ export function Dialog({ labelledBy, onClose, children, className, backdropClass
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -5,8 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0',
-    port: 5050,
+    // Development files and API proxy are local unless explicitly exposed with --host.
+    host: '127.0.0.1',
+    port: 3000,
+    strictPort: true,
     proxy: {
       '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
     },
@@ -19,6 +21,7 @@ export default defineConfig({
     unstubGlobals: true,
     coverage: {
       provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'node_modules/**',
         'coverage/**',
@@ -40,7 +43,6 @@ export default defineConfig({
         // Force-simulation / whole-corpus canvas renderers: pure visual
         // layout & draw loops without API or decision logic (documented
         // exclusion policy — visually exercised, not unit-testable here).
-        'src/components/GraphVisualizer.tsx',
         'src/components/FullCorpusGraph.tsx',
         // Arcade component driven by a requestAnimationFrame game loop.
         'src/components/MasalaLab.tsx',

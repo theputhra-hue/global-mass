@@ -65,4 +65,16 @@ describe('<CorpusExplorer/> — real corpus listing', () => {
       ),
     );
   });
+
+  it('does not offer an empty next page when the total exactly fills a page', async () => {
+    const { corpusApi } = await import('../src/api/corpus');
+    vi.mocked(corpusApi.list).mockResolvedValueOnce({
+      total: 25, limit: 25, offset: 0,
+      items: Array.from({ length: 25 }, (_, index) => ({ ...article, id: `article-${index}` })),
+      domains: [],
+    });
+    renderExplorer();
+    await screen.findByText('25 articles');
+    expect((screen.getByRole('button', { name: 'Next' }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });

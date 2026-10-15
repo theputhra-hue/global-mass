@@ -3,6 +3,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.article import Article
 from app.models.claim import Claim, ClaimEntity
@@ -10,7 +11,7 @@ from app.models.evolution import ClaimRelationship, RelationshipTypeEnum
 from app.models.source import Source, SourceTypeEnum
 
 
-async def dataset(db):
+async def dataset(db: AsyncSession) -> tuple[list[Article], list[Claim]]:
     source = Source(name="Test", type=SourceTypeEnum.rss, url_or_identifier="https://example.org/rss")
     db.add(source)
     await db.flush()
@@ -25,6 +26,12 @@ async def dataset(db):
     db.add(ClaimEntity(claim_id=claims[0].id, entity_text="report", entity_type="ORG", start_char=9, end_char=15))
     await db.commit()
     return articles, claims
+
+
+async def test_recent_articles_route_is_not_shadowed_by_uuid_detail(async_client):
+    response = await async_client.get("/api/v1/corpus/articles/recent")
+    assert response.status_code == 200
+    assert response.json() == {"items": []}
 
 
 @pytest.mark.asyncio

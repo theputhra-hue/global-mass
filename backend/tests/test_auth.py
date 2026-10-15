@@ -11,11 +11,11 @@ from app.models.session import Session
 from app.models.user import RoleEnum, User
 
 # Test route for role checking
-auth_test_router = APIRouter()
-@auth_test_router.get("/admin-only")
+role_fixture_router = APIRouter()
+@role_fixture_router.get("/admin-only")
 async def admin_only_route(user: User = Depends(require_role("admin"))) -> dict[str, str]:
     return {"status": "ok"}
-app.include_router(auth_test_router, prefix="/api/v1/test")
+app.include_router(role_fixture_router, prefix="/api/v1/test")
 
 @pytest.mark.asyncio
 async def test_register_success(async_client: AsyncClient, db_session: AsyncSession) -> None:

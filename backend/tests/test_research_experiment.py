@@ -1,5 +1,6 @@
 """Run the actual sklearn protocol on synthetic unit cases, never the live corpus."""
 
+import csv
 import hashlib
 import json
 import subprocess
@@ -74,6 +75,8 @@ def test_test_text_features_and_labels_cannot_change_training_or_dev_selection()
         assert report["methods"][name]["fitted_state_sha256"] == changed["methods"][name]["fitted_state_sha256"]
         assert report["methods"][name]["threshold"] == changed["methods"][name]["threshold"]
         assert report["methods"][name]["dev"] == changed["methods"][name]["dev"]
+        if report["methods"][name]["score_kind"] == "calibrated_probability":
+            assert report["methods"][name]["selective_evaluation"]["policy"] == changed["methods"][name]["selective_evaluation"]["policy"]
 
 
 def test_cosine_threshold_selected_on_dev_not_test(fitted_experiment):
@@ -152,13 +155,19 @@ def test_artifacts_actual_hashes_csv_predictions_and_svg(fitted_experiment, tmp_
     manifest = write_artifacts(report, predictions, states, directory)
     for name, digest in manifest["artifacts"].items():
         assert hashlib.sha256((directory / name).read_bytes()).hexdigest() == digest
-    for filename in ("pr.svg", "f1.svg", "reliability.svg"):
+    for filename in ("pr.svg", "f1.svg", "reliability.svg", "risk_coverage.svg"):
         root = ElementTree.fromstring((directory / filename).read_text(encoding="utf-8"))
         assert root.tag.endswith("svg")
     assert json.loads((directory / "pair_predictions.json").read_text(encoding="utf-8")) == predictions
     assert (directory / "pair_predictions.csv").read_text(encoding="utf-8").count("\n") == len(predictions) + 1
+    with (directory / "pair_predictions.csv").open(encoding="utf-8", newline="") as file:
+        rows = list(csv.DictReader(file))
+    assert {"predicted_class_confidence", "selective_accepted", "gold_changed_spans", "predicted_context_relation"} <= set(rows[0])
+    for row, prediction in zip(rows, predictions):
+        assert row["selective_accepted"] == (str(prediction["selective_accepted"]) if prediction["selective_accepted"] is not None else "")
     markdown = (directory / "report.md").read_text(encoding="utf-8")
     assert "not certify publication validity" in markdown and "Raw cosine" in markdown
+    assert "Selective relatedness" in markdown and "Independent changed-span" in markdown and "Log loss" in markdown
     with pytest.raises(DatasetError, match="not empty"):
         write_artifacts(report, predictions, states, directory)
 

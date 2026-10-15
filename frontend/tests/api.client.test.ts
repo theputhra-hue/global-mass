@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { apiClient, ApiError } from '../src/api/client';
+import { apiClient, ApiError, rotateAccessToken } from '../src/api/client';
+import { authApi } from '../src/api/auth';
 import { fetchHealth } from '../src/api/health';
-import { getAccessToken, getRefreshToken, setSessionTokens } from '../src/lib/session';
-import { jsonResponse, mockApi, readyFixture, signInFixture } from './helpers';
+import { clearSession, getAccessToken, getRefreshToken, setSessionTokens } from '../src/lib/session';
+import { accountFixture, jsonResponse, mockApi, readyFixture, signInFixture } from './helpers';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -19,6 +20,7 @@ describe('typed API requests and readiness', () => {
     '/graph/claims',
     '/graph/timeline?article_id=fixture',
     '/graph/scoops',
+    '/corpus/articles?q=river',
   ])('requests real backend data for %s without a static fallback', async (endpoint) => {
     const payload = { source: 'backend', items: [] };
     const fetch = mockApi((requested) => {
@@ -28,6 +30,22 @@ describe('typed API requests and readiness', () => {
     expect(await apiClient.get(endpoint)).toEqual(payload);
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch.mock.calls[0][0]).toBe(`/api/v1${endpoint}`);
+  });
+
+  it('does not replace a graph failure with fabricated nodes', async () => {
+    const fetch = mockApi(() => jsonResponse({ detail: 'Graph projection unavailable' }, 503));
+    await expect(apiClient.get('/graph/full')).rejects.toMatchObject({ status: 503, message: 'Graph projection unavailable' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies authentication and cancellation before mutation requests', async () => {
+    const fetch = mockApi(() => jsonResponse({}));
+    await expect(apiClient.post('/graph/mutation/compare', {}, { authenticated: true })).rejects.toMatchObject({ status: 401 });
+    signInFixture();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(apiClient.post('/graph/mutation/compare', {}, { authenticated: true, signal: controller.signal })).rejects.toMatchObject({ kind: 'aborted' });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('uses the real ready aggregate value', async () => {
@@ -141,5 +159,69 @@ describe('typed API requests and readiness', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(getAccessToken()).toBeUndefined();
     expect(getRefreshToken()).toBeUndefined();
+  });
+
+  it('discards protected data returned after logout', async () => {
+    signInFixture();
+    const response = deferred<Response>();
+    mockApi(() => response.promise);
+    const assertion = expect(apiClient.get('/private', { authenticated: true })).rejects.toMatchObject({ status: 401 });
+    clearSession();
+    response.resolve(jsonResponse({ privateData: 'old account' }));
+    await assertion;
+    expect(getAccessToken()).toBeUndefined();
+  });
+
+  it('does not let a late login replace the account from a newer login', async () => {
+    const oldLogin = deferred<Response>();
+    let loginCount = 0;
+    mockApi((endpoint) => {
+      if (endpoint === '/auth/login') return ++loginCount === 1 ? oldLogin.promise : jsonResponse({ access_token: 'new-account-token' });
+      return jsonResponse(accountFixture);
+    });
+    const stale = expect(authApi.login({ email: 'old@example.com', password: 'old-password' })).rejects.toMatchObject({ status: 401 });
+    await authApi.login({ email: 'new@example.com', password: 'new-password' });
+    oldLogin.resolve(jsonResponse({ access_token: 'old-account-token' }));
+    await stale;
+    expect(getAccessToken()).toBe('new-account-token');
+  });
+
+  it('does not resurrect the account from a late identity verification', async () => {
+    signInFixture();
+    const verification = deferred<Response>();
+    mockApi(() => verification.promise);
+    const assertion = expect(authApi.me()).rejects.toMatchObject({ status: 401 });
+    clearSession();
+    verification.resolve(jsonResponse(accountFixture));
+    await assertion;
+    expect(getAccessToken()).toBeUndefined();
+  });
+
+  it('does not clear a new account when an older logout finishes', async () => {
+    signInFixture();
+    const logout = deferred<Response>();
+    mockApi(() => logout.promise);
+    const assertion = expect(authApi.logout()).rejects.toMatchObject({ status: 401 });
+    clearSession();
+    signInFixture({ id: 'new-account' });
+    setSessionTokens({ access_token: 'new-account-token' });
+    logout.resolve(new Response(null, { status: 204 }));
+    await assertion;
+    expect(getAccessToken()).toBe('new-account-token');
+  });
+
+  it('scopes in-flight refresh rotation to its original account', async () => {
+    signInFixture();
+    const previous = deferred<Response>();
+    let calls = 0;
+    mockApi(() => ++calls === 1 ? previous.promise : jsonResponse({ access_token: 'new-rotated', refresh_token: 'new-refresh' }));
+    const stale = expect(rotateAccessToken()).rejects.toMatchObject({ status: 401 });
+    clearSession();
+    signInFixture({ id: 'new-account' });
+    await rotateAccessToken();
+    previous.resolve(jsonResponse({ access_token: 'old-rotated' }));
+    await stale;
+    expect(calls).toBe(2);
+    expect(getAccessToken()).toBe('new-rotated');
   });
 });

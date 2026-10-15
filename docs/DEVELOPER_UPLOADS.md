@@ -6,7 +6,7 @@ staging, separate from articles/claims. It does not activate them in public view
 
 ## Operator setup
 
-1. Rehearse additive migration gmee04 on an isolated database, take a backup,
+1. Rehearse additive migration gmee06 (after upstream gmee04 and gmee05) on an isolated database, take a backup,
    then migrate the target deployment through the normal release procedure.
 2. Set backend `DEVELOPER_UPLOAD_EMAILS` to a JSON list of the two approved
    addresses. Default `[]` disables all uploads. Never put the allowlist or

@@ -11,11 +11,15 @@ queries live in collect_alert_inputs (sqlite-safe, no SQL intervals).
 """
 
 import logging
+import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -107,16 +111,27 @@ async def collect_alert_inputs(db: Any) -> dict[str, list[datetime | None]]:
     from app.models.claim import Claim
     from app.models.evolution import ClaimRelationship, RelationshipTypeEnum
 
-    pub = (await db.execute(select(Article.published_at))).scalars().all()
+    now = datetime.now(UTC)
+    since = now - 2 * WINDOW
+    # This surface describes collection activity: an old story arriving today
+    # belongs to today's ingestion bucket, regardless of its publication date.
+    # Bound each stream at the DB so periodic polling never loads all history.
+    pub = (await db.execute(select(Article.collected_at).where(
+        Article.collected_at >= since, Article.collected_at <= now,
+    ))).scalars().all()
 
     dis = (
-        await db.execute(select(Claim.extracted_at).where(Claim.verdict == "DISPUTED"))
+        await db.execute(select(Claim.extracted_at).where(
+            Claim.verdict == "DISPUTED",
+            Claim.extracted_at >= since, Claim.extracted_at <= now,
+        ))
     ).scalars().all()
 
     mut = (
         await db.execute(
             select(ClaimRelationship.created_at).where(
-                ClaimRelationship.relationship_type == RelationshipTypeEnum.EVOLVED_FROM
+                ClaimRelationship.relationship_type == RelationshipTypeEnum.EVOLVED_FROM,
+                ClaimRelationship.created_at >= since, ClaimRelationship.created_at <= now,
             )
         )
     ).scalars().all()
@@ -156,17 +171,43 @@ def _evidence_detail(evidence: Any, key: str, field: str) -> float | None:
     return None
 
 
+async def _upsert_alert(db: AsyncSession, item: dict[str, Any], now: datetime) -> bool:
+    """Persist one condition atomically; return whether it was newly inserted.
+
+    The scheduler and manual evaluator can observe the same condition together.
+    A database upsert preserves its identity, first-seen time and acknowledgement
+    while preventing an older evaluation from overwriting a newer observation.
+    """
+    from app.models.evolution import Alert
+
+    new_id = uuid.uuid4()
+    insert = sqlite_insert if db.get_bind().dialect.name == "sqlite" else pg_insert
+    statement = insert(Alert).values(
+        **item, id=new_id, first_seen_at=now, last_seen_at=now,
+    )
+    stored_id = (await db.execute(
+        statement.on_conflict_do_update(
+            index_elements=["kind", "subject_key"],
+            set_={field: statement.excluded[field] for field in (
+                "last_seen_at", "title", "body", "payload", "severity", "claim_id",
+            )},
+            where=Alert.last_seen_at <= now,
+        ).returning(Alert.id)
+    )).scalar_one_or_none()
+    return stored_id == new_id
+
+
 async def evaluate_alerts(db: Any, window_hours: int = 6) -> dict[str, Any]:
     """One persistent evaluation pass; deduplicates and commits."""
     from datetime import timedelta
 
     from app.models.claim import Claim
     from app.models.evolution import (
-        Alert,
         ClaimClusterAssignment,
         ClaimRelationship,
         RelationshipTypeEnum,
     )
+    from app.services.verdict.engine import METHOD_VERSION, SCORE_KIND
     from app.services.verdict.mutation_diff import diff_versions
 
     since = datetime.now(UTC) - timedelta(hours=window_hours)
@@ -181,6 +222,13 @@ async def evaluate_alerts(db: Any, window_hours: int = 6) -> dict[str, Any]:
         .limit(500)
     )
     for c in res.scalars().all():
+        evidence = c.verdict_evidence if isinstance(c.verdict_evidence, dict) else {}
+        current_method = evidence.get("method_version") == METHOD_VERSION
+        disclosure = {
+            "score_kind": SCORE_KIND if current_method else "legacy_unverified",
+            "method_version": evidence.get("method_version"),
+            "warning": "Stored textual signals are uncalibrated and do not independently verify facts.",
+        }
         corr = _evidence_signal(c.verdict_evidence, "corroboration")
         # The contradiction SIGNAL is neutral-centred (0.5 = no contradiction),
         # so the alert threshold applies to the raw ratio it carries in its
@@ -193,19 +241,21 @@ async def evaluate_alerts(db: Any, window_hours: int = 6) -> dict[str, Any]:
             contra = _evidence_signal(c.verdict_evidence, "contradiction")
         if contra is not None and contra >= CONTRADICTION_THRESHOLD:
             raised.append({
-                "kind": "CONTRADICTION", "severity": "CRITICAL",
+                "kind": "CONTRADICTION", "severity": "CRITICAL" if current_method else "WARNING",
                 "subject_key": f"claim:{c.id}",
-                "title": f"Cross-outlet contradiction detected (signal {contra:.2f})",
+                "title": ("Cross-outlet textual contradiction" if current_method else "Legacy contradiction signal")
+                    + f" ({contra:.2f})",
                 "body": (c.claim_text or "")[:280], "claim_id": c.id,
-                "payload": {"contradiction": contra, "claim_text": (c.claim_text or "")[:280]},
+                "payload": {"contradiction": contra, "claim_text": (c.claim_text or "")[:280], **disclosure},
             })
         elif corr is not None and corr >= CORROBORATION_THRESHOLD:
             raised.append({
                 "kind": "CORROBORATION", "severity": "INFO",
                 "subject_key": f"claim:{c.id}",
-                "title": f"Independently corroborated ({corr:.0%} corroboration signal)",
+                "title": ("Cross-outlet textual support" if current_method else "Legacy corroboration signal")
+                    + f" ({corr:.0%})",
                 "body": (c.claim_text or "")[:280], "claim_id": c.id,
-                "payload": {"corroboration": corr, "claim_text": (c.claim_text or "")[:280]},
+                "payload": {"corroboration": corr, "claim_text": (c.claim_text or "")[:280], **disclosure},
             })
 
     # ---- fresh EVOLVED_FROM edges with typed mutation content -------------
@@ -275,20 +325,10 @@ async def evaluate_alerts(db: Any, window_hours: int = 6) -> dict[str, Any]:
     # ---- deduplicate + persist --------------------------------------------
     inserted = refreshed = 0
     for item in raised[:MAX_ALERTS_PER_RUN]:
-        existing = (
-            await db.execute(
-                select(Alert).where(Alert.kind == item["kind"], Alert.subject_key == item["subject_key"])
-            )
-        ).scalar_one_or_none()
-        if existing:
-            existing.last_seen_at = now
-            # Refresh corrected direction/evidence without resetting acknowledgement.
-            for field in ("title", "body", "payload", "severity", "claim_id"):
-                setattr(existing, field, item[field])
-            refreshed += 1
-        else:
-            db.add(Alert(**item, first_seen_at=now, last_seen_at=now))
+        if await _upsert_alert(db, item, now):
             inserted += 1
+        else:
+            refreshed += 1
     await db.commit()
 
     summary = {"window_hours": window_hours, "conditions_detected": len(raised),

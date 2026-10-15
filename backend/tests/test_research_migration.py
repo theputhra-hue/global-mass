@@ -2,13 +2,15 @@
 
 import importlib.util
 from pathlib import Path
-from typing import Any
+from types import ModuleType
 from unittest.mock import MagicMock
+
+from sqlalchemy import Table
 
 from app.models.eval import EvalPair, EvalPairLabel
 
 
-def migration() -> Any:
+def migration() -> ModuleType:
     path = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "gmee02_research_provenance.py"
     spec = importlib.util.spec_from_file_location("research_migration_unit", path)
     assert spec is not None and spec.loader is not None
@@ -51,5 +53,7 @@ def test_model_defaults_and_constraints_are_conservative():
     assert EvalPairLabel.__table__.c.origin.server_default.arg == "legacy"
     assert EvalPair.__table__.c.split.default.arg == "unassigned"
     assert EvalPair.__table__.c.canonical_key.nullable
-    assert "uq_eval_pairs_canonical_key" in {c.name for c in EvalPair.metadata.tables["eval_pairs"].constraints}
-    assert "uq_eval_label_pair_annotator_origin" in {c.name for c in EvalPairLabel.metadata.tables["eval_pair_labels"].constraints}
+    assert isinstance(EvalPair.__table__, Table)
+    assert isinstance(EvalPairLabel.__table__, Table)
+    assert "uq_eval_pairs_canonical_key" in {c.name for c in EvalPair.__table__.constraints}
+    assert "uq_eval_label_pair_annotator_origin" in {c.name for c in EvalPairLabel.__table__.constraints}

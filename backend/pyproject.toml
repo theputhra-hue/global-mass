@@ -54,9 +54,10 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 # Integration tests need a live Postgres + pgvector, so they are opt-in:
 #   pytest tests/integration -m integration
-addopts = '-m "not integration"'
+addopts = '-m "not integration and not model"'
 markers = [
     "integration: needs a live Postgres + pgvector instance (tests/integration/)",
+    "model: loads real pretrained weights; run explicitly with pytest -m model",
 ]
 
 [tool.ruff]

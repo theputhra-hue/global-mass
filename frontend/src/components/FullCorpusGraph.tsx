@@ -1,532 +1,300 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Network, ExternalLink, Layers, Zap, Search, RotateCcw, Orbit } from 'lucide-react';
-import { graphApi, FullGraph, GraphNode } from '../api/graph';
-import { articleHref } from '../lib/articleRoutes';
+import { ArrowLeft, ArrowUpRight, ExternalLink, Layers, Maximize2, Minus, Network, Orbit, Plus, Search, X, Zap } from 'lucide-react';
+import { graphApi, type FullGraph } from '../api/graph';
 import { setSelectedArticle } from '../lib/useSelectedArticle';
 import type { TabType } from './Header';
 import { usePollingPolicy } from '../lib/polling';
-import { useAnimationActivity } from '../lib/useAnimationActivity';
+import { articleHref } from '../lib/articleRoutes';
 import { safeHttpUrl } from '../lib/urls';
 import { QueryError } from './QueryError';
+import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, outletKey, outletName, overviewScene, type GraphPoint } from '../lib/corpusGraph';
 
-/**
- * FullCorpusGraph — THE ENTIRE corpus as one interactive force-directed graph.
- *
- * Canvas-rendered (SVG would die at 6.4k nodes). Custom lightweight force
- * sim: repulsion via spatial grid, spring edges, centering. 120Hz-capable
- * stepping with calm damping per GMEE motion rules.
- *
- * Interactions: drag nodes · pan canvas · ctrl/⌘+wheel zoom · click to inspect ·
- * outlet filter · search highlight.
- */
+const EMPTY_GRAPH: FullGraph = { nodes: [], edges: [], counts: { nodes: 0, edges: 0 } };
+const controlClass = 'inline-flex items-center justify-center gap-2 px-3 py-2 text-xs text-hermes-bone/70 hover:bg-white/5 hover:text-hermes-bone focus-visible:outline-offset-[-3px]';
 
-const OUTLET_COLORS: Record<string, string> = {
-  'www.thehindu.com': '#E11D2E',
-  'www.aljazeera.com': '#FF8A5C',
-  'www.theguardian.com': '#7FB4FF',
-  'www.ndtv.com': '#9BE38A',
-  'timesofindia.indiatimes.com': '#E3C567',
-  'www.bbc.co.uk': '#C99CFF',
-  'www.wired.com': '#6FE0D2',
-  'www.nytimes.com': '#F2F2F2',
-  'techcrunch.com': '#8FD18F',
-  'www.npr.org': '#FFB3C7',
-  'news.sky.com': '#79A8FF',
-  'theverge.com': '#FF7AC8',
-  'www.cnn.com': '#FF6B6B',
-};
-const colorFor = (d?: string | null): string => (d && OUTLET_COLORS[d]) || '#B08A85';
-
-interface SimNode extends GraphNode {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  fixed?: boolean;
-}
-
-function buildSim(graph: FullGraph): { nodes: SimNode[]; index: Map<string, SimNode> } {
-  const R = 520;
-  const nodes: SimNode[] = graph.nodes.map((n, i) => {
-    // golden-angle spiral init — deterministic, well-spread
-    const a = i * 2.39996;
-    const r = R * Math.sqrt((i + 1) / graph.nodes.length);
-    return { ...n, x: Math.cos(a) * r + Math.sin(i * 17) * 15, y: Math.sin(a) * r * 0.72 + Math.cos(i * 31) * 15, vx: 0, vy: 0 };
-  });
-  const index = new Map(nodes.map((n) => [n.id, n]));
-  return { nodes, index };
-}
-
+/** A complete outlet overview, with individual articles revealed on demand. */
 const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ setActiveTab }) => {
   const [mode, setMode] = useState<'articles' | 'claims'>('articles');
-  const [selected, setSelected] = useState<SimNode | null>(null);
-  const [outletFilter, setOutletFilter] = useState<string>('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [outletFilter, setOutletFilter] = useState('');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
-
+  const [showConnections, setShowConnections] = useState(false);
+  const [hovered, setHovered] = useState<GraphPoint | null>(null);
+  const [renderVersion, setRenderVersion] = useState(0);
+  const [zoom, setZoom] = useState(100);
+  const [canvasWidth, setCanvasWidth] = useState(1000);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const { animate, visible } = useAnimationActivity(wrapRef);
-  const [renderVersion, setRenderVersion] = useState(0);
-  const polling = usePollingPolicy(60000);
-  const simRef = useRef<{ nodes: SimNode[]; edges: { a: SimNode; b: SimNode; s: number }[] }>({ nodes: [], edges: [] });
   const viewRef = useRef({ ox: 0, oy: 0, scale: 1 });
-  const alphaRef = useRef(1);
-  const dragRef = useRef<{ node: SimNode | null; panning: boolean; lx: number; ly: number }>({ node: null, panning: false, lx: 0, ly: 0 });
-
+  const baseScaleRef = useRef(1);
+  const dragRef = useRef<{ node: GraphPoint | null; x: number; y: number; startX: number; startY: number; moved: boolean } | null>(null);
+  const polling = usePollingPolicy(60000);
   const g = useQuery({
     queryKey: ['full-graph', mode],
-    queryFn: ({ signal }) => (mode === 'articles' ? graphApi.full({ signal }) : graphApi.claims({ signal })),
+    queryFn: ({ signal }) => mode === 'articles' ? graphApi.full({ signal }) : graphApi.claims({ signal }),
     ...polling,
     staleTime: 30000,
   });
-
-  const outlets = useMemo(() => {
-    const m = new Map<string, number>();
-    (g.data?.nodes ?? []).forEach((n) => {
-      if (n.domain) m.set(n.domain, (m.get(n.domain) ?? 0) + 1);
-    });
-    return [...m.entries()].sort((a, b) => b[1] - a[1]);
-  }, [g.data]);
-
-  // rebuild sim when data or filters change
-  useEffect(() => {
-    if (!g.data) return;
-    let nodesSrc = g.data.nodes;
-    let edgesSrc = g.data.edges;
-
-    if (outletFilter) {
-      const keep = new Set(nodesSrc.filter((n) => n.domain === outletFilter).map((n) => n.id));
-      nodesSrc = nodesSrc.filter((n) => keep.has(n.id));
-      edgesSrc = edgesSrc.filter((e) => keep.has(e.src) && keep.has(e.dst));
+  const graph = g.data ?? EMPTY_GRAPH;
+  const overview = !outletFilter && !query;
+  const groups = useMemo(() => groupOutlets(graph), [graph]);
+  const filtered = useMemo(() => filterGraph(graph, outletFilter, query), [graph, outletFilter, query]);
+  const scene = useMemo(() => overview ? overviewScene(groups, canvasWidth) : articleScene(filtered), [overview, groups, filtered, canvasWidth]);
+  const nodeOptions = useMemo(() => filtered.nodes.map((node) => <option key={node.id} value={node.id}>{node.title}</option>), [filtered]);
+  const index = useMemo(() => new Map(scene.nodes.map((node) => [node.id, node])), [scene]);
+  const selected = graph.nodes.find((node) => node.id === selectedId) ?? null;
+  const focusedId = hovered?.id ?? selected?.id ?? null;
+  const neighbors = useMemo(() => {
+    const ids = new Set<string>();
+    if (focusedId) {
+      ids.add(focusedId);
+      for (const edge of scene.edges) {
+        if (edge.a === focusedId) ids.add(edge.b);
+        if (edge.b === focusedId) ids.add(edge.a);
+      }
     }
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      const keep = new Set(nodesSrc.filter((n) => n.title.toLowerCase().includes(q)).map((n) => n.id));
-      // include direct neighbors of matches for context
-      edgesSrc.forEach((e) => {
-        if (keep.has(e.src)) keep.add(e.dst);
-        if (keep.has(e.dst)) keep.add(e.src);
-      });
-      nodesSrc = nodesSrc.filter((n) => keep.has(n.id));
-      edgesSrc = edgesSrc.filter((e) => keep.has(e.src) && keep.has(e.dst));
-    }
+    return ids;
+  }, [scene, focusedId]);
+  const redraw = useCallback(() => setRenderVersion((value) => value + 1), []);
+  const resetView = useCallback(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    setCanvasWidth(wrap.clientWidth);
+    viewRef.current = fitScene(scene.nodes, wrap.clientWidth, wrap.clientHeight, overview);
+    baseScaleRef.current = viewRef.current.scale;
+    setZoom(100);
+    redraw();
+  }, [scene, overview, redraw]);
 
-    const { nodes, index } = buildSim({ nodes: nodesSrc, edges: edgesSrc, counts: { nodes: nodesSrc.length, edges: edgesSrc.length } });
-    const edges = edgesSrc
-      .map((e) => ({ a: index.get(e.src), b: index.get(e.dst), s: e.score }))
-      .filter((e): e is { a: SimNode; b: SimNode; s: number } => !!e.a && !!e.b);
-
-    simRef.current = { nodes, edges };
-    alphaRef.current = 1;
-    viewRef.current = { ox: 0, oy: 0, scale: 1 };
-    setSelected(null);
-  }, [g.data, outletFilter, query]);
-
-  // physics step + render at display refresh
   useEffect(() => {
-    let raf = 0;
+    setHovered(null);
+    dragRef.current = null;
+    resetView();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resetView) : null;
+    if (wrapRef.current) observer?.observe(wrapRef.current);
+    return () => observer?.disconnect();
+  }, [resetView]);
 
-    const step = () => {
-      if (!visible || !canvasRef.current) return;
-      const { nodes, edges } = simRef.current;
-      const alpha = alphaRef.current;
-      if (animate && alpha > 0.005) {
-        // repulsion (grid-accelerated approximation)
-        const CELL = 90;
-        const grid = new Map<string, SimNode[]>();
-        for (const n of nodes) {
-          const k = `${Math.round(n.x / CELL)},${Math.round(n.y / CELL)}`;
-          const arr = grid.get(k);
-          if (arr) arr.push(n);
-          else grid.set(k, [n]);
-        }
-        for (const n of nodes) {
-          const gx = Math.round(n.x / CELL);
-          const gy = Math.round(n.y / CELL);
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-              const cell = grid.get(`${gx + dx},${gy + dy}`);
-              if (!cell) continue;
-              for (const o of cell) {
-                if (o === n) continue;
-                const ddx = n.x - o.x;
-                const ddy = n.y - o.y;
-                const d2 = ddx * ddx + ddy * ddy + 40;
-                if (d2 < 36000) {
-                  const f = (1400 * alpha) / d2;
-                  const d = Math.sqrt(d2);
-                  n.vx += (ddx / d) * f;
-                  n.vy += (ddy / d) * f;
-                }
-              }
-            }
-          }
-        }
-        // springs
-        for (const e of edges) {
-          const dx = e.b.x - e.a.x;
-          const dy = e.b.y - e.a.y;
-          const d = Math.sqrt(dx * dx + dy * dy) || 1;
-          const target = 95;
-          const f = ((d - target) / d) * 0.06 * alpha;
-          e.a.vx += dx * f;
-          e.a.vy += dy * f;
-          e.b.vx -= dx * f;
-          e.b.vy -= dy * f;
-        }
-        // integrate + gentle centering
-        for (const n of nodes) {
-          if (!n.fixed) {
-            n.vx *= 0.82;
-            n.vy *= 0.82;
-            n.x += Math.max(-14, Math.min(14, n.vx));
-            n.y += Math.max(-14, Math.min(14, n.vy));
-            n.x *= 0.9995;
-            n.y *= 0.9995;
-          }
-        }
-        alphaRef.current = alpha * 0.994;
-      }
-      if (render() && animate && nodes.length > 0) raf = requestAnimationFrame(step);
-    };
-
-    const render = () => {
-      const cv = canvasRef.current;
-      const wrap = wrapRef.current;
-      if (!cv || !wrap) return false;
-      const dpr = window.devicePixelRatio || 1;
-      const W = wrap.clientWidth;
-      const H = wrap.clientHeight;
-      if (cv.width !== W * dpr || cv.height !== H * dpr) {
-        cv.width = W * dpr;
-        cv.height = H * dpr;
-        cv.style.width = `${W}px`;
-        cv.style.height = `${H}px`;
-      }
-      const ctx = cv.getContext('2d');
-      if (!ctx) return false;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, W, H);
-
-      const { ox, oy, scale } = viewRef.current;
-      ctx.save();
-      ctx.translate(W / 2 + ox, H / 2 + oy);
-      ctx.scale(scale, scale);
-
-      const { nodes, edges } = simRef.current;
-      const q = query.trim().toLowerCase();
-
-      // edges
-      ctx.lineWidth = 1;
-      for (const e of edges) {
-        const hot = selected && (e.a === selected || e.b === selected);
-        ctx.strokeStyle = hot ? '#E11D2E' : 'rgba(255,247,242,0.16)';
-        ctx.globalAlpha = hot ? 0.9 : selected ? 0.25 : 1;
-        ctx.beginPath();
-        ctx.moveTo(e.a.x, e.a.y);
-        ctx.lineTo(e.b.x, e.b.y);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-
-      // nodes
-      for (const n of nodes) {
-        const isSel = selected === n;
-        const match = q ? n.title.toLowerCase().includes(q) : false;
-        const r = mode === 'articles'
-          ? (n.deg != null && n.deg > 0 ? 3.4 + Math.min(7, n.deg * 1.15) : 2.4)
-          : 3.2;
-        if (match) {
-          ctx.beginPath();
-          ctx.arc(n.x, n.y, r + 3.5, 0, Math.PI * 2);
-          ctx.strokeStyle = '#FFF7F2';
-          ctx.lineWidth = 1.6;
-          ctx.stroke();
-        }
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = colorFor(n.domain);
-        ctx.globalAlpha = selected && !isSel ? 0.35 : match ? 1 : 0.88;
-        ctx.fill();
-        if (isSel) {
-          ctx.globalAlpha = 1;
-          ctx.strokeStyle = '#FFF7F2';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-      }
-      ctx.globalAlpha = 1;
-      ctx.restore();
-
-      // scale badge
-      ctx.fillStyle = 'rgba(255,247,242,0.45)';
-      ctx.font = '10px monospace';
-      ctx.fillText(`zoom ${(scale * 100).toFixed(0)}% · ${simRef.current.nodes.length.toLocaleString()} nodes`, 12, H - 12);
-      return true;
-    };
-
-    if (visible) raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [selected, query, mode, animate, visible, renderVersion, g.data, outletFilter]);
-
-  // ------- interactions -------
-  const pickNode = (mx: number, my: number): SimNode | null => {
+  // Draw on changes only. A resting graph does no animation or physics work.
+  useEffect(() => {
+    const canvas = canvasRef.current, wrap = wrapRef.current;
+    if (!canvas || !wrap) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const width = wrap.clientWidth, height = wrap.clientHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = width * dpr; canvas.height = height * dpr;
+    canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
     const { ox, oy, scale } = viewRef.current;
+    const screenPoint = (node: GraphPoint) => ({ x: width / 2 + ox + node.x * scale, y: height / 2 + oy + node.y * scale });
+
+    // Overview links aggregate only cross-outlet edges. Within-outlet links
+    // remain in the article view; drawing them as loops would obscure counts.
+    for (const edge of scene.edges) {
+      const hot = edge.a === focusedId || edge.b === focusedId;
+      if (!hot && !showConnections) continue;
+      const a = index.get(edge.a), b = index.get(edge.b);
+      if (!a || !b) continue;
+      const p = screenPoint(a), q = screenPoint(b);
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+      ctx.strokeStyle = hot ? outletColor(a.domain) : '#B7A6A0';
+      ctx.globalAlpha = hot ? 0.48 : focusedId ? 0.025 : overview ? 0.13 : 0.045;
+      ctx.lineWidth = hot ? 1.2 : 0.7;
+      ctx.stroke();
+    }
+    const term = query.toLowerCase();
+    for (const node of scene.nodes) {
+      const p = screenPoint(node);
+      if (p.x < -120 || p.x > width + 120 || p.y < -80 || p.y > height + 80) continue;
+      const focus = node.id === focusedId;
+      const related = neighbors.has(node.id);
+      const match = !!term && node.title.toLowerCase().includes(term);
+      const radius = overview ? node.radius * Math.min(scale, 1.5) : Math.max(1.8, node.radius * Math.min(scale, 2));
+      const color = outletColor(node.domain);
+      ctx.globalAlpha = focusedId && !related ? 0.23 : 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = overview ? '#171417' : color;
+      ctx.fill();
+      if (overview) {
+        ctx.fillStyle = color;
+        ctx.globalAlpha = focusedId && !related ? 0.035 : focus ? 0.23 : 0.10;
+        ctx.fill();
+        ctx.globalAlpha = focusedId && !related ? 0.2 : focus ? 1 : 0.65;
+        ctx.strokeStyle = color; ctx.lineWidth = focus ? 2 : 1; ctx.stroke();
+        ctx.fillStyle = '#F4EEEA';
+        ctx.font = `500 ${Math.max(11, Math.min(16, 14 * scale))}px Inter, system-ui, sans-serif`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(node.count!.toLocaleString(), p.x, p.y);
+        ctx.font = `${Math.max(10, Math.min(12, 12 * scale))}px Inter, system-ui, sans-serif`;
+        ctx.fillStyle = '#E3D9D4';
+        ctx.fillText(node.title, p.x, p.y + radius + 20);
+      } else if (focus || match || node.id === selectedId) {
+        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(p.x, p.y, radius + 3, 0, Math.PI * 2);
+        ctx.strokeStyle = focus ? '#FFF7F2' : color; ctx.lineWidth = 1; ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }, [scene, index, focusedId, neighbors, selectedId, query, overview, showConnections, renderVersion, g.isLoading, g.isError]);
+
+  const zoomAt = useCallback((factor: number, mx?: number, my?: number) => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const view = viewRef.current;
+    const next = Math.max(baseScaleRef.current * 0.5, Math.min(baseScaleRef.current * 8, view.scale * factor));
+    const x = (mx ?? wrap.clientWidth / 2) - wrap.clientWidth / 2;
+    const y = (my ?? wrap.clientHeight / 2) - wrap.clientHeight / 2;
+    view.ox = x - (x - view.ox) * next / view.scale;
+    view.oy = y - (y - view.oy) * next / view.scale;
+    view.scale = next;
+    setZoom(Math.round(next / baseScaleRef.current * 100));
+    redraw();
+  }, [redraw]);
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      const rect = wrap.getBoundingClientRect();
+      zoomAt(Math.exp(-event.deltaY * 0.002), event.clientX - rect.left, event.clientY - rect.top);
+    };
+    wrap.addEventListener('wheel', wheel, { passive: false });
+    return () => wrap.removeEventListener('wheel', wheel);
+  }, [zoomAt]);
+
+  const pickNode = (mx: number, my: number) => {
     const wrap = wrapRef.current;
     if (!wrap) return null;
-    const wx = (mx - wrap.clientWidth / 2 - ox) / scale;
-    const wy = (my - wrap.clientHeight / 2 - oy) / scale;
-    let best: SimNode | null = null;
-    let bd = 12 * 12;
-    for (const n of simRef.current.nodes) {
-      const dx = n.x - wx;
-      const dy = n.y - wy;
-      const d2 = dx * dx + dy * dy;
-      if (d2 < bd) {
-        bd = d2;
-        best = n;
+    const { ox, oy, scale } = viewRef.current;
+    let picked: GraphPoint | null = null, closest = Infinity;
+    for (const node of scene.nodes) {
+      const dx = mx - (wrap.clientWidth / 2 + ox + node.x * scale);
+      const dy = my - (wrap.clientHeight / 2 + oy + node.y * scale);
+      const distance = dx * dx + dy * dy;
+      const radius = overview ? node.radius * Math.min(scale, 1.5) + 6 : Math.max(7, node.radius * Math.min(scale, 2) + 3);
+      if (distance < radius * radius && distance < closest) { picked = node; closest = distance; }
+    }
+    return picked;
+  };
+  const pointFromEvent = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+  const openOutlet = (id: string) => { setOutletFilter(id); setSelectedId(null); setHovered(null); };
+  const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (event.button !== 0) return;
+    const { x, y } = pointFromEvent(event);
+    dragRef.current = { node: pickNode(x, y), x, y, startX: x, startY: y, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const { x, y } = pointFromEvent(event), drag = dragRef.current;
+    if (drag) {
+      if (Math.hypot(x - drag.startX, y - drag.startY) > 4) drag.moved = true;
+      if (drag.moved) {
+        if (drag.node && !overview) {
+          drag.node.x += (x - drag.x) / viewRef.current.scale;
+          drag.node.y += (y - drag.y) / viewRef.current.scale;
+        } else { viewRef.current.ox += x - drag.x; viewRef.current.oy += y - drag.y; }
+        drag.x = x; drag.y = y; setHovered(null); redraw();
       }
-    }
-    return best;
-  };
-
-  const onMouseDown = (e: React.MouseEvent) => {
-    const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const n = pickNode(mx, my);
-    if (n) {
-      n.fixed = true;
-      dragRef.current = { node: n, panning: false, lx: mx, ly: my };
-      alphaRef.current = Math.max(alphaRef.current, 0.5);
     } else {
-      dragRef.current = { node: null, panning: true, lx: mx, ly: my };
+      const node = pickNode(x, y);
+      if (node?.id !== hovered?.id) setHovered(node);
     }
   };
-
-  const onMouseMove = (e: React.MouseEvent) => {
-    const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-    const dr = dragRef.current;
-    if (dr.node) {
-      const { ox, oy, scale } = viewRef.current;
-      dr.node.x = (mx - wrapRef.current!.clientWidth / 2 - ox) / scale;
-      dr.node.y = (my - wrapRef.current!.clientHeight / 2 - oy) / scale;
-      dr.node.vx = dr.node.vy = 0;
-    } else if (dr.panning) {
-      viewRef.current.ox += mx - dr.lx;
-      viewRef.current.oy += my - dr.ly;
-      dr.lx = mx;
-      dr.ly = my;
-    }
-    if (!animate && (dr.node || dr.panning)) setRenderVersion((value) => value + 1);
+  const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (!drag || drag.moved) return;
+    if (overview && drag.node) openOutlet(drag.node.id);
+    else setSelectedId(drag.node?.id ?? null);
   };
-
-  const onMouseUp = () => {
-    if (dragRef.current.node) dragRef.current.node.fixed = false;
-    dragRef.current = { node: null, panning: false, lx: 0, ly: 0 };
-  };
-
-  const onClick = (e: React.MouseEvent) => {
-    const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const n = pickNode(e.clientX - rect.left, e.clientY - rect.top);
-    setSelected(n);
-  };
-
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const handleNativeWheel = (e: WheelEvent) => {
-      // Plain wheel belongs to the page: the corpus canvas sits in a long
-      // scrolling tab, so it must not fight vertical scroll. Zoom is
-      // an explicit gesture: ctrl/⌘ + wheel, exactly like map embeds.
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      const v = viewRef.current;
-      v.scale = Math.min(4, Math.max(0.25, v.scale * (e.deltaY < 0 ? 1.12 : 0.89)));
-      if (!animate) setRenderVersion((value) => value + 1);
-    };
-    el.addEventListener('wheel', handleNativeWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleNativeWheel);
-  }, [animate]);
-
-  const resetView = () => {
-    viewRef.current = { ox: 0, oy: 0, scale: 1 };
-    alphaRef.current = 1;
-    setRenderVersion((value) => value + 1);
+  const clearFilters = () => { setOutletFilter(''); setQuery(''); setSearch(''); setSelectedId(null); };
+  const changeMode = (next: 'articles' | 'claims') => { setMode(next); clearFilters(); };
+  const inspectNode = (id: string) => {
+    const node = graph.nodes.find((item) => item.id === id);
+    if (node && overview) setOutletFilter(outletKey(node.domain));
+    setSelectedId(node?.id ?? null);
   };
   const timelineArticleId = selected?.article_id || (mode === 'articles' ? selected?.id : undefined);
+  const focusGroup = groups.outlets.find((outlet) => outlet.id === outletFilter);
 
   return (
-    <div className="card-brutal-dark p-6 flex flex-col gap-5">
-      {/* header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-hermes-bone/12">
+    <section className="card-brutal-dark overflow-hidden" aria-label="Whole-Corpus Graph">
+      <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Network className="w-5 h-5" />
-            <h2 className="text-2xl font-display">Whole-Corpus Graph</h2>
-            {!g.isLoading && g.data && (
-              <span className="chip-brutal border-hermes-red text-hermes-red-bright">
-                {mode === 'articles'
-                  ? `${g.data.counts.nodes.toLocaleString()} articles · ${g.data.counts.edges.toLocaleString()} links`
-                  : `${g.data.counts.nodes.toLocaleString()} claims · ${g.data.counts.edges.toLocaleString()} near-dupes`}
-              </span>
-            )}
-          </div>
-          <p className="text-xs font-mono text-hermes-bone/55 uppercase tracking-wider">
-            every node is real · drag · pan · ctrl+scroll zoom · click inspect
-          </p>
+          <div className="flex items-center gap-2.5"><Network className="h-5 w-5 text-hermes-bone/55" /><h2 className="text-2xl font-display">Whole-Corpus Graph</h2></div>
+          <p className="mt-1.5 text-xs text-hermes-bone/55">Explore the coverage. Follow the connections.</p>
         </div>
-
-        {/* controls row — always visible, wraps predictably */}
-        <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-hermes-bone/12 -mt-1">
-          {/* mode switch */}
-          <div className="flex border border-hermes-bone/25 shrink-0">
-            <button
-              onClick={() => { setMode('articles'); setSelected(null); }}
-                            aria-pressed={mode === 'articles'}
-              className={`px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider ${mode === 'articles' ? 'bg-hermes-red text-white' : 'text-hermes-bone/60 hover:text-hermes-bone'}`}
-            >
-              <Layers className="w-3 h-3 inline mr-1" /> Articles
-            </button>
-            <button
-              onClick={() => { setMode('claims'); setSelected(null); }}
-                            aria-pressed={mode === 'claims'}
-              className={`px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider ${mode === 'claims' ? 'bg-hermes-red text-white' : 'text-hermes-bone/60 hover:text-hermes-bone'}`}
-            >
-              <Zap className="w-3 h-3 inline mr-1" /> Claims
-            </button>
-          </div>
-
-          {/* search */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setQuery(search.trim());
-            }}
-            className="flex items-center border border-hermes-bone/25 bg-hermes-panel-deep shrink-0"
-          >
-            <input
-              aria-label="Graph title search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder='try "earthquake", "election"…'
-              className="bg-transparent text-hermes-bone font-mono text-xs px-3 py-1.5 outline-none w-52 placeholder:text-hermes-bone/35"
-            />
-            <button type="submit" aria-label="Search graph titles" className="btn-brutal !py-1 !px-2 m-0.5">
-              <Search className="w-3.5 h-3.5" />
-            </button>
-          </form>
-
-          <select
-            aria-label="Graph outlet filter"
-            value={outletFilter}
-            onChange={(e) => setOutletFilter(e.target.value)}
-            className="bg-hermes-panel-deep border border-hermes-bone/25 text-hermes-bone font-mono text-xs px-2 py-1.5 outline-none cursor-pointer shrink-0 max-w-[190px]"
-          >
-            <option value="">all outlets</option>
-            {outlets.map(([name, count]) => (
-              <option key={name} value={name}>
-                {name.replace('www.', '')} ({count})
-              </option>
-            ))}
-          </select>
-
-          <button onClick={resetView} aria-label="Reset graph view" className="btn-ghost-brutal !py-1.5 !px-2.5 !text-hermes-bone !border-hermes-bone/30">
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
+        <div className="flex border border-hermes-bone/15 bg-black/10" aria-label="Graph type">
+          <button onClick={() => changeMode('articles')} aria-pressed={mode === 'articles'} className={`${controlClass} ${mode === 'articles' ? '!bg-hermes-bone/10 !text-hermes-bone' : ''}`}><Layers className="w-3.5 h-3.5" /> Articles</button>
+          <button onClick={() => changeMode('claims')} aria-pressed={mode === 'claims'} className={`${controlClass} ${mode === 'claims' ? '!bg-hermes-bone/10 !text-hermes-bone' : ''}`}><Zap className="w-3.5 h-3.5" /> Claims</button>
         </div>
       </div>
-
-      {g.data && <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor="graph-node-select" className="text-xs font-mono">Inspect a node (keyboard alternative)</label>
-        <select id="graph-node-select" value={selected?.id ?? ''} onChange={(event) => setSelected(simRef.current.nodes.find((node) => node.id === event.target.value) ?? null)} className="field-brutal max-w-full">
-          <option value="">Choose a real graph node</option>
-          {g.data.nodes.filter((node) => (!outletFilter || node.domain === outletFilter) && (!query || node.title.toLowerCase().includes(query.toLowerCase()))).map((node) => <option key={node.id} value={node.id}>{node.title}</option>)}
-        </select>
+      <div className="flex flex-wrap items-center gap-3 border-y border-hermes-bone/10 px-5 py-3 sm:px-6">
+        <form onSubmit={(event) => { event.preventDefault(); setQuery(search.trim()); setSelectedId(null); }} className="flex min-w-0 flex-1 basis-full items-center border border-hermes-bone/15 bg-black/15 focus-within:border-hermes-bone/40 sm:max-w-sm sm:basis-0">
+          <Search className="ml-3 h-4 w-4 shrink-0 text-hermes-bone/40" />
+          <input aria-label="Graph title search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find an article or topic…" className="min-w-0 w-full bg-transparent px-2.5 py-2 text-xs text-hermes-bone outline-none placeholder:text-hermes-bone/40" />
+          <button type="submit" aria-label="Search graph titles" className={controlClass}><ArrowUpRight className="h-4 w-4" /></button>
+        </form>
+        <label className="flex items-center gap-2 text-xs text-hermes-bone/65 cursor-pointer"><input type="checkbox" checked={showConnections} onChange={(event) => setShowConnections(event.target.checked)} className="accent-hermes-red-bright" /> Show all connections</label>
+        <div className="ml-auto flex gap-4 text-[11px] font-mono text-hermes-bone/50" aria-live="polite">{g.data && <><span><strong className="font-normal text-hermes-bone/85">{graph.nodes.length.toLocaleString()}</strong> {mode}</span><span><strong className="font-normal text-hermes-bone/85">{graph.edges.length.toLocaleString()}</strong> links</span></>}</div>
+      </div>
+      <div className="grid min-w-0 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="min-w-0 border-b border-hermes-bone/10 bg-black/10 lg:border-b-0 lg:border-r">
+          <div className="flex items-center justify-between px-4 pb-3 pt-4"><h3 className="!font-sans text-[10px] uppercase tracking-[0.18em] text-hermes-bone/45">Outlets</h3><span className="text-[10px] font-mono text-hermes-bone/40">{groups.outlets.length}</span></div>
+          <nav aria-label="Graph outlet filter" className="flex gap-1 overflow-x-auto px-2 pb-3 lg:max-h-[490px] lg:flex-col lg:overflow-y-auto">
+            <button aria-pressed={!outletFilter} onClick={() => openOutlet('')} className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 text-left text-xs ${!outletFilter ? 'bg-white/[0.07] text-hermes-bone' : 'text-hermes-bone/60 hover:bg-white/5'}`}><Network className="h-3.5 w-3.5" /><span className="flex-1 whitespace-nowrap">All outlets</span><span className="hidden font-mono text-[10px] text-hermes-bone/40 lg:inline">{graph.nodes.length.toLocaleString()}</span></button>
+            {groups.outlets.map((outlet) => <button key={outlet.id} title={outlet.id} aria-pressed={outletFilter === outlet.id} onClick={() => openOutlet(outlet.id)} className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 text-left text-xs ${outletFilter === outlet.id ? 'bg-white/[0.07] text-hermes-bone' : 'text-hermes-bone/60 hover:bg-white/5 hover:text-hermes-bone'}`}>
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: outletColor(outlet.id) }} /><span className="flex-1 whitespace-nowrap">{outletName(outlet.id)}</span><span className="hidden font-mono text-[10px] text-hermes-bone/40 lg:inline">{outlet.count.toLocaleString()}</span>
+            </button>)}
+          </nav>
+          <p className="hidden border-t border-hermes-bone/10 px-4 py-4 text-[11px] leading-relaxed text-hermes-bone/40 lg:block">Each circle groups one outlet.<br />Select an outlet to explore its {mode}.<br /><br />Hover to reveal connections.</p>
+        </aside>
+        <div className="min-w-0 bg-[#141114]">
+          <div className="flex min-h-[64px] flex-wrap items-center justify-between gap-2 border-b border-hermes-bone/[0.07] px-4 py-3 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              {!overview && <button onClick={clearFilters} aria-label="Back to outlet overview" className={`${controlClass} !p-1.5`}><ArrowLeft className="h-4 w-4" /></button>}
+              <div className="min-w-0"><h3 className="!font-sans text-sm">{query ? `Results for “${query}”` : outletFilter ? outletName(outletFilter) : 'The corpus at a glance'}</h3><p className="mt-1 text-[11px] text-hermes-bone/40">{overview ? `All ${mode} included · grouped by outlet` : `${filtered.nodes.length.toLocaleString()} ${mode} · ${filtered.edges.length.toLocaleString()} links${query ? ' · matches + direct neighbors' : ''}`}</p></div>
+            </div>
+            {query && <button onClick={() => { setQuery(''); setSearch(''); setSelectedId(null); }} className={controlClass}><X className="h-3 w-3" /> Clear search</button>}
+          </div>
+          <div ref={wrapRef} className="relative h-[440px] overflow-hidden sm:h-[570px]" style={overview && canvasWidth < 480 ? { height: Math.max(440, Math.ceil(groups.outlets.length / 2) * 100 + 80) } : undefined}>
+            {g.isLoading ? <div role="status" aria-label="Loading corpus graph" className="flex h-full items-center justify-center text-sm text-hermes-bone/50">Loading corpus graph…</div>
+              : g.isError ? <div className="p-6"><QueryError title="Corpus graph unavailable" error={g.error} onRetry={() => g.refetch()} retrying={g.isFetching} /></div>
+                : <>
+                  <canvas ref={canvasRef} aria-hidden="true" className={`block touch-none ${hovered ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { dragRef.current = null; }} onLostPointerCapture={() => { dragRef.current = null; }} onPointerLeave={() => setHovered(null)} />
+                  {!scene.nodes.length && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"><Search className="h-6 w-6 text-hermes-bone/30" /><p className="text-sm text-hermes-bone/70">{query || outletFilter ? `No ${mode} match these filters.` : 'No graph nodes returned.'}</p>{!overview && <button onClick={clearFilters} className={controlClass}>Clear filters</button>}</div>}
+                  {hovered && !overview && <div className="pointer-events-none absolute left-4 top-3 max-w-[min(340px,calc(100%-32px))] border border-hermes-bone/15 bg-[#211b20] px-3 py-2.5 shadow-lg"><p className="mb-1 text-[10px]" style={{ color: outletColor(hovered.domain) }}>{outletName(hovered.domain)}</p><p className="line-clamp-2 text-xs leading-relaxed text-hermes-bone/85">{hovered.title}</p></div>}
+                </>}
+            <div className="absolute bottom-4 right-4 flex items-center divide-x divide-hermes-bone/10 border border-hermes-bone/15 bg-[#211b20] shadow-lg">
+              <button onClick={() => zoomAt(1 / 1.25)} disabled={zoom <= 50} aria-label="Zoom out" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Minus className="h-3.5 w-3.5" /></button><span className="w-12 text-center text-[10px] font-mono text-hermes-bone/55">{zoom}%</span>
+              <button onClick={() => zoomAt(1.25)} disabled={zoom >= 800} aria-label="Zoom in" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Plus className="h-3.5 w-3.5" /></button><button onClick={resetView} aria-label="Reset graph view" title="Fit graph to view" className={`${controlClass} !px-2.5`}><Maximize2 className="h-3.5 w-3.5" /></button>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hermes-bone/[0.07] px-4 py-3 text-[10px] text-hermes-bone/40 sm:px-5"><span>{overview ? `Circle size = ${mode === 'claims' ? 'claim' : 'article'} count` : 'Nearby nodes share a connected component'}{focusGroup && ` · ${focusGroup.internalLinks.toLocaleString()} links within this outlet`}</span><span>{overview ? 'Click to explore' : 'Click to inspect'}<span className="hidden sm:inline"> · Drag to pan · Ctrl/⌘ + scroll to zoom</span></span></div>
+        </div>
+      </div>
+      {g.data && <div className="flex flex-wrap items-center gap-3 border-t border-hermes-bone/10 px-5 py-3 sm:px-6">
+        <label htmlFor="graph-node-select" className="text-xs text-hermes-bone/50">Inspect {mode === 'articles' ? 'an article' : 'a claim'}</label>
+        <select id="graph-node-select" aria-label="Inspect a node (keyboard alternative)" value={selectedId ?? ''} onChange={(event) => inspectNode(event.target.value)} className="min-w-0 max-w-full flex-1 border border-hermes-bone/15 bg-hermes-panel-deep px-3 py-2 text-xs text-hermes-bone/70 sm:max-w-xl"><option value="">Choose a {mode === 'articles' ? 'title' : 'claim'} to inspect…</option>{nodeOptions}</select>
       </div>}
-      {/* canvas */}
-      <div
-        ref={wrapRef}
-        className="relative bg-hermes-panel-deep border border-hermes-bone/20 h-[600px] overflow-hidden cursor-grab active:cursor-grabbing"
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
-        onClick={onClick}
-      >
-        {g.isLoading ? (
-          <div role="status" aria-label="Loading corpus graph" className="shimmer h-full w-full" />
-        ) : g.isError ? (
-          <div className="p-6"><QueryError title="Corpus graph unavailable" error={g.error} onRetry={() => g.refetch()} retrying={g.isFetching} /></div>
-        ) : (
-          <>
-            <canvas ref={canvasRef} className="block" aria-hidden="true" />
-            {g.data?.nodes.length === 0 && <p className="absolute inset-0 flex items-center justify-center text-xs font-mono">No graph nodes returned.</p>}
-            {/* legend */}
-            <div className="absolute top-3 left-3 bg-hermes-panel/90 border border-hermes-bone/20 px-3 py-2 space-y-1 pointer-events-none">
-              {outlets.slice(0, 13).map(([name]) => (
-                <div key={name} className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-wider text-hermes-bone/70">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: colorFor(name) }} />
-                  {name.replace('www.', '')}
-                </div>
-              ))}
-            </div>
-            {query && (
-              <div className="absolute top-3 right-3 chip-brutal border-hermes-red-bright text-hermes-red-bright bg-hermes-panel/90 pointer-events-none">
-                highlighting “{query}”
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* inspector */}
-      {selected && (
-        <div className="border border-hermes-bone/20 bg-hermes-panel-deep p-5 flex items-start justify-between gap-6">
-          <div className="min-w-0">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-hermes-bone/45 mb-1">
-              Node Inspector
-              {selected.deg != null && ` · ${selected.deg} similarity links`}
-            </div>
-            <h3 className="font-display text-lg leading-snug">{selected.title}</h3>
-            <span className="chip-brutal mt-2 w-fit" style={{ borderColor: colorFor(selected.domain), color: colorFor(selected.domain) }}>
-              {selected.domain?.replace('www.', '')}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
-            <button
-              disabled={!timelineArticleId || !setActiveTab}
-              title={timelineArticleId ? 'Open this article’s story timeline' : 'This claim has no article_id; timeline drill-down is unsupported'}
-              onClick={() => {
-                if (!timelineArticleId) return;
-                setSelectedArticle({
-                  id: timelineArticleId,
-                  title: selected.title,
-                  domain: selected.domain,
-                });
-                setActiveTab?.('timeline');
-              }}
-              className="btn-brutal shrink-0"
-            >
-              View in Timeline <Orbit className="w-3.5 h-3.5" />
-            </button>
-            {timelineArticleId && <a href={articleHref(timelineArticleId, mode === 'claims' ? 'claims' : 'overview', { claim: mode === 'claims' ? selected.id : undefined, back: window.location.hash })} className="btn-outline-dark">Open details</a>}
-            {safeHttpUrl(selected.url) && (
-              <a href={safeHttpUrl(selected.url)} target="_blank" rel="noreferrer" className="btn-ghost-brutal shrink-0 !text-hermes-bone !border-hermes-bone/30">
-                Read original <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            )}
-          </div>
+      {selected && <div className="flex flex-wrap items-start justify-between gap-5 border-t border-hermes-bone/15 bg-black/15 p-5 sm:p-6">
+        <div className="min-w-0 flex-1 basis-64"><div className="mb-2 text-[10px] uppercase tracking-widest" style={{ color: outletColor(selected.domain) }}>{outletName(selected.domain)}{selected.deg != null && ` · ${selected.deg} similarity links`}</div><h3 className="text-xl leading-snug">{selected.title}</h3></div>
+        <div className="flex flex-wrap items-center gap-2">
+          {timelineArticleId && <a href={articleHref(timelineArticleId)} className="btn-brutal">Open article details <ArrowUpRight className="h-3.5 w-3.5" /></a>}
+          <button disabled={!timelineArticleId || !setActiveTab} title={timelineArticleId ? 'Open this article’s story timeline' : 'This claim has no article_id; timeline drill-down is unsupported'} onClick={() => { if (!timelineArticleId) return; setSelectedArticle({ id: timelineArticleId, title: selected.title, domain: selected.domain }); setActiveTab?.('timeline'); }} className="btn-brutal">View in Timeline <Orbit className="h-3.5 w-3.5" /></button>
+          {safeHttpUrl(selected.url) && <a href={safeHttpUrl(selected.url)} target="_blank" rel="noreferrer" className={controlClass}>Read original <ExternalLink className="h-3.5 w-3.5" /></a>}<button aria-label="Close node inspector" onClick={() => setSelectedId(null)} className={controlClass}><X className="h-4 w-4" /></button>
         </div>
-      )}
-    </div>
+      </div>}
+    </section>
   );
 };
 

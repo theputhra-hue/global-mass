@@ -6,7 +6,19 @@ The previous frontend at `https://gmee-v1.onrender.com` was not replaced.
 This profile runs the API/models/datastores on the owner's PC.
 It does not make the full ML application fit Render's 512 MB free instance.
 
-## Current verified state
+## Integration notice — 15 October 2026
+
+The major-project integration retains this hosting profile and its offline
+model preparation/preflight behavior. Its new additive migration chain ends at
+`gmee06`; the prior verified database below was at `gmee03`. Back up and rehearse
+the `gmee04`/`gmee05`/`gmee06` upgrade on an isolated restore before applying it to that
+existing deployment. The read-only launcher deliberately refuses a schema
+mismatch and does not auto-upgrade or stamp the database. Article search retains
+a claim-vector fallback for existing articles without document embeddings.
+No public deployment, tunnel replacement or live data migration is part of the
+integration. See [current integration evidence](INTEGRATION_REVIEW.md).
+
+## Previously verified hosting state
 
 - Existing PostgreSQL database upgraded from `b8f4d2c91a55` to `gmee03` after a
   custom-format backup, isolated restore, successful migration rehearsal, and

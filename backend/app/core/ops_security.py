@@ -51,6 +51,7 @@ SENSITIVE_LIMITS: dict[str, tuple[int, int]] = {
     "/api/v1/collection/trigger": (6, 60),
     "/api/v1/preprocessing/trigger": (6, 60),
     "/api/v1/alerts/evaluate": (4, 60),
+    "/api/v1/evolution/graph/sync": (4, 60),
     "/api/v1/operations/recover": (4, 60),
     "/api/v1/publications/upload": (4, 60),
     "/api/v1/developer/sources": (20, 60),
@@ -59,7 +60,7 @@ SENSITIVE_LIMITS: dict[str, tuple[int, int]] = {
 # Mounted router prefixes (see app/main.py). Anything else shares "other".
 _ROUTER_FAMILIES = frozenset({
     "alerts", "auth", "collection", "corpus", "dashboard", "eval", "evolution",
-    "developer", "graph", "health", "nlp", "operations", "preprocessing", "publications", "verdicts",
+    "developer", "graph", "health", "nlp", "operations", "preprocessing", "publications", "verdicts", "casebook", "project",
 })
 
 
@@ -258,4 +259,7 @@ async def record_audit(
         )
         await db.commit()
     except Exception as exc:
+        # An unavailable audit table must not leave the request's shared session
+        # in PostgreSQL's failed-transaction state for its next operation.
+        await db.rollback()
         logger.warning("audit log write failed: %s", exc)

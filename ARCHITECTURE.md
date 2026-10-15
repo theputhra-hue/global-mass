@@ -52,7 +52,7 @@ also be triggered manually via authenticated `POST …/trigger` endpoints.
 ### 2. Preprocessing (`services/preprocessing/`)
 
 - `cleaner.py` strips boilerplate; `language_detector.py` filters non-target
-  languages; `near_duplicate_detector.py` drops simhash near-duplicates;
+  languages; `near_duplicate_detector.py` uses MinHash candidates and exact Jaccard checks to group near-duplicates;
   `metadata_extractor.py` normalizes authors/publishers and repairs
   `published_at` (ISO strings → unix timestamps → fallbacks), tz-aware UTC.
 

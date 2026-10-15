@@ -2,17 +2,18 @@
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.models.claim import Claim
 from app.models.evolution import Alert, ClaimRelationship, RelationshipTypeEnum
-from app.services.alerts import build_alerts, evaluate_alerts
+from app.services.alerts import build_alerts, collect_alert_inputs, evaluate_alerts
 from app.services.evolution.text_changes import analyze_text_change
 
 NOW = datetime(2026, 9, 16, 12, 0, tzinfo=UTC)
+PARENT_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")
+CHILD_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2")
 
 
 def _recent(n: int) -> list[datetime]:
@@ -109,7 +110,7 @@ async def test_alerts_endpoint(async_client, db_session, monkeypatch):
             await db.execute(
                 text(
                     "INSERT INTO articles (id, source_id, title, url, content_hash,"
-                    " published_at) VALUES (:id, :sid, :title, :url, :ch, :pub)"
+                    " published_at, collected_at) VALUES (:id, :sid, :title, :url, :ch, :pub, :pub)"
                 ),
                 {
                     "id": aid,
@@ -117,7 +118,7 @@ async def test_alerts_endpoint(async_client, db_session, monkeypatch):
                     "title": f"t{i}",
                     "url": f"https://t.example/{i}",
                     "ch": f"hash-{i}",
-                    "pub": (datetime.now(UTC) - timedelta(hours=hours)).isoformat(),
+                    "pub": (datetime.now(UTC) - timedelta(hours=hours)).replace(tzinfo=None),
                 },
             )
         # 3 recent DISPUTED claims on the first article
@@ -143,7 +144,29 @@ async def test_alerts_endpoint(async_client, db_session, monkeypatch):
     assert "DISPUTED_SURGE" in types
 
 
-def _alert_result(rows=(), existing=None) -> Any:
+async def test_ingestion_uses_collection_time_and_bounds_database_history(db_session):
+    from app.models.article import Article
+    from app.models.source import Source, SourceTypeEnum
+
+    source = Source(name="Ingestion fixture", type=SourceTypeEnum.rss, url_or_identifier="fixture")
+    db_session.add(source)
+    await db_session.flush()
+    now = datetime.now(UTC)
+    for index, collected in enumerate((
+        now - timedelta(hours=1), now - timedelta(days=10), now + timedelta(days=1),
+    )):
+        db_session.add(Article(
+            source_id=source.id, title="Archived report", url=f"https://fixture/arrival/{index}",
+            content_hash=str(index), collected_at=collected,
+            published_at=now - timedelta(days=90),
+        ))
+    await db_session.commit()
+    inputs = await collect_alert_inputs(db_session)
+    assert len(inputs["published_ats"]) == 1
+    assert build_alerts(**inputs, now=now)["stats"]["articles_24h"] == 1
+
+
+def _alert_result(rows=(), existing=None) -> MagicMock:
     result = MagicMock()
     result.scalars.return_value.all.return_value = list(rows)
     result.all.return_value = list(rows)
@@ -151,9 +174,9 @@ def _alert_result(rows=(), existing=None) -> Any:
     return result
 
 
-def _persistent_db(parent_text, child_text, *, stored=False, existing_alert=None) -> Any:
-    parent = Claim(id=uuid.UUID(int=1), claim_text=parent_text)
-    child = Claim(id=uuid.UUID(int=2), claim_text=child_text)
+def _persistent_db(parent_text, child_text, *, stored=False, existing_alert=None) -> tuple[MagicMock, Claim, Claim]:
+    parent = Claim(id=PARENT_ID, claim_text=parent_text)
+    child = Claim(id=CHILD_ID, claim_text=child_text)
     evidence = analyze_text_change(parent_text, child_text) if stored else None
     if evidence is not None:
         evidence["algorithm_version"] = "persisted-test-version"
@@ -177,14 +200,17 @@ def _persistent_db(parent_text, child_text, *, stored=False, existing_alert=None
 ])
 @pytest.mark.parametrize("stored", [False, True])
 @pytest.mark.asyncio
-async def test_persistent_mutation_alerts_are_parent_to_child_not_reversed(parent_text, child_text, direction, stored):
+async def test_persistent_mutation_alerts_are_parent_to_child_not_reversed(parent_text, child_text, direction, stored, monkeypatch):
     db, parent, child = _persistent_db(parent_text, child_text, stored=stored)
+    persist = AsyncMock(return_value=True)
+    monkeypatch.setattr("app.services.alerts._upsert_alert", persist)
     summary = await evaluate_alerts(db)
     assert summary["alerts_inserted"] == 1
-    alert = db.add.call_args.args[0]
+    alert = Alert(**persist.call_args.args[1])
     assert alert.kind == "MUTATION"
     assert alert.claim_id == child.id
     assert alert.body == f"\u201c{parent_text}\u201d \u2192 \u201c{child_text}\u201d"
+    assert alert.payload is not None
     assert alert.payload["from_claim"] == str(parent.id)
     assert alert.payload["to_claim"] == str(child.id)
     assert alert.payload["parent_claim_id"] == str(parent.id)
@@ -200,19 +226,31 @@ async def test_persistent_mutation_alerts_are_parent_to_child_not_reversed(paren
 
 
 @pytest.mark.asyncio
-async def test_existing_reversed_alert_is_refreshed_without_losing_acknowledgement():
+async def test_existing_reversed_alert_is_refreshed_without_losing_acknowledgement(db_session, monkeypatch):
     existing = Alert(
         kind="MUTATION", severity="INFO", subject_key="edge:test",
-        title="Old reversed title", body="Newer to older", claim_id=uuid.UUID(int=1),
-        payload={"from_claim": str(uuid.UUID(int=2)), "to_claim": str(uuid.UUID(int=1))},
+        title="Old reversed title", body="Newer to older", claim_id=None,
+        payload={"from_claim": str(CHILD_ID), "to_claim": str(PARENT_ID)},
         acknowledged_at=NOW,
     )
-    db, parent, child = _persistent_db("Officials reportedly found 10 people.", "Officials found 12 people.", existing_alert=existing)
+    existing.subject_key = f"edge:{CHILD_ID}:{PARENT_ID}"
+    db_session.add(existing)
+    await db_session.commit()
+    db, parent, child = _persistent_db("Officials reportedly found 10 people.", "Officials found 12 people.")
+    from app.services.alerts import _upsert_alert
+
+    async def persist(_db, item, now):
+        return await _upsert_alert(db_session, item, now)
+
+    monkeypatch.setattr("app.services.alerts._upsert_alert", persist)
     summary = await evaluate_alerts(db)
+    await db_session.commit()
+    await db_session.refresh(existing)
     assert summary["alerts_refreshed"] == 1
     assert summary["alerts_inserted"] == 0
     db.add.assert_not_called()
-    assert existing.acknowledged_at == NOW
+    assert existing.acknowledged_at is not None
+    assert existing.acknowledged_at.replace(tzinfo=UTC) == NOW
     assert existing.claim_id == child.id
     assert existing.payload is not None
     assert existing.payload["from_claim"] == str(parent.id)

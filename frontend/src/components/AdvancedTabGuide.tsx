@@ -1,6 +1,18 @@
 import type { TabType } from './Header';
 
 const guides: Record<TabType, { name: string; purpose: string; use: string; meaning: string }> = {
+  project: {
+    name: 'Project Lab',
+    purpose: 'A guided investigation workflow and twelve authored engineering controls for the text change analyzer.',
+    use: 'Inspect a control pair, compare the analyzer with the lexical baseline, export its report, or open the pair in your Casebook.',
+    meaning: 'These authored controls check known behavior. Passing them is not scientific accuracy; publication requires independent human annotations and held-out evaluation.',
+  },
+  casebook: {
+    name: 'Casebook',
+    purpose: 'Your private investigations, with original texts, reproducible analysis snapshots, review notes, and exports.',
+    use: 'Compare two texts, save a case, review its notes and status, then export its evidence. Archived cases remain available through the archive filter.',
+    meaning: 'Saving a case preserves the server-computed analysis and its fingerprint. Notes and review status can change; a saved snapshot is not proof that either text is true.',
+  },
   overview: {
     name: 'Overview Vitals',
     purpose: 'A summary of collection counts, service availability, alerts, and recent activity.',
@@ -72,7 +84,7 @@ export function AdvancedTabGuide({ tab }: { tab: TabType }) {
       {[["What it shows", guide.purpose], ["How to use it", guide.use], ["How to interpret it", guide.meaning]].map(([label, text]) => <div key={label}><dt className="uppercase tracking-wider font-bold text-hermes-bone mb-2">{label}</dt><dd className="text-hermes-bone/70">{text}</dd></div>)}
     </dl>
     <details className="mt-5 border-t border-hermes-bone/15 pt-4">
-      <summary className="cursor-pointer font-mono text-xs font-bold uppercase tracking-wider">Guide to all 10 tabs</summary>
+      <summary className="cursor-pointer font-mono text-xs font-bold uppercase tracking-wider">Guide to all {Object.keys(guides).length} tabs</summary>
       <dl className="grid md:grid-cols-2 gap-4 mt-5">{Object.entries(guides).map(([key, item]) => <div key={key} className="border border-hermes-bone/15 p-4"><dt><a href={`#/dashboard/${key}`} className="font-display text-xl underline underline-offset-4">{item.name}</a></dt><dd className="font-mono text-xs text-hermes-bone/70 mt-2 leading-relaxed">{item.purpose}</dd></div>)}</dl>
     </details>
   </section>;

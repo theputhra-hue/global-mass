@@ -5,7 +5,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -21,7 +21,7 @@ from app.services.evolution.mutation_detector import MutationDetector, candidate
 NOW = datetime(2026, 9, 20, tzinfo=UTC)
 
 
-def _claim(index, text, published_at, *, embedding=None, article_id=None) -> Any:
+def _claim(index, text, published_at, *, embedding=None, article_id=None) -> tuple[Claim, Article]:
     aid = article_id or uuid.UUID(int=1000 + index)
     article = Article(id=aid, published_at=published_at)
     claim = Claim(
@@ -34,7 +34,7 @@ def _claim(index, text, published_at, *, embedding=None, article_id=None) -> Any
     return claim, article
 
 
-def _db(existing=()) -> Any:
+def _db(existing=()) -> MagicMock:
     result = MagicMock()
     result.scalars.return_value.all.return_value = list(existing)
     db = MagicMock()
@@ -46,24 +46,30 @@ def _db(existing=()) -> Any:
 
 async def _detect(
     pairs, *, existing=(), topics=None, candidate_limit=50, max_lag_days=30
-) -> Any:
-    detector: Any = MutationDetector()
-    detector.settings = SimpleNamespace(EVOLUTION_SIMILARITY_THRESHOLD=0.85, SIMILAR_TO_THRESHOLD=0.75, MUTATION_CANDIDATE_LIMIT=candidate_limit, MUTATION_MAX_LAG_DAYS=max_lag_days)
+) -> tuple[list[ClaimRelationship], MagicMock]:
+    detector = MutationDetector()
+    settings = SimpleNamespace(
+        EVOLUTION_SIMILARITY_THRESHOLD=0.85,
+        SIMILAR_TO_THRESHOLD=0.75,
+        MUTATION_CANDIDATE_LIMIT=candidate_limit,
+        MUTATION_MAX_LAG_DAYS=max_lag_days,
+    )
     assignments = [
         ClaimClusterAssignment(claim_id=c.id, topic_id=topics[i] if topics else 1)
         for i, (c, _) in enumerate(pairs)
     ]
     db = _db(existing)
-    edges = await detector.run_mutation_detection(
-        db,
-        assignments,
-        {c.id: c for c, _ in pairs},
-        {a.id: a for _, a in pairs},
-    )
+    with patch.object(detector, "settings", settings):
+        edges = await detector.run_mutation_detection(
+            db,
+            assignments,
+            {c.id: c for c, _ in pairs},
+            {a.id: a for _, a in pairs},
+        )
     return edges, db
 
 
-def _evolved(edges) -> Any:
+def _evolved(edges) -> list[ClaimRelationship]:
     return [
         e for e in edges if e.relationship_type == RelationshipTypeEnum.EVOLVED_FROM
     ]
@@ -85,7 +91,9 @@ async def test_no_change_duplicates_are_similarity_not_mutation(new_text):
     assert len(edges) == 1
     assert not _evolved(edges)
     assert edges[0].relationship_type == RelationshipTypeEnum.SIMILAR_TO
+    assert edges[0].mutation_evidence is not None
     assert edges[0].mutation_evidence["mutation_types"] == ["NEAR_DUPLICATE"]
+    assert edges[0].mutation_evidence is not None
     assert edges[0].mutation_evidence["meaningful_change"] is False
 
 
@@ -108,6 +116,7 @@ async def test_equal_or_missing_publication_times_never_establish_parent(times):
     assert not _evolved(edges)
     assert len(edges) == 1
     assert edges[0].relationship_type == RelationshipTypeEnum.SIMILAR_TO
+    assert edges[0].mutation_evidence is not None
     assert edges[0].mutation_evidence["parent_eligibility"]["strictly_older"] is False
     # extracted_at is present and strictly ordered, but isn't publication evidence.
     assert pairs[0][0].extracted_at < pairs[1][0].extracted_at
@@ -121,6 +130,7 @@ async def test_same_article_claims_do_not_create_parent():
     ]
     edges, _ = await _detect(pairs)
     assert not _evolved(edges)
+    assert edges[0].mutation_evidence is not None
     assert (
         edges[0].mutation_evidence["parent_eligibility"]["different_article"] is False
     )
@@ -154,7 +164,9 @@ async def test_candidate_cap_is_enforced_and_reported_not_claimed_exhaustive():
     child_edges = [e for e in edges if e.from_claim_id == pairs[2][0].id]
     assert len(child_edges) == 1
     assert not _evolved(child_edges)
+    assert child_edges[0].mutation_evidence is not None
     assert child_edges[0].mutation_evidence["selection"]["candidate_limit"] == 1
+    assert child_edges[0].mutation_evidence is not None
     assert "missed" in " ".join(
         child_edges[0].mutation_evidence["selection"]["limitations"]
     )
@@ -169,6 +181,7 @@ async def test_strict_parent_with_mixed_timezone_conventions_and_evidence():
     edges, _ = await _detect(pairs)
     assert len(_evolved(edges)) == 1
     evidence = _evolved(edges)[0].mutation_evidence
+    assert evidence is not None
     assert evidence["lag_seconds"] == 3600
     assert evidence["parent_claim_id"] == str(pairs[0][0].id)
     assert evidence["child_claim_id"] == str(pairs[1][0].id)
@@ -309,10 +322,9 @@ async def test_assignment_and_input_order_do_not_change_edge_selection():
     ]
     first, _ = await _detect(pairs)
     second, _ = await _detect(list(reversed(pairs)))
-    signature: Any = lambda edges: [
-        (e.from_claim_id, e.to_claim_id, e.relationship_type, e.mutation_evidence)
-        for e in edges
-    ]
+    def signature(edges: list[ClaimRelationship]) -> list[tuple[Any, ...]]:
+        return [(e.from_claim_id, e.to_claim_id, e.relationship_type, e.mutation_evidence)
+                for e in edges]
     assert signature(first) == signature(second)
     assert max(Counter(e.from_claim_id for e in _evolved(first)).values()) == 1
 

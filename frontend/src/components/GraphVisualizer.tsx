@@ -50,35 +50,49 @@ interface Node {
 /** Deterministic layout: hubs on a ring, neighbors in local clusters. */
 function layout(clusters: StoryCluster[]): { nodes: Node[]; links: Array<{ a: string; b: string; s: number }> } {
   const W = 600, H = 400, CX = W / 2, CY = H / 2;
-  const nodes: Node[] = [];
+  const nodes = new Map<string, Node>();
   const links: Array<{ a: string; b: string; s: number }> = [];
+  const edgeIds = new Set<string>();
   const R = Math.min(W, H) * 0.34;
 
+  // Register every hub first so shared articles retain one stable identity and
+  // relationships between hubs are not accidentally dropped.
   clusters.forEach((c, ci) => {
     const ang = (ci / Math.max(1, clusters.length)) * Math.PI * 2 - Math.PI / 2;
     const hx = CX + Math.cos(ang) * R;
     const hy = CY + Math.sin(ang) * R * 0.82;
 
-    nodes.push({
+    nodes.set(c.id, {
       id: c.id, title: c.title, domain: c.domain, url: c.url,
       x: hx, y: hy, r: 13, hub: true,
     });
 
+  });
+
+  clusters.forEach((c, ci) => {
+    const hub = nodes.get(c.id)!;
+    const ang = (ci / Math.max(1, clusters.length)) * Math.PI * 2 - Math.PI / 2;
     const nCount = c.neighbors.slice(0, 7);
     nCount.forEach((nb, ni) => {
-      if (clusters.some((other) => other.id === nb.id)) return; // avoid dupes of other hubs
+      if (nb.id === c.id) return;
       const spread = ((ni + 1) / (nCount.length + 1)) * Math.PI * 1.35 + ang - 0.68 + ci * 0.35;
       const dist = 52 + (ni % 3) * 16;
-      nodes.push({
-        id: nb.id, title: nb.title, domain: nb.domain, url: nb.url,
-        x: Math.max(30, Math.min(W - 30, hx + Math.cos(spread) * dist)),
-        y: Math.max(26, Math.min(H - 26, hy + Math.sin(spread) * dist)),
-        r: 7.5, hub: false, score: nb.score,
-      });
-      links.push({ a: c.id, b: nb.id, s: nb.score });
+      if (!nodes.has(nb.id)) {
+        nodes.set(nb.id, {
+          id: nb.id, title: nb.title, domain: nb.domain, url: nb.url,
+          x: Math.max(30, Math.min(W - 30, hub.x + Math.cos(spread) * dist)),
+          y: Math.max(26, Math.min(H - 26, hub.y + Math.sin(spread) * dist)),
+          r: 7.5, hub: false, score: nb.score,
+        });
+      }
+      const edgeId = JSON.stringify([c.id, nb.id].sort());
+      if (!edgeIds.has(edgeId)) {
+        edgeIds.add(edgeId);
+        links.push({ a: c.id, b: nb.id, s: nb.score });
+      }
     });
   });
-  return { nodes, links };
+  return { nodes: [...nodes.values()], links };
 }
 
 export const GraphVisualizer: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ setActiveTab }) => {
@@ -111,14 +125,14 @@ export const GraphVisualizer: React.FC<{ setActiveTab?: (tab: TabType) => void }
             {clusters.data ? `Neo4j snapshot · ${nodes.length} articles · ${links.length} similarity edges` : clusters.isLoading ? 'Loading topology…' : 'Topology unavailable'}
           </p>
         </div>
-        <a
-          href="http://localhost:7474"
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          onClick={() => setActiveTab?.('fullgraph')}
+          disabled={!setActiveTab}
           className="chip-brutal bg-hermes-red text-hermes-bone border-hermes-red w-fit hover:bg-hermes-red-deep transition-colors"
         >
-          Open Neo4j Browser <ExternalLink className="w-3 h-3 inline ml-1" />
-        </a>
+          Open full corpus graph <Network className="w-3 h-3 inline ml-1" />
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

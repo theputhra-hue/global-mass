@@ -29,6 +29,9 @@ async def test_non_developers_cannot_bypass_ui(async_client, operator, email, ro
     assert (await async_client.get("/api/v1/developer/overview")).status_code == 403
     for stage in ("collection", "preprocessing", "nlp", "evolution"):
         assert (await async_client.post(f"/api/v1/{stage}/trigger")).status_code == 403
+    assert (await async_client.post("/api/v1/evolution/graph/sync")).status_code == 403
+    assert (await async_client.get("/api/v1/operations/jobs")).status_code == 403
+    assert (await async_client.post("/api/v1/operations/recover", json={"stage": "nlp"})).status_code == 403
     assert (await async_client.post(f"/api/v1/developer/sources/{uuid4()}", json={"enabled": True})).status_code == 403
 
 
@@ -54,4 +57,6 @@ async def test_cloud_flag_blocks_execution_even_for_developer(async_client, oper
     assert (await async_client.get("/api/v1/developer/overview")).status_code == 200
     for stage in ("collection", "preprocessing", "nlp", "evolution"):
         assert (await async_client.post(f"/api/v1/{stage}/trigger")).status_code == 403
+    assert (await async_client.post("/api/v1/evolution/graph/sync")).status_code == 403
+    assert (await async_client.post("/api/v1/operations/recover", json={"stage": "nlp"})).status_code == 403
     assert (await async_client.post(f"/api/v1/developer/sources/{uuid4()}", json={"enabled": False})).status_code == 403
