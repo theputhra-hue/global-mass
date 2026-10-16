@@ -26,6 +26,18 @@ export function PublicationProvider({ children }: { children: ReactNode }) {
   return <RuntimeContext.Provider value={{ mode, publication: status.data }}>{children}</RuntimeContext.Provider>;
 }
 
+export function MockPublicationProvider({
+  mode = 'local',
+  publication,
+  children,
+}: {
+  mode?: 'local' | 'published' | 'connecting' | 'unavailable';
+  publication?: PublicationStatus;
+  children: ReactNode;
+}) {
+  return <RuntimeContext.Provider value={{ mode, publication }}>{children}</RuntimeContext.Provider>;
+}
+
 export function DataServiceState() {
   const runtime = usePublicationRuntime();
   const client = useQueryClient();
