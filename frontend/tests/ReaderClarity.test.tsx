@@ -1,8 +1,8 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ToolsDirectory } from '../src/pages/ToolsDirectory';
-import { ReaderDashboard } from '../src/pages/ReaderDashboard';
-import { PublicationProvider, usePublicationRuntime } from '../src/lib/publicationRuntime';
+import { ToolsDirectory } from '../src/features/navigation/pages/ToolsDirectory';
+import { ReaderDashboard } from '../src/features/articles/pages/ReaderDashboard';
+import { PublicationProvider, usePublicationRuntime } from '../src/shared/runtime/publicationRuntime';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 const status = { mode: 'published', revision: 1, run_id: 'legacy-release', published_at: '2026-10-15T19:04:31Z', analysis_completed_at: '2026-09-16T10:10:56Z', counts: { articles: 7421, claims: 5157, relationships: 0 } };

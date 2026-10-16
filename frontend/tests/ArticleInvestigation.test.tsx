@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ArticleInvestigation } from '../src/pages/ArticleInvestigation';
-import { articleHref, navigateHash, parseArticleRoute, safeReturn } from '../src/lib/articleRoutes';
-import { getAccessToken } from '../src/lib/session';
+import { ArticleInvestigation } from '../src/features/articles/pages/ArticleInvestigation';
+import { articleHref, navigateHash, parseArticleRoute, safeReturn } from '../src/shared/navigation/articleRoutes';
+import { getAccessToken } from '../src/shared/session/session';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 const id = '11111111-1111-1111-1111-111111111111';

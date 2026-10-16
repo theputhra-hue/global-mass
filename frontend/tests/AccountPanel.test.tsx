@@ -1,8 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { SignIn } from '../src/pages/SignIn';
-import { AccountPanel } from '../src/components/AccountPanel';
-import { getAccessToken, getRefreshToken } from '../src/lib/session';
+import { SignIn } from '../src/features/account/pages/SignIn';
+import { AccountPanel } from '../src/features/account/components/AccountPanel';
+import { getAccessToken, getRefreshToken } from '../src/shared/session/session';
 import { accountFixture, jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 function openLogin() {

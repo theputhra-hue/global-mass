@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
-import { Header } from '../src/components/Header';
+import { Header } from '../src/features/navigation/components/Header';
 import { renderWithClient } from './helpers';
 
 const baseProps = { refetchInterval: 5000, setRefetchInterval: vi.fn(), isFetching: false, onManualRefresh: vi.fn() };

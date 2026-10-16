@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithClient } from './helpers';
-import { ClusterDossier } from '../src/components/ClusterDossier';
-import type { TimelineCluster } from '../src/api/timeline';
+import { ClusterDossier } from '../src/features/graph/components/ClusterDossier';
+import type { TimelineCluster } from '../src/shared/api/timeline';
 
 const hubAt = '2026-08-15T08:00:00Z';
 const cluster: TimelineCluster = {

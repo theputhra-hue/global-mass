@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import App from './App';
-import { PublicationProvider } from './lib/publicationRuntime';
+import App from './app/App';
+import { PublicationProvider } from './shared/runtime/publicationRuntime';
 import './styles/globals.css';
 
 const queryClient = new QueryClient();

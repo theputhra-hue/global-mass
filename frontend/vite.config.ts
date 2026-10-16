@@ -33,19 +33,19 @@ export default defineConfig({
         // Decorative canvas art components — no logic-bearing branches,
         // animation math only. Excluded per documented policy (audit P1e);
         // they are exercised visually, not unit-testable in jsdom.
-        'src/components/AsciiGlobe.tsx',
-        'src/components/AsciiReveal.tsx',
-        'src/components/AsciiEqualizer.tsx',
-        'src/components/AsciiTicker.tsx',
-        'src/components/AsciiSpinner.tsx',
+        'src/shared/ui/decorative/AsciiGlobe.tsx',
+        'src/shared/ui/decorative/AsciiReveal.tsx',
+        'src/shared/ui/decorative/AsciiEqualizer.tsx',
+        'src/shared/ui/decorative/AsciiTicker.tsx',
+        'src/shared/ui/decorative/AsciiSpinner.tsx',
         // 3D timeline tunnel — canvas/WebGL animation core, no API logic.
-        'src/components/TimelineTunnel.tsx',
+        'src/features/graph/components/TimelineTunnel.tsx',
         // Force-simulation / whole-corpus canvas renderers: pure visual
         // layout & draw loops without API or decision logic (documented
         // exclusion policy — visually exercised, not unit-testable here).
-        'src/components/FullCorpusGraph.tsx',
+        'src/features/graph/components/FullCorpusGraph.tsx',
         // Arcade component driven by a requestAnimationFrame game loop.
-        'src/components/MasalaLab.tsx',
+        'src/features/experiments/components/MasalaLab.tsx',
       ],
       // Thresholds enforced from CI:
       // lines/functions=60, branches=50, statements=60

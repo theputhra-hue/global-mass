@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import App from '../src/App';
+import App from '../src/app/App';
 import { describe, it, expect } from 'vitest';
 
 const queryClient = new QueryClient({

@@ -1,8 +1,8 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Casebook } from '../src/components/Casebook';
-import { caseMarkdown } from '../src/lib/caseExport';
-import type { CaseDetail } from '../src/api/casebook';
+import { Casebook } from '../src/features/investigations/components/Casebook';
+import { caseMarkdown } from '../src/features/investigations/lib/caseExport';
+import type { CaseDetail } from '../src/shared/api/casebook';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 const saved: CaseDetail={id:'case-one',title:'Bridge case',notes:'Saved note',status:'open',revision:1,created_at:'2026-10-15T00:00:00Z',updated_at:'2026-10-15T00:00:00Z',snapshot_sha256:'a'.repeat(64),snapshot:{schema_version:'gmee-case-v1',captured_at:'2026-10-15T00:00:00Z',inputs:{older_text:'10 survivors',newer_text:'12 survivors'},analysis:{mutation_types:['NUMERIC_DRIFT'],algorithm_version:'v2',relation_explanation:'Changed number'},interpretation:'Text changes only, not truth.'}};

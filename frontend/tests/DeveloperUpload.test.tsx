@@ -1,6 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { DeveloperUpload } from '../src/pages/DeveloperUpload';
+import { DeveloperUpload } from '../src/features/publishing/pages/DeveloperUpload';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 describe('developer upload', () => {

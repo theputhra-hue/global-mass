@@ -1,8 +1,8 @@
 import { screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import FullCorpusGraph from '../src/components/FullCorpusGraph';
-import { GraphVisualizer } from '../src/components/GraphVisualizer';
-import { clearSelectedArticle, useSelectedArticle } from '../src/lib/useSelectedArticle';
+import FullCorpusGraph from '../src/features/graph/components/FullCorpusGraph';
+import { GraphVisualizer } from '../src/features/graph/components/GraphVisualizer';
+import { clearSelectedArticle, useSelectedArticle } from '../src/shared/navigation/useSelectedArticle';
 import { jsonResponse, mockApi, renderWithClient } from './helpers';
 
 const articleId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';

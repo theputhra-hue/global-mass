@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { TextSpans } from '../src/components/TextSpans';
-import { returnedSpans } from '../src/lib/textSpans';
+import { TextSpans } from '../src/features/comparison/components/TextSpans';
+import { returnedSpans } from '../src/features/comparison/lib/textSpans';
 
 describe('Original text span highlighting',()=>{
   it('uses Unicode code points, merges overlap and preserves source text',()=>{

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { AdvancedTabGuide } from '../src/components/AdvancedTabGuide';
+import { AdvancedTabGuide } from '../src/features/navigation/components/AdvancedTabGuide';
 
 describe('advanced workspace guidance', () => {
   it('explains Project Lab controls without presenting them as scientific accuracy', () => {

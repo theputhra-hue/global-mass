@@ -1,6 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ClaimCheck } from '../src/components/ClaimCheck';
+import { ClaimCheck } from '../src/features/claims/components/ClaimCheck';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 const evidence = {

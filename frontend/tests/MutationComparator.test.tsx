@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { MutationComparator } from '../src/components/MutationComparator';
+import { MutationComparator } from '../src/features/comparison/components/MutationComparator';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 const result = {
