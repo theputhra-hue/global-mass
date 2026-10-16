@@ -18,15 +18,28 @@ from app.schemas.publication import PublicationSnapshot
 
 
 async def status(db: AsyncSession) -> dict[str, Any]:
-    head = await db.get(PublicationHead, 1)
-    row = await db.get(PublicationUpload, head.run_id) if head and head.run_id else None
-    return {"mode": "published", "revision": head.revision if head else 0,
-            "run_id": str(head.run_id) if head and head.run_id else None,
-            "published_at": head.published_at if head else None,
-            "generated_at": row.payload["generated_at"] if row else None,
-            "analysis_completed_at": row.payload["provenance"]["analysis_completed_at"] if row else None,
-            "sha256": row.digest if row else None,
-            "counts": {key: len(row.payload[key]) if row else 0 for key in ("articles", "claims", "relationships")}}
+    # Polling needs metadata, never a multi-megabyte release transfer. Extract in
+    # SQL and read the head + metadata in one statement so a concurrent publish
+    # cannot mix the revision of one release with the counts of another.
+    payload = PublicationUpload.payload
+    statement = select(
+        PublicationHead.revision, PublicationHead.run_id, PublicationHead.published_at,
+        PublicationUpload.digest,
+        payload["generated_at"].as_string().label("generated_at"),
+        payload["provenance"]["analysis_completed_at"].as_string().label("analysis_completed_at"),
+        *(func.coalesce(func.json_array_length(payload[key]), 0).label(key)
+          for key in ("articles", "claims", "relationships")),
+    ).select_from(PublicationHead).outerjoin(
+        PublicationUpload, PublicationUpload.run_id == PublicationHead.run_id,
+    ).where(PublicationHead.id == 1)
+    row = (await db.execute(statement)).mappings().one_or_none()
+    return {"mode": "published", "revision": row["revision"] if row else 0,
+            "run_id": str(row["run_id"]) if row and row["run_id"] else None,
+            "published_at": row["published_at"] if row else None,
+            "generated_at": row["generated_at"] if row else None,
+            "analysis_completed_at": row["analysis_completed_at"] if row else None,
+            "sha256": row["digest"] if row else None,
+            "counts": {key: row[key] if row else 0 for key in ("articles", "claims", "relationships")}}
 
 
 async def activate(db: AsyncSession, run_id: UUID, digest: str, expected_revision: int, user_id: UUID) -> dict[str, Any]:
