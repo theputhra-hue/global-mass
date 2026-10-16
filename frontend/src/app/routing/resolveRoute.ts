@@ -1,15 +1,11 @@
 import { parseArticleRoute } from '../../shared/navigation/articleRoutes';
-import { isDashboardTab, type TabType } from '../../shared/navigation/tabs';
+import { isDashboardTab } from '../../shared/navigation/tabs';
+import type { RouteDestination, ResolvedAppRoute } from '../../shared/navigation/registry';
 
-type DetailRoute = NonNullable<ReturnType<typeof parseArticleRoute>>;
-type Destination =
-  | { kind: 'landing' | 'public-project' | 'signin' | 'tools' | 'developer' | 'upload' | 'not-found' }
-  | { kind: 'reader'; view: 'home' | 'browse' | 'compare' | 'check' }
-  | { kind: 'article'; detail: DetailRoute }
-  | { kind: 'advanced'; tab: TabType };
+export type Destination = RouteDestination;
 
 /** Resolve existing hashes without fetching data or changing browser/session state. */
-export function resolveRoute(hash: string): Destination & { raw: string; dashboard: boolean } {
+export function resolveRoute(hash: string): ResolvedAppRoute {
   const raw = hash === '#/project' ? 'project'
     : hash.startsWith('#/dashboard') || hash.startsWith('#/signin') ? hash.slice(2) : 'landing';
   const pathname = raw.split('?')[0];
@@ -21,9 +17,17 @@ export function resolveRoute(hash: string): Destination & { raw: string; dashboa
   if (pathname === 'dashboard/tools') return route({ kind: 'tools' });
   if (pathname === 'dashboard/developer') return route({ kind: 'developer' });
   if (pathname === 'dashboard/upload') return route({ kind: 'upload' });
+  if (pathname === 'dashboard/claims') return route({ kind: 'claims' });
   const detail = parseArticleRoute(raw);
   if (detail) return route({ kind: 'article', detail });
-  if (pathname === 'dashboard') return route({ kind: 'reader', view: 'home' });
+  if (pathname === 'dashboard') {
+    const query = raw.split('?')[1];
+    const params = new URLSearchParams(query || '');
+    if (params.has('q') || params.has('offset')) {
+      return route({ kind: 'reader', view: 'browse' });
+    }
+    return route({ kind: 'reader', view: 'home' });
+  }
   const tab = pathname.split('/')[1];
   if (['browse', 'compare', 'check'].includes(tab)) {
     return route({ kind: 'reader', view: tab as 'browse' | 'compare' | 'check' });

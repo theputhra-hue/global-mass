@@ -21,5 +21,7 @@ describe('existing URL contract', () => {
     expect(resolveRoute('#/dashboard/project')).toMatchObject({ kind: 'advanced', dashboard: true });
     expect(resolveRoute('#/dashboard/developer')).toMatchObject({ kind: 'developer', dashboard: true });
     expect(resolveRoute('#/dashboard/upload')).toMatchObject({ kind: 'upload', dashboard: true });
+    expect(resolveRoute('#/dashboard/claims')).toMatchObject({ kind: 'claims', dashboard: true });
+    expect(resolveRoute('#/dashboard/claims?q=water&offset=20')).toMatchObject({ kind: 'claims', dashboard: true });
   });
 });

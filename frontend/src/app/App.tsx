@@ -10,6 +10,8 @@ import { ToolsDirectory } from '../features/navigation/pages/ToolsDirectory';
 import { DataServiceState, usePublicationRuntime } from '../shared/runtime/publicationRuntime';
 import { useSession } from '../shared/session/session';
 import { ArticleInvestigation } from '../features/articles/pages/ArticleInvestigation';
+import { ClaimsWorkspace } from '../features/claims/pages/ClaimsWorkspace';
+import { WorkspaceShell } from './layouts/WorkspaceShell';
 import { useAppRoute } from './routing/useAppRoute';
 
 /** Application composition only. Route parsing and redirects live in routing/. */
@@ -38,6 +40,9 @@ function App() {
       case 'upload':
         page = <DeveloperUpload key={user.id} />;
         break;
+      case 'claims':
+        page = <ClaimsWorkspace key={route.raw} />;
+        break;
       case 'article':
         page = <ArticleInvestigation key={`${user.id}:${route.detail.id}`} route={route.detail} />;
         break;
@@ -52,8 +57,19 @@ function App() {
         page = <ReaderDashboard key={route.raw} view="home" />;
         break;
       default:
-        page = <main className="min-h-screen bg-hermes-ink text-hermes-bone p-8"><h1 className="text-4xl">Page not found</h1><a href="#/dashboard" className="btn-brutal mt-5">Return to collection</a></main>;
+        page = (
+          <div className="card-brutal-dark p-8 space-y-4">
+            <h1 className="font-display text-4xl">Page not found</h1>
+            <p className="text-sm text-hermes-bone/65">
+              The requested dashboard destination does not exist.
+            </p>
+            <a href="#/dashboard" className="btn-brutal inline-block">
+              Return to collection
+            </a>
+          </div>
+        );
     }
+    page = <WorkspaceShell route={route}>{page}</WorkspaceShell>;
   }
   return <div className="App">{page}</div>;
 }
