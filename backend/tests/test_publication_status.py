@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import event
 
 from app.models.publication import PublicationHead, PublicationUpload
-from app.services.publications.store import status
+from app.services.publications.store import history, status
 from tests.test_publication_contract import snapshot_payload
 
 
@@ -47,4 +47,22 @@ async def test_status_extracts_metadata_without_fetching_the_release(db_session)
     assert result["sha256"] == "a" * 64
     assert result["counts"] == {"articles": 1, "claims": 2, "relationships": 1}
     assert len(columns) == 9 and "payload" not in columns
+    assert not any(isinstance(row, PublicationUpload) for row in db_session.identity_map.values())
+
+
+async def test_history_is_bounded_and_does_not_load_payloads(db_session):
+    for day in range(1, 13):
+        payload = snapshot_payload()
+        db_session.add(PublicationUpload(
+            run_id=UUID(payload["run_id"]), digest=str(day).zfill(64),
+            uploaded_by=uuid4(), uploaded_at=datetime(2026, 10, day, tzinfo=UTC),
+            payload=payload,
+        ))
+    await db_session.commit()
+    db_session.expunge_all()
+    rows = await history(db_session)
+    assert len(rows) == 10
+    assert [int(row["sha256"]) for row in rows] == list(range(12, 2, -1))
+    assert all(row["articles"] == 1 and row["claims"] == 2 and row["relationships"] == 1 for row in rows)
+    assert all(row["status"] == "staged" and row["replayed"] is False and "payload" not in row for row in rows)
     assert not any(isinstance(row, PublicationUpload) for row in db_session.identity_map.values())

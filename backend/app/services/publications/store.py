@@ -17,6 +17,20 @@ from app.models.publication import (
 from app.schemas.publication import PublicationSnapshot
 
 
+async def history(db: AsyncSession) -> list[dict[str, Any]]:
+    """Return bounded receipt metadata without materializing staged releases."""
+    statement = select(
+        PublicationUpload.run_id, PublicationUpload.digest, PublicationUpload.uploaded_at,
+        *(func.json_array_length(PublicationUpload.payload[key]).label(key)
+          for key in ("articles", "claims", "relationships")),
+    ).order_by(PublicationUpload.uploaded_at.desc(), PublicationUpload.run_id.desc()).limit(10)
+    rows = (await db.execute(statement)).mappings()
+    return [{"run_id": str(row["run_id"]), "sha256": row["digest"],
+             "uploaded_at": row["uploaded_at"], "status": "staged", "replayed": False,
+             **{key: row[key] for key in ("articles", "claims", "relationships")}}
+            for row in rows]
+
+
 async def status(db: AsyncSession) -> dict[str, Any]:
     # Polling needs metadata, never a multi-megabyte release transfer. Extract in
     # SQL and read the head + metadata in one statement so a concurrent publish

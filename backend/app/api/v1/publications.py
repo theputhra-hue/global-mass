@@ -51,9 +51,7 @@ async def list_uploads(
     user: User = Depends(require_developer),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    rows = (await db.scalars(select(PublicationUpload).order_by(
-        PublicationUpload.uploaded_at.desc()).limit(10))).all()
-    return {"items": [receipt(row) for row in rows]}
+    return {"items": await publication_store.history(db)}
 
 
 @router.post("/upload")
