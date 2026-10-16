@@ -11,6 +11,7 @@ future work. Current implementation is mapped in [Project structure](PROJECT_STR
 | Analyze locally and publish completed results | [Cloud publishing](CLOUD_PUBLISHING.md), [data publishing plan](DATA_PUBLISHING_PLAN.md) |
 | Operate/recover the full local stack | [Operations](OPERATIONS.md) |
 | Understand reader pages | [Reader clarity](READER_CLARITY_PLAN.md), [article investigations](ARTICLE_INVESTIGATIONS.md) |
+| Implement the next navigation/data experience | [Architecture and work packages](NAVIGATION_AND_DATA_EXPERIENCE_PLAN.md), [Antigravity prompt](prompts/ANTIGRAVITY_NAVIGATION_HANDOFF.md) |
 | Choose the next development task | [Master task sheet](../TASK_SHEET.md), [production plan](PRODUCTION_PLAN.md) |
 | Prepare the paper | [Research protocol](RESEARCH.md), [publication plan](../PUBLICATION_PLAN.md), [evaluation](../evaluation/README.md) |
 | Review this structural migration | [Foundation verification](architecture/FOUNDATION_VERIFICATION.md), [frontend map](architecture/frontend-move-map.json), [backend map](architecture/backend-move-map.json) |

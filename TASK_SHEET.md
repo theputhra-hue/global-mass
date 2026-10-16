@@ -9,6 +9,13 @@ release are different milestones.
 
 ## Current batch: project foundation
 
+Next UI assignment: [navigation and data experience architecture](docs/NAVIGATION_AND_DATA_EXPERIENCE_PLAN.md).
+The [1,000-word Antigravity prompt](docs/prompts/ANTIGRAVITY_NAVIGATION_HANDOFF.md)
+is prepared for the owner to hand off. Status: **DESIGN READY; IMPLEMENTATION NOT
+STARTED**. Codex coordinates integration; one isolated Antigravity checkout owns
+the shared shell/routing work. Work packages N0-N6 and acceptance evidence are
+defined in the plan. No navigation code was changed while preparing this handoff.
+
 Owner ENG; branch `codex/project-foundation`. Scope is repository/module
 organization, stable interfaces, automated boundaries and contributor clarity.
 Review [the current source map](docs/PROJECT_STRUCTURE.md) and
