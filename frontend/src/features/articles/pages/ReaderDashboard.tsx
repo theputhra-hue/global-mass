@@ -11,6 +11,7 @@ import { safeHttpUrl } from '../../../shared/lib/urls';
 import { articleHref, navigateHash } from '../../../shared/navigation/articleRoutes';
 import { PublicationNotice, usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { PublishedClaimSearch } from '../../claims/components/PublishedClaimSearch';
+import { HomeOrientation } from '../components/HomeOrientation';
 
 export function ReaderDashboard({ view = 'home' }: { view?: string }) {
   const runtime = usePublicationRuntime();
@@ -37,18 +38,28 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
     <ReaderNavigation active={view} />
     <PublicationNotice />
     <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-8 space-y-6 outline-none">
-      <section className="max-w-3xl space-y-4">
-        <p className="text-[10px] uppercase tracking-widest text-hermes-red-bright">{browsing ? 'Start with a source article' : 'Research tools'}</p>
-        <h1 className="font-display text-4xl md:text-5xl">{browsing ? 'Find an article.' : view === 'compare' ? 'Compare two versions of a statement.' : cloud ? 'Find a saved claim.' : 'Check a claim against this collection.'}</h1>
-        <p className="text-sm leading-relaxed text-hermes-bone/70">{browsing ? 'Search a title or author. Open a result to inspect its source and saved statements.' : view === 'compare' ? 'Paste an older and newer version. We highlight wording and number changes; a difference does not establish which version is true.' : cloud ? 'Search statements extracted during earlier analysis. Open a result to inspect its saved assessment and source. This does not run a new AI check.' : 'Inspect available supporting or conflicting passages. Results cover this collection, not the whole web.'}</p>
-      </section>
+      {home ? (
+        <HomeOrientation />
+      ) : (
+        <section className="max-w-3xl space-y-4">
+          <p className="text-[10px] uppercase tracking-widest text-hermes-red-bright">{browsing ? 'Start with a source article' : 'Research tools'}</p>
+          <h1 className="font-display text-4xl md:text-5xl">{browsing ? 'Find an article.' : view === 'compare' ? 'Compare two versions of a statement.' : cloud ? 'Find a saved claim.' : 'Check a claim against this collection.'}</h1>
+          <p className="text-sm leading-relaxed text-hermes-bone/70">{browsing ? 'Search a title or author. Open a result to inspect its source and saved statements.' : view === 'compare' ? 'Paste an older and newer version. We highlight wording and number changes; a difference does not establish which version is true.' : cloud ? 'Search statements extracted during earlier analysis. Open a result to inspect its saved assessment and source. This does not run a new AI check.' : 'Inspect available supporting or conflicting passages. Results cover this collection, not the whole web.'}</p>
+        </section>
+      )}
       {browsing && <>
         <section aria-label="Find articles" className="card-brutal-dark p-5 md:p-7 space-y-4">
           <form onSubmit={submit} className="space-y-3"><label htmlFor="reader-search" className="block text-sm">Search article titles or authors</label><div className="flex flex-col sm:flex-row gap-3"><input id="reader-search" value={draft} onChange={event => setDraft(event.target.value)} placeholder="Try a place, a name, or words from a headline" className="field-brutal min-w-0 w-full flex-1 !py-4" /><button className="btn-brutal" aria-label="Search articles"><Search className="w-4 h-4" />Search articles</button></div></form>
           <p className="text-xs text-hermes-bone/55">Title and author matching · {cloud ? 'Published collection' : 'Available local collection'} · No new analysis is started</p>
           <details className="border-t border-hermes-bone/15 pt-4"><summary className="text-xs cursor-pointer">How do I use these results?</summary><ol className="list-decimal pl-5 mt-4 space-y-3 text-xs leading-relaxed text-hermes-bone/65"><li>Choose a headline and open its details.</li><li>Read the source and publication date, then inspect the extracted claims.</li><li>Follow the original source for full context. Claims and model assessments are not verified facts.</li></ol></details>
         </section>
-        <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm border-b border-hermes-bone/15 pb-5" aria-label="Collection size"><p><span className="font-display text-2xl mr-2">{number(cloud ? runtime.publication?.counts.articles : summary.data?.articles_total)}</span>articles</p><p><span className="font-display text-2xl mr-2">{number(cloud ? runtime.publication?.counts.claims : summary.data?.claims_total)}</span>extracted claims</p><p className="w-full text-xs text-hermes-bone/55">Statements identified in articles, not verified facts.</p></div>
+        {!home && (
+          <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm border-b border-hermes-bone/15 pb-5" aria-label="Collection size">
+            <p><span className="font-display text-2xl mr-2">{number(cloud ? runtime.publication?.counts.articles : summary.data?.articles_total)}</span>articles</p>
+            <p><span className="font-display text-2xl mr-2">{number(cloud ? runtime.publication?.counts.claims : summary.data?.claims_total)}</span>extracted claims</p>
+            <p className="w-full text-xs text-hermes-bone/55">Statements identified in articles, not verified facts.</p>
+          </div>
+        )}
         {!cloud && summary.isError && <QueryError title="Collection summary unavailable" error={summary.error} onRetry={() => summary.refetch()} />}
         <section aria-labelledby="article-heading" className="space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3"><h2 id="article-heading" className="font-display text-3xl">{search ? `Results for “${search}”` : 'Browse the collection'}</h2>{search && <button onClick={() => { setDraft(''); move('', 0); }} className="text-xs underline underline-offset-4">Clear search</button>}</div>
