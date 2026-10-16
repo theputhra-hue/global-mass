@@ -36,6 +36,7 @@ to overwrite the current checkout with. Review unique logic before archiving it.
 ## Verification
 
 - Frontend: `npm ci`, `npm run lint`, `npm test`, `npm run build` from `frontend/`.
+  Run `npm run check:architecture` and `npm run test:architecture` as well.
 - Backend: install the existing local lock/dev profile, then `pytest`, Ruff and
   strict mypy from `backend/` (see CI for the current exact commands).
 - Interfaces: `python -m scripts.check_contracts --mode local`, `--mode cloud`
@@ -44,6 +45,8 @@ to overwrite the current checkout with. Review unique logic before archiving it.
   and run `python infra/scripts/check_cloud_runtime.py` from the repository root.
 - Infrastructure: `python -m unittest discover -s infra/tests` and the deployment
   validators. Real database/model tests have separate opt-in profiles.
+- Backend boundaries: `python infra/scripts/check_backend_architecture.py` from
+  the repository root; no secrets, model weights or stores required.
 
 Never run migrations, data imports or model preparation merely to check an import
 or page layout. Use disposable fixtures for tests and explicitly rehearsed backups

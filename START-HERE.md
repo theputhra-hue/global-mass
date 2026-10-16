@@ -1,5 +1,10 @@
 # Open GMEE on your computer
 
+To read the published collection, open [GMEE](https://global-mass.onrender.com).
+The cloud reader does not need the analysis PC. For daily developer work, use
+the local stack below and [review/upload/publish](docs/CLOUD_PUBLISHING.md).
+For code ownership and contributor checks, see [the project map](docs/PROJECT_STRUCTURE.md).
+
 For the guided interface while Docker is unavailable, build the frontend
 (`npm ci` then `npm run build` inside `frontend`) and double-click
 **Start-Preview.bat** at the repository root. Open
