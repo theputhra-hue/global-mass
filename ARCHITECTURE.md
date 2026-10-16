@@ -2,6 +2,21 @@
 
 Global Misinformation Evolution Engine — system design and data flow.
 
+The current source ownership and enforced dependency rules are in the
+[project map](docs/PROJECT_STRUCTURE.md). The
+[documentation index](docs/README.md) separates setup, operations and future plans.
+
+## Published cloud and local analysis
+
+`app.main:app` composes the full analysis application. `app.cloud:app` composes
+the lightweight published reader, accounts, private investigations and approved
+developer upload/review/publication. Both retain their existing entrypoints.
+The cloud app uses managed PostgreSQL and Redis; it does not import the local
+model stack or expose pipeline execution. Reviewed publication JSON transfers
+completed results from the PC, and the active release remains readable with
+the PC off. See [cloud publishing](docs/CLOUD_PUBLISHING.md) for the exact
+payload limits, authorization, replacement semantics and deployment instructions.
+
 **Interpretation boundary:** typed changes are observable text differences, graph
 lineage is inferred, and local-corpus support is not a probability of truth.
 Research comparisons are **UNPERFORMED**. Deployment hardening is not a
@@ -34,10 +49,10 @@ production-readiness or causal-propagation claim. See [Audit](docs/AUDIT.md),
 ## Pipelines
 
 The four pipeline stages run inside the backend process, scheduled by
-`app/core/scheduler.py` (asyncios loop, started in the app lifespan) and can
+`app/runtime/scheduler.py` (asyncio loop, started in the app lifespan) and can
 also be triggered manually via authenticated `POST …/trigger` endpoints.
 
-### 1. Collection (`services/collectors/`, `collection_orchestrator.py`)
+### 1. Collection (`services/collection/collectors/`, `services/collection/orchestrator.py`)
 
 - `rss.py`, `reddit.py`, `news_api.py` fetch raw items into `articles`.
 - Each collector subclasses `base.py`; missing API keys disable a source.
@@ -56,7 +71,7 @@ also be triggered manually via authenticated `POST …/trigger` endpoints.
   `metadata_extractor.py` normalizes authors/publishers and repairs
   `published_at` (ISO strings → unix timestamps → fallbacks), tz-aware UTC.
 
-### 3. NLP (`services/nlp/`, `nlp_orchestrator.py`)
+### 3. NLP (`ml/`, `services/analysis/orchestrator.py`)
 
 - `llm_client.py` extracts atomic factual claims from article text.
 - `embedding_service.py` embeds each claim (all-mpnet-base-v2, 768-d) into pgvector.

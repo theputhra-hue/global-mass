@@ -15,7 +15,7 @@ from app.core.config import get_settings
 from app.models.publication import PublicationHead, PublicationUpload
 from app.models.user import User
 from app.schemas.publication import PublicationSnapshot
-from app.services import publication_store
+from app.services.publications import store as publication_store
 
 
 def private_response(response: Response) -> None:
@@ -51,9 +51,7 @@ async def list_uploads(
     user: User = Depends(require_developer),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    rows = (await db.scalars(select(PublicationUpload).order_by(
-        PublicationUpload.uploaded_at.desc()).limit(10))).all()
-    return {"items": [receipt(row) for row in rows]}
+    return {"items": await publication_store.history(db)}
 
 
 @router.post("/upload")

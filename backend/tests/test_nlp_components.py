@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.nlp.embedding_service import EmbeddingService
-from app.services.nlp.entity_extractor import EntityExtractor
-from app.services.nlp.llm_client import AnthropicLLMClient
+from app.ml.embedding_service import EmbeddingService
+from app.ml.entity_extractor import EntityExtractor
+from app.ml.llm_client import AnthropicLLMClient
 
 
 def test_entity_extractor():
@@ -47,8 +47,8 @@ def test_embedding_service():
 @pytest.mark.asyncio
 async def test_llm_client_malformed_json():
     # We must patch get_settings so AnthropicLLMClient can be instantiated with a dummy key
-    with patch("app.services.nlp.llm_client.get_settings") as mock_get_settings, \
-         patch("app.services.nlp.llm_client.AsyncAnthropic") as MockAsyncAnthropic:
+    with patch("app.ml.llm_client.get_settings") as mock_get_settings, \
+         patch("app.ml.llm_client.AsyncAnthropic") as MockAsyncAnthropic:
          
         mock_settings = mock_get_settings.return_value
         mock_settings.ANTHROPIC_API_KEY = "dummy"

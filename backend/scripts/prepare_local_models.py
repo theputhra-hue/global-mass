@@ -22,9 +22,9 @@ def main() -> int:
     )
 
     from app.core.config import get_settings
-    from app.services.nlp.embedding_service import EmbeddingService
-    from app.services.nlp.entity_extractor import EntityExtractor
-    from app.services.nlp.llm_client import HuggingFaceLLMClient
+    from app.ml.embedding_service import EmbeddingService
+    from app.ml.entity_extractor import EntityExtractor
+    from app.ml.llm_client import HuggingFaceLLMClient
     from app.services.verdict.engine import nli_configuration
 
     if get_settings().HUGGINGFACE_API_KEY:

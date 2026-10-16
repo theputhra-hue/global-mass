@@ -1,7 +1,7 @@
 import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { focusManager } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { SystemHealth } from '../src/pages/SystemHealth';
+import { SystemHealth } from '../src/features/operations/pages/SystemHealth';
 import { emptyDashboardApi, jsonResponse, mockApi, renderWithClient, zeroDashboard } from './helpers';
 
 const TABS = ['overview', 'graph', 'vector', 'cache', 'corpus', 'factcheck', 'fullgraph', 'timeline', 'masala', 'eval'] as const;

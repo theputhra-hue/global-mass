@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.services.eval.dataset import (
+from app.services.research.evaluation.dataset import (
     DatasetError,
     build_export,
     collect_export_records,

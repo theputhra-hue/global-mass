@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from app.services.project_lab import challenge_report
+from app.services.research.controls import challenge_report
 
 router = APIRouter()
 

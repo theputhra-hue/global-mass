@@ -28,13 +28,13 @@ from app.api.v1 import (
     publications,
     verdicts,
 )
-from app.core import scheduler
 from app.core.config import get_settings
 from app.core.observability import install_request_context
 from app.core.ops_security import install_rate_limiter, install_security_headers
 from app.db.postgres import engine
+from app.runtime import scheduler
+from app.services.collection.seeding import seed_sources
 from app.services.pipeline.jobs import JobLeaseLost
-from app.services.seeder import seed_sources
 
 
 @asynccontextmanager

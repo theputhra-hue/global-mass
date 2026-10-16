@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { FullGraph, GraphNode } from '../src/api/graph';
-import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, UNKNOWN_OUTLET } from '../src/lib/corpusGraph';
+import type { FullGraph, GraphNode } from '../src/shared/api/graph';
+import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, UNKNOWN_OUTLET } from '../src/features/graph/lib/corpusGraph';
 
 const node = (id: string, domain: string | null = 'www.thehindu.com', title = id): GraphNode => ({ id, domain, title });
 const graph = (nodes: GraphNode[], edges: FullGraph['edges'] = []): FullGraph => ({ nodes, edges, counts: { nodes: nodes.length, edges: edges.length } });

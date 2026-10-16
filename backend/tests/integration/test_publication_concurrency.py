@@ -15,7 +15,7 @@ from app.models.publication import (
     PublishedRelationshipRow,
 )
 from app.schemas.publication import PublicationSnapshot
-from app.services.publication_store import activate
+from app.services.publications.store import activate, history, status
 from tests.test_publication_contract import snapshot_payload
 
 pytestmark = pytest.mark.integration
@@ -53,6 +53,12 @@ async def test_concurrent_publications_switch_exactly_one_complete_release():
             assert head is not None and head.run_id in ids
             assert head.revision == saved["revision"] + 1
             snapshot = next(s for s in snapshots if s.run_id == head.run_id)
+            metadata = await status(db)
+            assert metadata["run_id"] == str(snapshot.run_id)
+            assert metadata["revision"] == saved["revision"] + 1
+            assert metadata["counts"] == {"articles": 1, "claims": 2, "relationships": 1}
+            receipts = await history(db)
+            assert any(receipt["run_id"] == str(snapshot.run_id) and receipt["claims"] == 2 for receipt in receipts)
             for a in snapshot.articles:
                 assert await db.get(PublishedArticleRow, (snapshot.run_id, a.id)) is not None
             for c in snapshot.claims:

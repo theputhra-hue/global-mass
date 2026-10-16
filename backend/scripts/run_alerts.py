@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.postgres import async_session_maker
-from app.services.alerts import evaluate_alerts
+from app.services.operations.alerts import evaluate_alerts
 
 
 async def main() -> None:

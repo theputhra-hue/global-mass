@@ -14,7 +14,7 @@ from app.api.developer_access import require_local_pipeline
 from app.core.config import get_settings
 from app.db.postgres import async_session_maker
 from app.schemas.publication import PublicationProvenance
-from app.services.publication_export import export_snapshot
+from app.services.publications.export import export_snapshot
 
 router = APIRouter(dependencies=[Depends(require_local_pipeline)])
 

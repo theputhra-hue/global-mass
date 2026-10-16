@@ -13,14 +13,14 @@ from typing import Any
 
 import pytest
 
-from app.services.eval.metrics import (
+from app.services.research.evaluation.metrics import (
     bootstrap_ci,
     brier_score,
     expected_calibration_error,
     mcnemar_test,
     reliability_bins,
 )
-from app.services.eval.report import build_report, consensus
+from app.services.research.evaluation.report import build_report, consensus
 
 
 def _perfect_rows() -> list[dict[str, Any]]:
@@ -244,7 +244,7 @@ def test_live_report_never_makes_sample_count_publication_assurances():
 
 
 def test_mutation_consensus_is_independent_from_binary_label_consensus():
-    from app.services.eval.provenance import pair_consensus
+    from app.services.research.evaluation.provenance import pair_consensus
     from tests.test_research_support import human_vote
 
     votes = [human_vote("p", "EVOLVED", user=1, mutations=["NUMERIC_DRIFT"]), human_vote("p", "EVOLVED", user=2, mutations=["HEDGING_SHIFT"])]

@@ -22,12 +22,17 @@ See [system architecture](../ARCHITECTURE.md), [API](../docs/API.md),
 | Path | Role |
 |------|------|
 | `app/api/v1/` | Auth, health, corpus, verdicts, graph, eval, alerts and pipeline/operations contracts |
-| `app/core/` | Settings, security, scheduler and ownership/limiting behavior |
+| `app/core/`, `app/runtime/` | Settings/security and local scheduler lifecycle |
 | `app/db/`, `app/models/`, `app/repositories/` | Async clients, relational source of truth and data access |
-| `app/services/` | Collection/preprocessing/NLP, typed changes, local evidence and eval |
+| `app/services/` | Grouped identity, collection, analysis, publications, research and operational use cases |
+| `app/ml/` | Local extraction, embeddings and entity adapters; not imported by cloud |
 | `alembic/` | Schema migration history; authoritative field/index definitions |
 | `scripts/` | Operator batch/evaluation tools and safe database backup helper |
 | `tests/` | Mocked/SQLite unit tests and required real-pgvector integration |
+
+Use [the implemented source map](../docs/PROJECT_STRUCTURE.md) and its move
+records when integrating older branches. `app.main:app` and `app.cloud:app`
+remain the local and published-data entrypoints. CLI filenames are unchanged.
 
 ## Local setup (operator actions)
 

@@ -10,7 +10,7 @@ from app.db.postgres import async_session_maker, engine
 from app.models.session import Session
 from app.models.user import User
 from app.schemas.auth import RefreshRequest, TokenResponse, UserCreate
-from app.services.auth_service import register_user, rotate_refresh_token
+from app.services.identity.service import register_user, rotate_refresh_token
 
 pytestmark = pytest.mark.integration
 

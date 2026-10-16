@@ -36,7 +36,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.db.postgres import async_session_maker
 from app.models.eval import EvalPair
-from app.services.eval.dataset import lock_pair_writes
+from app.services.research.evaluation.dataset import lock_pair_writes
 
 BUCKETS = [
     ("b95", 0.95, 1.01),

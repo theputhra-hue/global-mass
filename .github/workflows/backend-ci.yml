@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'backend/**'
+      - 'contracts/**'
       - 'infra/**'
       - 'render.yaml'
       - '.github/workflows/backend-ci.yml'
@@ -11,6 +12,7 @@ on:
   pull_request:
     paths:
       - 'backend/**'
+      - 'contracts/**'
       - 'infra/**'
       - 'render.yaml'
       - '.github/workflows/backend-ci.yml'
@@ -87,6 +89,12 @@ jobs:
 
       - name: Lint with Ruff
         run: ruff check app tests scripts
+
+      - name: Check backend architecture and local interface contracts
+        run: |
+          python ../infra/scripts/check_backend_architecture.py
+          python -m scripts.check_contracts --mode local
+          python -m scripts.check_contracts --mode publication
 
       - name: Type check with mypy
         run: mypy app tests scripts

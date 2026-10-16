@@ -11,10 +11,14 @@ from xml.etree import ElementTree
 
 import pytest
 
-from app.services.eval.artifacts import write_artifacts
-from app.services.eval.dataset import DatasetError, records_bytes, validate_dataset
-from app.services.eval.metrics import best_f1_threshold
-from app.services.eval.research import (
+from app.services.research.evaluation.artifacts import write_artifacts
+from app.services.research.evaluation.dataset import (
+    DatasetError,
+    records_bytes,
+    validate_dataset,
+)
+from app.services.research.evaluation.metrics import best_f1_threshold
+from app.services.research.evaluation.research import (
     ExperimentConfig,
     grouped_bootstrap_differences,
     load_jsonl,
@@ -51,7 +55,11 @@ def test_deterministic_report_predictions_states_and_bootstrap(fitted_experiment
     first = fitted_experiment
     second = run_experiment(list(reversed(research_records(mutations=True))), config=CONFIG)
     assert first == second
-    assert len(first[0]["source_sha256"]) >= 7
+    hashes = first[0]["source_sha256"]
+    assert len(hashes) == 14
+    assert "app/services/research/evaluation/research.py" in hashes
+    backend = Path(__file__).resolve().parents[1]
+    assert all(hashlib.sha256((backend / name).read_bytes()).hexdigest() == digest for name, digest in hashes.items())
     assert "scikit-learn" in first[0]["versions"]
 
 

@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { Landing } from '../src/pages/Landing';
+import { Landing } from '../src/features/landing/pages/Landing';
 import { emptyDashboardApi, jsonResponse, mockApi, renderWithClient, zeroDashboard, signInFixture } from './helpers';
 
 describe('honest landing statistics', () => {

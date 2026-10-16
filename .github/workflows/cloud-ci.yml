@@ -1,9 +1,9 @@
 name: Cloud publishing
 on:
   push:
-    paths: ['backend/**', 'infra/scripts/check_cloud_runtime.py', 'render.cloud.yaml', '.github/workflows/cloud-ci.yml']
+    paths: ['backend/**', 'contracts/**', 'infra/scripts/check_cloud_runtime.py', 'render.cloud.yaml', '.github/workflows/cloud-ci.yml']
   pull_request:
-    paths: ['backend/**', 'infra/scripts/check_cloud_runtime.py', 'render.cloud.yaml', '.github/workflows/cloud-ci.yml']
+    paths: ['backend/**', 'contracts/**', 'infra/scripts/check_cloud_runtime.py', 'render.cloud.yaml', '.github/workflows/cloud-ci.yml']
 permissions:
   contents: read
 concurrency:
@@ -20,3 +20,7 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install -r backend/requirements-cloud.lock
       - run: python infra/scripts/check_cloud_runtime.py
+      - run: python -m scripts.check_contracts --mode cloud
+        working-directory: backend
+      - run: python -m scripts.check_contracts --mode publication
+        working-directory: backend

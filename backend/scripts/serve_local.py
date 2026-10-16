@@ -146,7 +146,7 @@ def main() -> int:
         asyncio.run(preflight())
         if args.check:
             return 0
-        from app.services.nlp.embedding_service import EmbeddingService
+        from app.ml.embedding_service import EmbeddingService
 
         # Preparation is a separate explicit command. Serving never downloads weights.
         EmbeddingService.load_model(local_files_only=True)

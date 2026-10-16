@@ -46,6 +46,11 @@ jobs:
         
       - name: Lint with ESLint
         run: npm run lint
+
+      - name: Enforce architecture boundaries
+        run: |
+          npm run check:architecture
+          npm run test:architecture
         
       - name: Type check
         run: npx tsc --noEmit

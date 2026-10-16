@@ -22,12 +22,25 @@ experiments are **UNPERFORMED**; see [the audit](docs/AUDIT.md) and
 
 ## Quick Start
 
+Choose the workspace you need:
+
+- **Read published data:** the [hosted reader](https://global-mass.onrender.com)
+  uses the cloud API and stored releases while the analysis PC is off.
+- **Collect/analyze and publish:** run the full local stack below, then follow
+  [the daily publishing workflow](docs/CLOUD_PUBLISHING.md). Model inference
+  remains local; cloud hosts the completed collection.
+- **Inspect the interface offline:** use `Start-Preview.bat` after a frontend
+  build. This mode does not provide accounts, cloud data or live inference.
+
+Contributors: use the [documentation index](docs/README.md),
+[current project map](docs/PROJECT_STRUCTURE.md) and [change rules](CONTRIBUTING.md).
+
 For current development status, ordered work packages, acceptance checks, and
 the next implementation batch, follow the [master task sheet](TASK_SHEET.md).
 
-For an existing Render frontend with ML inference on a local PC, see the
-[hybrid hosting runbook](docs/HYBRID_HOSTING.md). This avoids trying to fit the
-full model stack into a 512 MB free web-service instance.
+The [hybrid hosting runbook](docs/HYBRID_HOSTING.md) remains an optional
+PC/tunnel configuration. The published cloud reader uses
+[cloud publication](docs/CLOUD_PUBLISHING.md) without a continuous PC connection.
 
 For the new guided Project Lab, private Investigation Studio, demonstration
 walkthrough and completion strategy, see [Major-project upgrade](docs/MAJOR_PROJECT_UPGRADE.md).

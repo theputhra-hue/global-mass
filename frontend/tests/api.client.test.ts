@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { apiClient, ApiError, rotateAccessToken } from '../src/api/client';
-import { authApi } from '../src/api/auth';
-import { fetchHealth } from '../src/api/health';
-import { clearSession, getAccessToken, getRefreshToken, setSessionTokens } from '../src/lib/session';
+import { apiClient, ApiError, rotateAccessToken } from '../src/shared/api/client';
+import { authApi } from '../src/shared/api/auth';
+import { fetchHealth } from '../src/shared/api/health';
+import { clearSession, getAccessToken, getRefreshToken, setSessionTokens } from '../src/shared/session/session';
 import { accountFixture, jsonResponse, mockApi, readyFixture, signInFixture } from './helpers';
 
 function deferred<T>() {

@@ -1,6 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { DeveloperConsole } from '../src/pages/DeveloperConsole';
+import { DeveloperConsole } from '../src/features/developer/pages/DeveloperConsole';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 const overview = { pipeline_enabled: true, counts: { articles: 12, claims: 8, relationships: 3 }, processing: { raw: 2, processed: 10 }, nlp: { completed: 7, pending: 3 }, sources: [{ id: 'fixture', name: 'Fixture source', type: 'rss', enabled: true, last_collected_at: null }], jobs: [] };

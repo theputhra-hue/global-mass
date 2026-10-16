@@ -152,7 +152,7 @@ def vector_literal(embedding: Sequence[float] | str) -> str:
 async def embed_query(claim_text: str) -> list[float]:
     """Use the existing loaded embedding service; do not download on request."""
     try:
-        from app.services.nlp.embedding_service import EmbeddingService
+        from app.ml.embedding_service import EmbeddingService
 
         embedding = await asyncio.to_thread(
             EmbeddingService.generate_embedding, claim_text

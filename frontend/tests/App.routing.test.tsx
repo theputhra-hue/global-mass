@@ -1,10 +1,10 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import App from '../src/App';
-import { clearSession } from '../src/lib/session';
+import App from '../src/app/App';
+import { clearSession } from '../src/shared/session/session';
 import { mockApi, renderWithClient, signInFixture } from './helpers';
-vi.mock('../src/pages/ReaderDashboard', () => ({ ReaderDashboard: ({ view }: { view: string }) => <div>Private dashboard: reader {view}</div> }));
-vi.mock('../src/pages/SystemHealth', () => ({ SystemHealth: () => <div>Private dashboard</div> }));
+vi.mock('../src/features/articles/pages/ReaderDashboard', () => ({ ReaderDashboard: ({ view }: { view: string }) => <div>Private dashboard: reader {view}</div> }));
+vi.mock('../src/features/operations/pages/SystemHealth', () => ({ SystemHealth: () => <div>Private dashboard</div> }));
 describe('dashboard sign-in boundary', () => {
   it('redirects signed-out deep links before mounting data panels', async () => {
     const fetch = mockApi(() => { throw new Error('Data must not be requested'); });

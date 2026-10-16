@@ -15,7 +15,7 @@ from app.schemas.auth import (
     UserCreate,
     UserResponse,
 )
-from app.services.auth_service import (
+from app.services.identity.service import (
     authenticate_user,
     logout_user,
     register_user,

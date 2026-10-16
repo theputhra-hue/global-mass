@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, screen, fireEvent, waitFor } from '@testing-library/react';
-import { EvalLab } from '../src/components/EvalLab';
-import { clearSession } from '../src/lib/session';
+import { EvalLab } from '../src/features/research/components/EvalLab';
+import { clearSession } from '../src/shared/session/session';
 import { accountFixture, jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
 const pairPayload = {

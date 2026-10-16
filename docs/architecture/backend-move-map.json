@@ -1,0 +1,16 @@
+{
+  "app.core.scheduler": "app.runtime.scheduler",
+  "app.services.alerts": "app.services.operations.alerts",
+  "app.services.auth_service": "app.services.identity.service",
+  "app.services.collection_orchestrator": "app.services.collection.orchestrator",
+  "app.services.collectors": "app.services.collection.collectors",
+  "app.services.eval": "app.services.research.evaluation",
+  "app.services.nlp": "app.ml",
+  "app.services.nlp_orchestrator": "app.services.analysis.orchestrator",
+  "app.services.preprocessing_orchestrator": "app.services.preprocessing.orchestrator",
+  "app.services.project_lab": "app.services.research.controls",
+  "app.services.publication_export": "app.services.publications.export",
+  "app.services.publication_store": "app.services.publications.store",
+  "app.services.seeder": "app.services.collection.seeding",
+  "app.services.simulate": "app.services.experiments.simulate"
+}

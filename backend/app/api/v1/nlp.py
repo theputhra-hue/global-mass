@@ -9,7 +9,7 @@ from app.api.developer_access import require_local_pipeline
 from app.models.article import Article, NLPStatusEnum
 from app.models.pipeline import JobTypeEnum
 from app.models.user import RoleEnum, User
-from app.services.nlp_orchestrator import NLPOrchestrator
+from app.services.analysis.orchestrator import NLPOrchestrator
 from app.services.pipeline.jobs import JobAlreadyRunning, run_job
 
 router = APIRouter()

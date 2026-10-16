@@ -1,14 +1,14 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { OperationsPanel } from '../src/components/OperationsPanel';
-import { PollingContext } from '../src/lib/polling';
-import { clearSession } from '../src/lib/session';
+import { OperationsPanel } from '../src/features/developer/components/OperationsPanel';
+import { PollingContext } from '../src/shared/hooks/polling';
+import { clearSession } from '../src/shared/session/session';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
 
-vi.mock('../src/api/publications', () => ({ publicationsApi: { access: vi.fn(async () => ({ allowed: true })) } }));
-vi.mock('../src/api/developer', () => ({ developerApi: { overview: vi.fn(async () => ({ pipeline_enabled: true })) } }));
-import { publicationsApi } from '../src/api/publications';
-import { developerApi } from '../src/api/developer';
+vi.mock('../src/shared/api/publications', () => ({ publicationsApi: { access: vi.fn(async () => ({ allowed: true })) } }));
+vi.mock('../src/shared/api/developer', () => ({ developerApi: { overview: vi.fn(async () => ({ pipeline_enabled: true })) } }));
+import { publicationsApi } from '../src/shared/api/publications';
+import { developerApi } from '../src/shared/api/developer';
 
 describe('Pipeline operations', () => {
   beforeEach(() => {

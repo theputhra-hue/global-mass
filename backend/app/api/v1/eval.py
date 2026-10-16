@@ -25,14 +25,14 @@ from app.models.article import Article
 from app.models.claim import Claim
 from app.models.eval import EvalPair, EvalPairLabel
 from app.models.user import RoleEnum, User
-from app.services.eval.annotation import (
+from app.services.research.evaluation.annotation import (
     RUBRIC,
     RUBRIC_VERSION,
     ChangedSpan,
     ContextRelation,
     validate_spans,
 )
-from app.services.eval.dataset import (
+from app.services.research.evaluation.dataset import (
     DatasetError,
     build_export,
     collect_export_records,
@@ -42,9 +42,9 @@ from app.services.eval.dataset import (
     validate_assignments,
     vote_record,
 )
-from app.services.eval.progress import build_progress, per_annotator
-from app.services.eval.provenance import LABELS
-from app.services.eval.report import ENGINE_OPERATING_POINT
+from app.services.research.evaluation.progress import build_progress, per_annotator
+from app.services.research.evaluation.provenance import LABELS
+from app.services.research.evaluation.report import ENGINE_OPERATING_POINT
 
 router = APIRouter()
 VALID_LABELS = LABELS
@@ -261,7 +261,10 @@ async def eval_report(
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """Live-corpus diagnostics only; not a frozen held-out publication result."""
-    from app.services.eval.report import build_report, collect_labeled_pairs
+    from app.services.research.evaluation.report import (
+        build_report,
+        collect_labeled_pairs,
+    )
 
     return build_report(await collect_labeled_pairs(db))
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import CorpusExplorer from '../src/components/CorpusExplorer';
+import CorpusExplorer from '../src/features/articles/components/CorpusExplorer';
 
 const article = {
   id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -14,7 +14,7 @@ const article = {
   word_count: 320,
 };
 
-vi.mock('../src/api/corpus', () => ({
+vi.mock('../src/shared/api/corpus', () => ({
   corpusApi: {
     list: vi.fn(async () => ({
       total: 1,
@@ -50,7 +50,7 @@ describe('<CorpusExplorer/> — real corpus listing', () => {
   });
 
   it('passes search terms into the list query after submitting', async () => {
-    const { corpusApi } = await import('../src/api/corpus');
+    const { corpusApi } = await import('../src/shared/api/corpus');
     renderExplorer();
     await screen.findByText(/Disinformation network mapped/i);
 
@@ -67,7 +67,7 @@ describe('<CorpusExplorer/> — real corpus listing', () => {
   });
 
   it('does not offer an empty next page when the total exactly fills a page', async () => {
-    const { corpusApi } = await import('../src/api/corpus');
+    const { corpusApi } = await import('../src/shared/api/corpus');
     vi.mocked(corpusApi.list).mockResolvedValueOnce({
       total: 25, limit: 25, offset: 0,
       items: Array.from({ length: 25 }, (_, index) => ({ ...article, id: `article-${index}` })),

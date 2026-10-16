@@ -52,11 +52,11 @@ class FakeAudioContext {
 }
 
 describe('lib/sound', () => {
-  let sound: typeof import('../src/lib/sound').sound;
+  let sound: typeof import('../src/shared/lib/sound').sound;
 
   beforeAll(async () => {
     (window as unknown as { AudioContext: unknown }).AudioContext = FakeAudioContext;
-    ({ sound } = await import('../src/lib/sound'));
+    ({ sound } = await import('../src/shared/lib/sound'));
   });
 
   it('starts unmuted and toggles mute state', () => {

@@ -55,9 +55,9 @@ async def get_timeline_mutation_summary(payload: MutationSummaryRequest) -> dict
     from sqlalchemy import select
 
     from app.db.postgres import async_session_maker
+    from app.ml.llm_client import get_llm_client
     from app.models.article import Article
     from app.models.claim import Claim
-    from app.services.nlp.llm_client import get_llm_client
     
     # validate UUIDs
     valid_ids = []
@@ -90,7 +90,7 @@ async def get_timeline_mutation_summary(payload: MutationSummaryRequest) -> dict
 
 @router.post("/mutation/compare", dependencies=[Depends(get_current_user)])
 async def compare_mutations(payload: MutationCompareRequest) -> dict[str, Any]:
-    from app.services.nlp.llm_client import get_llm_client
+    from app.ml.llm_client import get_llm_client
     analysis = await asyncio.to_thread(
         analyze_text_change, payload.older_text, payload.newer_text,
         older_timestamp=payload.older_timestamp,
@@ -563,7 +563,7 @@ async def simulate_spread(hub: str, p: float = 0.5, max_depth: int = 3) -> dict[
     Read one-hop frontiers rather than the entire graph or an unbounded
     variable-length path expansion. SIMILAR is not observed transmission.
     """
-    from app.services.simulate import simulate_cascade
+    from app.services.experiments.simulate import simulate_cascade
 
     p = max(0.05, min(0.95, p))
     max_depth = max(1, min(int(max_depth), MAX_SIMULATION_DEPTH))

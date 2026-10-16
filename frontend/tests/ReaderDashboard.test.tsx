@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { ReaderDashboard } from '../src/pages/ReaderDashboard';
+import { ReaderDashboard } from '../src/features/articles/pages/ReaderDashboard';
 import { jsonResponse, mockApi, renderWithClient, zeroDashboard } from './helpers';
 
 describe('reader dashboard', () => {
