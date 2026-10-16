@@ -14,6 +14,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Node architecture checks use node:test and run separately from browser UI tests.
+    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],

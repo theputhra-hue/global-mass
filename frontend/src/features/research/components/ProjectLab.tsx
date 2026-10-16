@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, CheckCircle2, Download, FlaskConical, BookOpen, GitCompare, Network, Search, ClipboardCheck } from 'lucide-react';
 import { apiClient } from '../../../shared/api/client';
 import type { MutationComparison, MutationComparisonInput } from '../../../shared/api/features';
-import type { TabType } from '../../navigation/components/Header';
+import type { TabType } from '../../../shared/navigation/tabs';
 import { downloadApiResponse } from '../../../shared/lib/download';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { TextSpans } from '../../comparison/components/TextSpans';

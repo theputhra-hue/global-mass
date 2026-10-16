@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { TabType } from '../../features/navigation/components/Header';
+import { dashboardTabs, type TabType } from './tabs';
 
-const TABS: TabType[] = ['overview', 'factcheck', 'fullgraph', 'timeline', 'masala', 'graph', 'vector', 'cache', 'corpus', 'eval', 'project', 'casebook'];
 
 function currentTab(): TabType {
   const tab = window.location.hash.split('?')[0].match(/^#\/dashboard\/([a-z]+)$/)?.[1] as TabType | undefined;
-  return tab && TABS.includes(tab) ? tab : 'overview';
+  return tab && dashboardTabs.includes(tab) ? tab : 'overview';
 }
 
 export function useDashboardTab(): [TabType, (tab: TabType) => void] {

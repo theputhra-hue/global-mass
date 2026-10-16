@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Network, Info, ExternalLink, Orbit } from 'lucide-react';
 import { corpusApi, StoryCluster } from '../../../shared/api/corpus';
 import { setSelectedArticle } from '../../../shared/navigation/useSelectedArticle';
-import type { TabType } from '../../navigation/components/Header';
+import type { TabType } from '../../../shared/navigation/tabs';
 import { usePollingPolicy } from '../../../shared/hooks/polling';
 import { safeHttpUrl } from '../../../shared/lib/urls';
 import { QueryError } from '../../../shared/ui/QueryError';

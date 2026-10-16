@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ArrowUpRight, ExternalLink, Layers, Maximize2, Minus, Network, Orbit, Plus, Search, X, Zap } from 'lucide-react';
 import { graphApi, type FullGraph } from '../../../shared/api/graph';
 import { setSelectedArticle } from '../../../shared/navigation/useSelectedArticle';
-import type { TabType } from '../../navigation/components/Header';
+import type { TabType } from '../../../shared/navigation/tabs';
 import { usePollingPolicy } from '../../../shared/hooks/polling';
 import { articleHref } from '../../../shared/navigation/articleRoutes';
 import { safeHttpUrl } from '../../../shared/lib/urls';

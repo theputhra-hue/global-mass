@@ -1,4 +1,4 @@
-import type { TabType } from './Header';
+import type { TabType } from '../../../shared/navigation/tabs';
 
 const guides: Record<TabType, { name: string; purpose: string; use: string; meaning: string }> = {
   project: {

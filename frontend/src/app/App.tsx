@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { SystemHealth } from '../features/operations/pages/SystemHealth';
 import { ReaderDashboard } from '../features/articles/pages/ReaderDashboard';
 import { Landing } from '../features/landing/pages/Landing';
@@ -11,42 +10,52 @@ import { ToolsDirectory } from '../features/navigation/pages/ToolsDirectory';
 import { DataServiceState, usePublicationRuntime } from '../shared/runtime/publicationRuntime';
 import { useSession } from '../shared/session/session';
 import { ArticleInvestigation } from '../features/articles/pages/ArticleInvestigation';
-import { navigateHash, parseArticleRoute, signInDestination } from '../shared/navigation/articleRoutes';
+import { useAppRoute } from './routing/useAppRoute';
 
-function currentRoute() {
-  const hash = window.location.hash;
-  if (hash === '#/project') return 'project';
-  return hash.startsWith('#/dashboard') || hash.startsWith('#/signin') ? hash.slice(2) : 'landing';
-}
+/** Application composition only. Route parsing and redirects live in routing/. */
 function App() {
   const runtime = usePublicationRuntime();
-  const [route, setRoute] = useState(currentRoute);
   const { user } = useSession();
-  useEffect(() => {
-    const onHash = () => setRoute(currentRoute());
-    window.addEventListener('hashchange', onHash);
-    window.addEventListener('popstate', onHash);
-    return () => {
-      window.removeEventListener('hashchange', onHash);
-      window.removeEventListener('popstate', onHash);
-    };
-  }, []);
-  useEffect(() => {
-    if (route.startsWith('dashboard') && !user) {
-      const target = `#/signin?next=${encodeURIComponent(`#/${route}`)}`;
-      if (window.location.hash !== target) navigateHash(target, true);
+  const route = useAppRoute(Boolean(user));
+
+  if (user && route.dashboard && ['connecting', 'unavailable'].includes(runtime.mode)) {
+    return <DataServiceState />;
+  }
+
+  let page;
+  if (route.kind === 'landing') page = <Landing />;
+  else if (route.kind === 'public-project') page = <PublicProjectLab />;
+  else if (!user) page = <SignIn />;
+  else {
+    switch (route.kind) {
+      case 'tools':
+        page = <ToolsDirectory />;
+        break;
+      case 'developer':
+        page = runtime.mode === 'published'
+          ? <DeveloperUpload key={user.id} /> : <DeveloperConsole key={user.id} />;
+        break;
+      case 'upload':
+        page = <DeveloperUpload key={user.id} />;
+        break;
+      case 'article':
+        page = <ArticleInvestigation key={`${user.id}:${route.detail.id}`} route={route.detail} />;
+        break;
+      case 'reader':
+        page = <ReaderDashboard key={route.raw} view={route.view} />;
+        break;
+      case 'advanced':
+        page = runtime.mode === 'published'
+          ? <PublishedWorkspace key={route.raw.split('?')[0]} tab={route.tab} /> : <SystemHealth />;
+        break;
+      case 'signin':
+        page = <ReaderDashboard key={route.raw} view="home" />;
+        break;
+      default:
+        page = <main className="min-h-screen bg-hermes-ink text-hermes-bone p-8"><h1 className="text-4xl">Page not found</h1><a href="#/dashboard" className="btn-brutal mt-5">Return to collection</a></main>;
     }
-    if (route.startsWith('signin') && user) {
-      const target = signInDestination(`#/${route}`);
-      if (window.location.hash !== target) navigateHash(target, true);
-    }
-  }, [route, user]);
-  const pathname = route.split('?')[0];
-  const detail = parseArticleRoute(route);
-  const readerView = (pathname === 'dashboard' || pathname === 'signin') ? 'home' : pathname.split('/')[1];
-  const reader = ['home', 'browse', 'compare', 'check'].includes(readerView);
-  const advanced = /^dashboard\/(overview|graph|vector|cache|fullgraph|timeline|masala|factcheck|eval|corpus|project|casebook)$/.test(pathname);
-  if (user && route.startsWith('dashboard') && ['connecting', 'unavailable'].includes(runtime.mode)) return <DataServiceState />;
-  return <div className="App">{route === 'landing' ? <Landing /> : route === 'project' ? <PublicProjectLab /> : user ? pathname === 'dashboard/tools' ? <ToolsDirectory /> : pathname === 'dashboard/developer' ? runtime.mode === 'published' ? <DeveloperUpload key={user.id} /> : <DeveloperConsole key={user.id} /> : pathname === 'dashboard/upload' ? <DeveloperUpload key={user.id} /> : detail ? <ArticleInvestigation key={`${user.id}:${detail.id}`} route={detail} /> : reader ? <ReaderDashboard key={route} view={readerView} /> : advanced ? runtime.mode === 'published' ? <PublishedWorkspace key={pathname} tab={pathname.split('/')[1]} /> : <SystemHealth /> : pathname === 'signin' ? <ReaderDashboard view="home" /> : <main className="min-h-screen bg-hermes-ink text-hermes-bone p-8"><h1 className="text-4xl">Page not found</h1><a href="#/dashboard" className="btn-brutal mt-5">Return to collection</a></main> : <SignIn />}</div>;
+  }
+  return <div className="App">{page}</div>;
 }
+
 export default App;

@@ -4,7 +4,8 @@ import { AsciiSpinner } from '../../../shared/ui/decorative/AsciiSpinner';
 import { AccountPanel } from '../../account/components/AccountPanel';
 import { useDocumentVisible } from '../../../shared/hooks/polling';
 
-export type TabType = 'overview' | 'factcheck' | 'fullgraph' | 'timeline' | 'masala' | 'graph' | 'vector' | 'cache' | 'corpus' | 'eval' | 'project' | 'casebook';
+import type { TabType } from '../../../shared/navigation/tabs';
+export type { TabType } from '../../../shared/navigation/tabs';
 
 interface HeaderProps {
   activeTab: TabType;
