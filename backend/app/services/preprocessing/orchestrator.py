@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.article import Article, ProcessingStatusEnum
-from app.services.nlp_orchestrator import NLPOrchestrator
+from app.services.analysis.orchestrator import NLPOrchestrator
 from app.services.pipeline.ownership import (
     Stage,
     claim_articles,

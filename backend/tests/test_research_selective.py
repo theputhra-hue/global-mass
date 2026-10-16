@@ -4,8 +4,8 @@ import math
 
 import pytest
 
-from app.services.eval.dataset import DatasetError
-from app.services.eval.selective import (
+from app.services.research.evaluation.dataset import DatasetError
+from app.services.research.evaluation.selective import (
     apply_abstention_policy,
     binary_log_loss,
     prediction_confidences,

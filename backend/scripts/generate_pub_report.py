@@ -31,9 +31,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 
 from app.db.postgres import async_session_maker
-from app.services.eval.metrics import cohen_kappa
-from app.services.eval.provenance import human_identity, origin_of
-from app.services.eval.report import WARNING
+from app.services.research.evaluation.metrics import cohen_kappa
+from app.services.research.evaluation.provenance import human_identity, origin_of
+from app.services.research.evaluation.report import WARNING
 from scripts.run_eval import evaluate
 
 OUT_JSON = Path(__file__).resolve().parent.parent / "eval_exploratory_report.json"

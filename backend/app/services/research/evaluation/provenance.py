@@ -7,7 +7,7 @@ import uuid
 from collections import Counter, defaultdict
 from typing import Any
 
-from app.services.eval.annotation import RUBRIC_VERSION
+from app.services.research.evaluation.annotation import RUBRIC_VERSION
 
 LABELS = ("SAME_STORY", "EVOLVED", "DISTINCT")
 ORIGINS = ("human", "automatic", "legacy", "test")

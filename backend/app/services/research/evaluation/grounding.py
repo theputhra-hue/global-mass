@@ -10,8 +10,8 @@ from collections import Counter
 from collections.abc import Mapping
 from typing import Any
 
-from app.services.eval.dataset import DatasetError
-from app.services.eval.metrics import prf
+from app.services.research.evaluation.dataset import DatasetError
+from app.services.research.evaluation.metrics import prf
 
 CONTEXT_LABELS = (
     "PARAPHRASE", "UPDATE_OR_CORRECTION", "INCOMPATIBLE_ASSERTION",

@@ -6,7 +6,7 @@ import feedparser
 import httpx
 
 from app.models.source import Source
-from app.services.collectors.base import BaseCollector, RawArticle
+from app.services.collection.collectors.base import BaseCollector, RawArticle
 
 logger = logging.getLogger(__name__)
 

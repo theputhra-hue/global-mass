@@ -10,12 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.article import Article
 from app.models.source import Source, SourceTypeEnum
-from app.services.collectors.base import BaseCollector, MissingCredentialsError
-from app.services.collectors.news_api import NewsAPICollector
-from app.services.collectors.reddit import RedditCollector
-from app.services.collectors.rss import RSSCollector
+from app.services.collection.collectors.base import (
+    BaseCollector,
+    MissingCredentialsError,
+)
+from app.services.collection.collectors.news_api import NewsAPICollector
+from app.services.collection.collectors.reddit import RedditCollector
+from app.services.collection.collectors.rss import RSSCollector
 from app.services.pipeline.ownership import sanitize_error
-from app.services.preprocessing_orchestrator import PreprocessingOrchestrator
+from app.services.preprocessing.orchestrator import PreprocessingOrchestrator
 
 logger = logging.getLogger(__name__)
 

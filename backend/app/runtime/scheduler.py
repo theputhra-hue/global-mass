@@ -20,7 +20,7 @@ from app.core.leader_lock import LeaderLock
 from app.db.postgres import async_session_maker
 from app.db.redis_client import redis_client
 from app.models.pipeline import JobTypeEnum
-from app.services.collection_orchestrator import orchestrator
+from app.services.collection.orchestrator import orchestrator
 from app.services.pipeline.jobs import JobAlreadyRunning, run_job
 
 logger = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
-from app.services.eval.dataset import DatasetError, canonical_json
+from app.services.research.evaluation.dataset import DatasetError, canonical_json
 
 COLORS = ("#2563eb", "#db2777", "#059669", "#d97706", "#7c3aed", "#0891b2", "#475569")
 

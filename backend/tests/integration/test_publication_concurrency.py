@@ -15,7 +15,7 @@ from app.models.publication import (
     PublishedRelationshipRow,
 )
 from app.schemas.publication import PublicationSnapshot
-from app.services.publication_store import activate
+from app.services.publications.store import activate
 from tests.test_publication_contract import snapshot_payload
 
 pytestmark = pytest.mark.integration

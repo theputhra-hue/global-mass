@@ -1,6 +1,6 @@
 """Tests for the propagation sandbox model (pure logic)."""
 
-from app.services.simulate import simulate_cascade
+from app.services.experiments.simulate import simulate_cascade
 
 CHAIN = {"a": ["b"], "b": ["c"], "c": ["d"]}
 

@@ -5,7 +5,7 @@ import httpx
 
 from app.core.config import get_settings
 from app.models.source import Source
-from app.services.collectors.base import (
+from app.services.collection.collectors.base import (
     BaseCollector,
     MissingCredentialsError,
     RawArticle,

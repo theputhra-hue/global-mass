@@ -8,11 +8,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.ml.embedding_service import EmbeddingService
+from app.ml.entity_extractor import EntityExtractor
+from app.ml.llm_client import LLMClient, get_llm_client
 from app.models.article import Article, NLPStatusEnum
 from app.models.claim import Claim, ClaimEntity
-from app.services.nlp.embedding_service import EmbeddingService
-from app.services.nlp.entity_extractor import EntityExtractor
-from app.services.nlp.llm_client import LLMClient, get_llm_client
 from app.services.pipeline.ownership import (
     Stage,
     claim_articles,

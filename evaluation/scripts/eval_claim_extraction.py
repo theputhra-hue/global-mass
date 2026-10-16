@@ -57,7 +57,7 @@ def load_examples(dataset: str, path: Path, sample_size: int, seed: int) -> tupl
 
 async def evaluate(dataset: str, data_path: str, sample_size: int, seed: int = 1729) -> dict[str, Any]:
     examples, digest = load_examples(dataset, Path(data_path), sample_size, seed)
-    from app.services.nlp.llm_client import HuggingFaceLLMClient
+    from app.ml.llm_client import HuggingFaceLLMClient
 
     client = HuggingFaceLLMClient()
     predictions = []

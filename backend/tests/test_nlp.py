@@ -2,11 +2,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.ml.llm_client import ExtractedClaim
 from app.models.article import Article, NLPStatusEnum, ProcessingStatusEnum
 from app.models.claim import Claim
 from app.models.source import Source, SourceTypeEnum
-from app.services.nlp.llm_client import ExtractedClaim
-from app.services.nlp_orchestrator import NLPOrchestrator
+from app.services.analysis.orchestrator import NLPOrchestrator
 
 pytestmark = pytest.mark.asyncio
 
@@ -44,8 +44,8 @@ async def test_nlp_orchestrator_success(db_session, mock_llm_client):
     orchestrator = NLPOrchestrator(llm_client=mock_llm_client)
     
     # Mock entity and embedding extraction to avoid loading heavy models during tests
-    with patch("app.services.nlp.entity_extractor.EntityExtractor.extract_entities") as mock_ner, \
-         patch("app.services.nlp.embedding_service.EmbeddingService.generate_embedding") as mock_embed:
+    with patch("app.ml.entity_extractor.EntityExtractor.extract_entities") as mock_ner, \
+         patch("app.ml.embedding_service.EmbeddingService.generate_embedding") as mock_embed:
         
         mock_ner.return_value = []
         mock_embed.return_value = [0.1] * 768
@@ -94,7 +94,7 @@ async def test_nlp_orchestrator_empty_claims(db_session, mock_llm_client):
     mock_llm_client.extract_claims.return_value = []
     
     orchestrator = NLPOrchestrator(llm_client=mock_llm_client)
-    with patch("app.services.nlp.embedding_service.EmbeddingService.generate_document_embedding",
+    with patch("app.ml.embedding_service.EmbeddingService.generate_document_embedding",
                return_value=[0.1] * 768):
         summary = await orchestrator.run_nlp_cycle(db_session, chain_evolution=False)
     
@@ -131,8 +131,8 @@ async def test_nlp_orchestrator_failure_recovery(db_session, mock_llm_client):
     
     orchestrator = NLPOrchestrator(llm_client=mock_llm_client)
     
-    with patch("app.services.nlp.entity_extractor.EntityExtractor.extract_entities") as mock_ner, \
-         patch("app.services.nlp.embedding_service.EmbeddingService.generate_embedding") as mock_embed:
+    with patch("app.ml.entity_extractor.EntityExtractor.extract_entities") as mock_ner, \
+         patch("app.ml.embedding_service.EmbeddingService.generate_embedding") as mock_embed:
         mock_ner.return_value = []
         mock_embed.return_value = [0.1] * 768
         summary = await orchestrator.run_nlp_cycle(db_session)
@@ -162,8 +162,8 @@ async def test_nlp_orchestrator_cost_cap(db_session, mock_llm_client):
     orchestrator = NLPOrchestrator(llm_client=mock_llm_client)
     orchestrator.max_articles = 10  # Explicitly set
     
-    with patch("app.services.nlp.entity_extractor.EntityExtractor.extract_entities") as mock_ner, \
-         patch("app.services.nlp.embedding_service.EmbeddingService.generate_embedding") as mock_embed:
+    with patch("app.ml.entity_extractor.EntityExtractor.extract_entities") as mock_ner, \
+         patch("app.ml.embedding_service.EmbeddingService.generate_embedding") as mock_embed:
         mock_ner.return_value = []
         mock_embed.return_value = [0.1] * 768
         summary = await orchestrator.run_nlp_cycle(db_session)

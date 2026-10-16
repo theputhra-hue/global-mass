@@ -23,8 +23,8 @@ from typing import Any
 
 import numpy as np
 
-from app.services.eval.annotation import MUTATION_TYPES
-from app.services.eval.dataset import (
+from app.services.research.evaluation.annotation import MUTATION_TYPES
+from app.services.research.evaluation.dataset import (
     POSITIVE_LABELS,
     SPLITS,
     DatasetError,
@@ -32,9 +32,12 @@ from app.services.eval.dataset import (
     records_bytes,
     validate_dataset,
 )
-from app.services.eval.features import lexical_jaccard
-from app.services.eval.grounding import grounding_evaluation, grounding_prediction
-from app.services.eval.metrics import (
+from app.services.research.evaluation.features import lexical_jaccard
+from app.services.research.evaluation.grounding import (
+    grounding_evaluation,
+    grounding_prediction,
+)
+from app.services.research.evaluation.metrics import (
     auroc,
     average_precision,
     best_f1_threshold,
@@ -43,7 +46,7 @@ from app.services.eval.metrics import (
     precision_recall_curve,
     reliability_bins,
 )
-from app.services.eval.selective import (
+from app.services.research.evaluation.selective import (
     apply_abstention_policy,
     binary_log_loss,
     prediction_confidences,
@@ -119,10 +122,13 @@ def environment_versions() -> dict[str, str]:
 
 
 def source_hashes() -> dict[str, str]:
-    backend = Path(__file__).resolve().parents[3]
-    paths = [f"app/services/eval/{name}.py" for name in ("research", "dataset", "features", "provenance", "annotation", "metrics", "artifacts", "selective", "grounding")]
+    module = Path(__file__).resolve()
+    backend = module.parents[4]
+    package = module.parent.relative_to(backend).as_posix()
+    paths = [f"{package}/{name}.py" for name in ("research", "dataset", "features", "provenance", "annotation", "metrics", "artifacts", "selective", "grounding")]
     paths += ["app/services/verdict/mutation_diff.py", "app/services/evolution/text_changes.py", "app/services/evolution/quantities.py", "scripts/run_research_experiment.py", "scripts/export_research_dataset.py"]
-    return {name: hashlib.sha256((backend / name).read_bytes()).hexdigest() for name in paths if (backend / name).is_file()}
+    # A missing source must fail the experiment, never silently weaken provenance.
+    return {name: hashlib.sha256((backend / name).read_bytes()).hexdigest() for name in paths}
 
 
 def binary_metrics(scores: list[float], labels: list[bool], threshold: float, calibrated: bool) -> dict[str, Any]:

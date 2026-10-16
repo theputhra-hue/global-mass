@@ -337,7 +337,7 @@ async def test_unavailable_nli_propagates_not_fake_neutral_or_support(monkeypatc
 
 @pytest.mark.asyncio
 async def test_embedding_unavailable_uses_disclosed_keyword_retrieval(monkeypatch):
-    from app.services.nlp.embedding_service import EmbeddingService
+    from app.ml.embedding_service import EmbeddingService
 
     generate = Mock(side_effect=RuntimeError("not loaded"))
     load = Mock(side_effect=AssertionError("must not load on request"))

@@ -13,9 +13,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db.postgres import async_session_maker
-from app.services.nlp.embedding_service import EmbeddingService
-from app.services.nlp.entity_extractor import EntityExtractor
-from app.services.nlp_orchestrator import NLPOrchestrator
+from app.ml.embedding_service import EmbeddingService
+from app.ml.entity_extractor import EntityExtractor
+from app.services.analysis.orchestrator import NLPOrchestrator
 
 
 async def main() -> None:

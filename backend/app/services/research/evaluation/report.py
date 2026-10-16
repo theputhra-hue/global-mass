@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-from app.services.eval.metrics import (
+from app.services.research.evaluation.metrics import (
     auroc,
     average_precision,
     best_f1_threshold,
@@ -13,7 +13,7 @@ from app.services.eval.metrics import (
     f1_at_threshold,
     sweep_thresholds,
 )
-from app.services.eval.provenance import (
+from app.services.research.evaluation.provenance import (
     CONSENSUS_RULE,
     consensus,
     exploratory_consensus,

@@ -1,7 +1,7 @@
 """Explicit real-model smoke: engineering behavior, never an accuracy benchmark."""
 import pytest
 
-from app.services.nlp.llm_client import HuggingFaceLLMClient
+from app.ml.llm_client import HuggingFaceLLMClient
 from app.services.verdict.engine import classify_stance
 
 pytestmark = pytest.mark.model

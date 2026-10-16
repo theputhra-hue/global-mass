@@ -10,7 +10,7 @@ from app.api.developer_access import require_local_pipeline
 from app.models.pipeline import JobTypeEnum
 from app.models.source import Source
 from app.models.user import RoleEnum, User
-from app.services.collection_orchestrator import orchestrator
+from app.services.collection.orchestrator import orchestrator
 from app.services.pipeline.jobs import JobAlreadyRunning, latest_job, run_job
 
 router = APIRouter()

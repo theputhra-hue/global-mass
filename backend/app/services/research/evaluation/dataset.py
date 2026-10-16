@@ -19,9 +19,17 @@ from sqlalchemy.orm import aliased
 from app.models.article import Article
 from app.models.claim import Claim, ClaimEntity
 from app.models.eval import EvalPair, EvalPairLabel
-from app.services.eval.annotation import ChangedSpan, ContextRelation, validate_spans
-from app.services.eval.features import FEATURE_VERSION, entity_jaccard, lexical_jaccard
-from app.services.eval.provenance import (
+from app.services.research.evaluation.annotation import (
+    ChangedSpan,
+    ContextRelation,
+    validate_spans,
+)
+from app.services.research.evaluation.features import (
+    FEATURE_VERSION,
+    entity_jaccard,
+    lexical_jaccard,
+)
+from app.services.research.evaluation.provenance import (
     CONSENSUS_RULE,
     LABELS,
     ORIGINS,

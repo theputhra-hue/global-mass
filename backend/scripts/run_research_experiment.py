@@ -21,9 +21,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.services.eval.artifacts import write_artifacts
-from app.services.eval.dataset import DatasetError
-from app.services.eval.research import ExperimentConfig, load_jsonl, run_experiment
+from app.services.research.evaluation.artifacts import write_artifacts
+from app.services.research.evaluation.dataset import DatasetError
+from app.services.research.evaluation.research import (
+    ExperimentConfig,
+    load_jsonl,
+    run_experiment,
+)
 
 
 def main(argv: list[str] | None = None) -> int:

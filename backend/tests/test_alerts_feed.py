@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from sqlalchemy import select, text
 
 from app.models.evolution import Alert
-from app.services.alerts import _upsert_alert, evaluate_alerts
+from app.services.operations.alerts import _upsert_alert, evaluate_alerts
 
 
 async def _seed_alert(

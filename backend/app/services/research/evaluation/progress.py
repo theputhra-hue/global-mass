@@ -6,8 +6,8 @@ from collections import Counter, defaultdict
 from itertools import combinations
 from typing import Any
 
-from app.services.eval.metrics import cohen_kappa
-from app.services.eval.provenance import (
+from app.services.research.evaluation.metrics import cohen_kappa
+from app.services.research.evaluation.provenance import (
     ORIGINS,
     human_identity,
     origin_counts,

@@ -20,7 +20,7 @@ from app.models.publication import (
 from app.models.publication import (
     PublishedRelationshipRow as Edge,
 )
-from app.services.publication_store import status
+from app.services.publications.store import status
 
 router = APIRouter()
 

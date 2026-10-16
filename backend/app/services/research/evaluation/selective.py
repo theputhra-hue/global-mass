@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from app.services.eval.dataset import DatasetError
+from app.services.research.evaluation.dataset import DatasetError
 
 
 def binary_log_loss(probabilities: list[float], labels: list[bool]) -> float | None:

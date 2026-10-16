@@ -13,8 +13,8 @@ from app.models.claim import Claim
 from app.models.eval import EvalPair
 from app.models.source import Source, SourceTypeEnum
 from app.models.user import RoleEnum, User
-from app.services.eval.dataset import SCHEMA_VERSION
-from app.services.eval.provenance import origin_counts, pair_consensus
+from app.services.research.evaluation.dataset import SCHEMA_VERSION
+from app.services.research.evaluation.provenance import origin_counts, pair_consensus
 
 
 def fixture_user_id(index: int) -> uuid.UUID:
