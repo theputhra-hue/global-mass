@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { Menu, X, Home, Compass, GitCompare, Bookmark, Wrench, Shield } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { ResolvedAppRoute } from '../../../shared/navigation/registry';
@@ -6,6 +6,7 @@ import { publicationsApi } from '../../../shared/api/publications';
 import { useSession } from '../../../shared/session/session';
 import { AccountPanel } from '../../account/components/AccountPanel';
 import { findTool } from '../../../shared/navigation/registry';
+import { Dialog } from '../../../shared/ui/Dialog';
 
 interface WorkspaceMobileHeaderProps {
   route: ResolvedAppRoute;
@@ -14,7 +15,7 @@ interface WorkspaceMobileHeaderProps {
 export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
   const { user, revision } = useSession();
 
   const access = useQuery({
@@ -63,25 +64,14 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
   const isTools = route.kind === 'tools' || (route.kind === 'advanced' && !['fullgraph', 'corpus', 'casebook'].includes(route.tab));
   const isDev = route.kind === 'developer' || route.kind === 'upload';
 
-  // Keyboard Escape listener & focus management
+  // A drawer opened on mobile must not remain over the desktop navigation.
   useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setIsOpen(false);
-        menuButtonRef.current?.focus();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    closeButtonRef.current?.focus();
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
+    if (!window.matchMedia) return;
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const closeOnDesktop = () => { if (desktop.matches) setIsOpen(false); };
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => desktop.removeEventListener('change', closeOnDesktop);
+  }, []);
 
   const closeMenu = () => {
     setIsOpen(false);
@@ -96,6 +86,7 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
     }`;
 
   return (
+    <>
     <header className="lg:hidden border-b border-hermes-bone/15 bg-hermes-ink/95 backdrop-blur-sm sticky top-0 z-30 px-4 py-3 flex items-center justify-between gap-3">
       {/* Menu button + Current section */}
       <div className="flex items-center gap-3 min-w-0">
@@ -121,16 +112,18 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
       <div className="shrink-0">
         <AccountPanel />
       </div>
+    </header>
 
       {/* Mobile Drawer Modal */}
       {isOpen && (
-        <div
+        <Dialog
           id="mobile-navigation-drawer"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Navigation menu"
-          className="fixed inset-0 z-50 flex flex-col bg-hermes-ink/95 text-hermes-bone font-mono backdrop-blur-md p-5 overflow-y-auto"
+          labelledBy={titleId}
+          onClose={closeMenu}
+          backdropClassName="fixed inset-0 z-50 bg-hermes-ink"
+          className="h-full w-full flex flex-col bg-hermes-ink text-hermes-bone font-mono p-5 overflow-y-auto overscroll-contain outline-none"
         >
+          <h2 id={titleId} className="sr-only">Navigation menu</h2>
           {/* Drawer Header */}
           <div className="flex items-center justify-between pb-4 border-b border-hermes-bone/15 mb-6">
             <div>
@@ -138,7 +131,6 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
               <p className="text-[10px] uppercase tracking-widest text-hermes-bone/60">News &amp; claim research</p>
             </div>
             <button
-              ref={closeButtonRef}
               type="button"
               onClick={closeMenu}
               aria-label="Close navigation menu"
@@ -209,8 +201,8 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
           <div className="pt-5 border-t border-hermes-bone/15 mt-6 text-xs text-hermes-bone/50 space-y-2">
             <p>Sources first · Claims are extracted statements, not certified facts.</p>
           </div>
-        </div>
+        </Dialog>
       )}
-    </header>
+    </>
   );
 }

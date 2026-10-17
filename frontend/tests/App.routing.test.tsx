@@ -59,7 +59,7 @@ describe('dashboard sign-in boundary', () => {
     signInFixture();
     window.history.replaceState(null, '', '/#/dashboard/tools');
     renderWithClient(<App />);
-    expect(screen.getByRole('heading', { name: 'Tools & guides' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Advanced tools' })).toBeTruthy();
     const homeLinks = screen.getAllByRole('link', { name: 'Home' });
     expect(homeLinks.length).toBeGreaterThan(0);
     expect(homeLinks[0].getAttribute('href')).toBe('#/dashboard');

@@ -3,13 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, Search, ExternalLink } from 'lucide-react';
 import { fetchDashboard } from '../../../shared/api/dashboard';
 import { corpusApi } from '../../../shared/api/corpus';
-import { ReaderNavigation } from '../../navigation/components/ReaderNavigation';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { MutationComparator } from '../../comparison/components/MutationComparator';
 import { FactCheck } from '../../claims/components/FactCheck';
 import { safeHttpUrl } from '../../../shared/lib/urls';
 import { articleHref, navigateHash } from '../../../shared/navigation/articleRoutes';
-import { PublicationNotice, usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
+import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { PublishedClaimSearch } from '../../claims/components/PublishedClaimSearch';
 import { HomeOrientation } from '../components/HomeOrientation';
 
@@ -19,25 +18,24 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
   const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const [draft, setDraft] = useState(params.get('q') || '');
   const [search, setSearch] = useState(params.get('q') || '');
+  const [domainDraft, setDomainDraft] = useState(params.get('domain') || '');
+  const [domain, setDomain] = useState(params.get('domain') || '');
   const initialOffset = Number(params.get('offset') || 0);
   const [offset, setOffset] = useState(Number.isSafeInteger(initialOffset) && initialOffset >= 0 ? initialOffset : 0);
   const home = view === 'home';
-  const browsing = home || view === 'browse';
-  const resultPath = `#/dashboard${home ? '' : `/${view}`}`;
-  const resultsHref = `${resultPath}?${new URLSearchParams({ q: search, offset: String(offset) })}`;
+  const browsing = view === 'browse';
+  const resultPath = '#/dashboard/browse';
+  const searchParams = (query: string, source: string, page: number) => new URLSearchParams({ q: query, ...(source ? { domain: source } : {}), offset: String(page) });
+  const resultsHref = `${resultPath}?${searchParams(search, domain, offset)}`;
   const summary = useQuery({ queryKey: ['dashboard'], queryFn: ({ signal }) => fetchDashboard({ signal }), staleTime: 60_000, enabled: browsing && !cloud });
-  const articles = useQuery({ queryKey: ['reader-articles', search, offset], queryFn: ({ signal }) => corpusApi.list({ q: search, limit: 6, offset }, { signal }), enabled: browsing });
+  const articles = useQuery({ queryKey: ['reader-articles', search, domain, offset], queryFn: ({ signal }) => corpusApi.list({ q: search, domain, limit: 6, offset }, { signal }), enabled: browsing });
   const number = (value?: number) => value === undefined ? '—' : value.toLocaleString();
-  function move(nextQuery: string, nextOffset: number) {
-    setSearch(nextQuery); setOffset(nextOffset);
-    navigateHash(`${resultPath}?${new URLSearchParams({ q: nextQuery, offset: String(nextOffset) })}`);
+  function move(nextQuery: string, nextOffset: number, nextDomain = domain) {
+    setSearch(nextQuery); setOffset(nextOffset); setDomain(nextDomain);
+    navigateHash(`${resultPath}?${searchParams(nextQuery, nextDomain, nextOffset)}`);
   }
-  function submit(event: FormEvent) { event.preventDefault(); move(draft.trim(), 0); }
-  return <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate">
-    <div className="fixed inset-0 -z-10 pointer-events-none grain-overlay" aria-hidden="true" />
-    <ReaderNavigation active={view} />
-    <PublicationNotice />
-    <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-8 space-y-6 outline-none">
+  function submit(event: FormEvent) { event.preventDefault(); move(draft.trim(), 0, domainDraft.trim()); }
+  return <div className="space-y-6 min-w-0">
       {home ? (
         <HomeOrientation />
       ) : (
@@ -49,7 +47,17 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
       )}
       {browsing && <>
         <section aria-label="Find articles" className="card-brutal-dark p-5 md:p-7 space-y-4">
-          <form onSubmit={submit} className="space-y-3"><label htmlFor="reader-search" className="block text-sm">Search article titles or authors</label><div className="flex flex-col sm:flex-row gap-3"><input id="reader-search" value={draft} onChange={event => setDraft(event.target.value)} placeholder="Try a place, a name, or words from a headline" className="field-brutal min-w-0 w-full flex-1 !py-4" /><button className="btn-brutal" aria-label="Search articles"><Search className="w-4 h-4" />Search articles</button></div></form>
+          <form onSubmit={submit} className="space-y-4">
+            <label htmlFor="reader-search" className="block text-sm">Search article titles or authors</label>
+            <input id="reader-search" maxLength={300} value={draft} onChange={event => setDraft(event.target.value)} placeholder="Try a place, a name, or words from a headline" className="field-brutal min-w-0 w-full !py-4" />
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1 min-w-0 space-y-2">
+                <label htmlFor="reader-domain" className="block text-xs">Source domain (optional)</label>
+                <input id="reader-domain" maxLength={253} value={domainDraft} onChange={event => setDomainDraft(event.target.value)} placeholder="e.g. www.thehindu.com" className="field-brutal w-full" />
+              </div>
+              <button className="btn-brutal" aria-label="Search articles"><Search className="w-4 h-4" />Search articles</button>
+            </div>
+          </form>
           <p className="text-xs text-hermes-bone/55">Title and author matching · {cloud ? 'Published collection' : 'Available local collection'} · No new analysis is started</p>
           <details className="border-t border-hermes-bone/15 pt-4"><summary className="text-xs cursor-pointer">How do I use these results?</summary><ol className="list-decimal pl-5 mt-4 space-y-3 text-xs leading-relaxed text-hermes-bone/65"><li>Choose a headline and open its details.</li><li>Read the source and publication date, then inspect the extracted claims.</li><li>Follow the original source for full context. Claims and model assessments are not verified facts.</li></ol></details>
         </section>
@@ -62,7 +70,8 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
         )}
         {!cloud && summary.isError && <QueryError title="Collection summary unavailable" error={summary.error} onRetry={() => summary.refetch()} />}
         <section aria-labelledby="article-heading" className="space-y-5">
-          <div className="flex flex-wrap items-end justify-between gap-3"><h2 id="article-heading" className="font-display text-3xl">{search ? `Results for “${search}”` : 'Browse the collection'}</h2>{search && <button onClick={() => { setDraft(''); move('', 0); }} className="text-xs underline underline-offset-4">Clear search</button>}</div>
+          <div className="flex flex-wrap items-end justify-between gap-3"><h2 id="article-heading" className="font-display text-3xl">{search ? `Results for “${search}”` : 'Browse the collection'}</h2>{(search || domain) && <button onClick={() => { setDraft(''); setDomainDraft(''); move('', 0, ''); }} className="text-xs underline underline-offset-4">Clear search</button>}</div>
+          {domain && <p className="text-xs text-hermes-bone/70 break-words">Source filter: {domain}</p>}
           <p className="text-xs text-hermes-bone/55">Collected coverage may include older reporting. Check the publication date.</p>
           {articles.isFetching && <p role="status" className="text-sm">Loading articles…</p>}
           {articles.isError && <QueryError title="Articles unavailable" error={articles.error} onRetry={() => articles.refetch()} />}
@@ -77,7 +86,6 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
       </>}
       {view === 'compare' && <MutationComparator />}
       {view === 'check' && (cloud ? <PublishedClaimSearch /> : <FactCheck />)}
-      {!browsing && <a href="#/dashboard" className="inline-flex items-center gap-2 text-xs underline underline-offset-4">Return to article search <ArrowRight className="w-3 h-3" /></a>}
-    </main>
+      {!browsing && !home && <a href="#/dashboard/browse" className="inline-flex items-center gap-2 text-xs underline underline-offset-4">Return to article search <ArrowRight className="w-3 h-3" /></a>}
   </div>;
 }

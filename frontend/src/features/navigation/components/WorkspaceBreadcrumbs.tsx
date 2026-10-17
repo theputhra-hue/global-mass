@@ -1,6 +1,9 @@
 import { ChevronRight } from 'lucide-react';
 import type { ResolvedAppRoute } from '../../../shared/navigation/registry';
 import { findTool } from '../../../shared/navigation/registry';
+import { useQuery } from '@tanstack/react-query';
+import { articlesApi } from '../../../shared/api/articles';
+import { articleHref, isUuid } from '../../../shared/navigation/articleRoutes';
 
 interface BreadcrumbsProps {
   route: ResolvedAppRoute;
@@ -9,6 +12,16 @@ interface BreadcrumbsProps {
 }
 
 export function WorkspaceBreadcrumbs({ route, articleTitle, articleTab }: BreadcrumbsProps) {
+  const detail = route.kind === 'article' ? route.detail : null;
+  // Share the investigation query and cache; do not fetch a second title resource.
+  const article = useQuery({
+    queryKey: ['article-detail', detail?.id || ''],
+    queryFn: ({ signal }) => articlesApi.detail(detail!.id, { signal }),
+    enabled: Boolean(detail?.valid && (!detail.claim || isUuid(detail.claim)) && !articleTitle),
+    staleTime: 30_000,
+  });
+  const title = articleTitle || article.data?.title;
+  const selectedTab = articleTab || detail?.tab;
   const items: Array<{ label: string; href?: string }> = [
     { label: 'Home', href: '#/dashboard' },
   ];
@@ -29,12 +42,12 @@ export function WorkspaceBreadcrumbs({ route, articleTitle, articleTab }: Breadc
   } else if (route.kind === 'article') {
     items.push({ label: 'Explore data', href: '#/dashboard/browse' });
     items.push({ label: 'Articles', href: '#/dashboard/browse' });
-    if (articleTitle) {
-      items.push({ label: articleTitle.length > 35 ? `${articleTitle.slice(0, 32)}…` : articleTitle });
+    if (title) {
+      items.push({ label: title, href: articleHref(route.detail.id, 'overview', { back: route.detail.back }) });
     } else {
       items.push({ label: 'Article' });
     }
-    if (articleTab && articleTab !== 'overview') {
+    if (selectedTab && selectedTab !== 'overview') {
       const tabNames: Record<string, string> = {
         article: 'Article text',
         claims: 'Claims',
@@ -45,7 +58,7 @@ export function WorkspaceBreadcrumbs({ route, articleTitle, articleTab }: Breadc
         graph: 'Graph',
         methods: 'Data & methods',
       };
-      items.push({ label: tabNames[articleTab] || articleTab });
+      items.push({ label: tabNames[selectedTab] || selectedTab });
     }
   } else if (route.kind === 'tools') {
     items.push({ label: 'Advanced tools' });
@@ -75,7 +88,7 @@ export function WorkspaceBreadcrumbs({ route, articleTitle, articleTab }: Breadc
       {items.map((item, index) => {
         const isLast = index === items.length - 1;
         return (
-          <span key={index} className="inline-flex items-center gap-1">
+          <span key={index} className="inline-flex items-center gap-1 min-w-0 max-w-full break-words">
             {index > 0 && <ChevronRight className="w-3 h-3 text-hermes-bone/30 shrink-0" aria-hidden="true" />}
             {isLast || !item.href ? (
               <span className={isLast ? 'text-hermes-bone font-medium' : 'text-hermes-bone/70'} aria-current={isLast ? 'page' : undefined}>

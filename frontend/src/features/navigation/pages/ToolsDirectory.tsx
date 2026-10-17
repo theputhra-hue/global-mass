@@ -50,7 +50,7 @@ export function ToolsDirectory() {
         <p className="text-[10px] uppercase tracking-widest text-hermes-red-bright font-mono">
           Specialist tools directory
         </p>
-        <h1 aria-label="Tools &amp; guides" className="font-display text-4xl md:text-5xl">
+        <h1 className="font-display text-4xl md:text-5xl">
           Advanced tools
         </h1>
         <p className="text-sm leading-relaxed text-hermes-bone/70">

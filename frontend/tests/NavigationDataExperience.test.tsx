@@ -151,7 +151,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
       expect(screen.getByRole('dialog', { name: 'Navigation menu' })).toBeTruthy();
 
       // Close drawer via Escape key
-      fireEvent.keyDown(window, { key: 'Escape' });
+      fireEvent.keyDown(document, { key: 'Escape' });
       await waitFor(() => {
         expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).toBeNull();
       });
@@ -316,7 +316,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
       window.history.replaceState(null, '', '/#/dashboard/tools');
       renderApp();
 
-      expect(screen.getByRole('heading', { name: 'Tools & guides' })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Advanced tools' })).toBeTruthy();
       expect(screen.getByText('Explore the collection')).toBeTruthy();
       expect(screen.getByText('Compare & keep research notes')).toBeTruthy();
     });

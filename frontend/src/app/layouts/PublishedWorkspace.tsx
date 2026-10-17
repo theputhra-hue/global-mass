@@ -6,7 +6,6 @@ import FullCorpusGraph from '../../features/graph/components/FullCorpusGraph';
 import { ReaderDashboard } from '../../features/articles/pages/ReaderDashboard';
 import { usePublicationRuntime } from '../../shared/runtime/publicationRuntime';
 import { PublishedClaimSearch } from '../../features/claims/components/PublishedClaimSearch';
-import { ToolsDirectory } from '../../features/navigation/pages/ToolsDirectory';
 import { ToolAvailabilityNotice } from '../../features/navigation/components/ToolAvailabilityNotice';
 
 export function PublishedWorkspace({ tab }: { tab: string }) {
@@ -14,8 +13,7 @@ export function PublishedWorkspace({ tab }: { tab: string }) {
   const [seed, setSeed] = useState<MutationComparisonInput | null>(null);
   const [investigating, setInvestigating] = useState(false);
 
-  if (['corpus', 'vector'].includes(tab)) return <ReaderDashboard view="browse" />;
-  if (tab === 'overview') return <ToolsDirectory />;
+  if (tab === 'corpus') return <ReaderDashboard view="browse" />;
 
   return (
     <div className="space-y-6">

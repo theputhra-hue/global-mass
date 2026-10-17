@@ -4,7 +4,6 @@ import { Activity, ArrowRight, Database, Play, RefreshCw, Upload } from 'lucide-
 import { developerApi, type DeveloperRunResult, type PipelineStage } from '../../../shared/api/developer';
 import { publicationsApi } from '../../../shared/api/publications';
 import { useSession } from '../../../shared/session/session';
-import { AccountPanel } from '../../account/components/AccountPanel';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { LocalPublicationExport } from '../../publishing/components/LocalPublicationExport';
 
@@ -51,9 +50,7 @@ export function DeveloperConsole() {
     {!data?.jobs.length && <p className="text-sm">No runs recorded yet.</p>}
     <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="border-b border-hermes-bone/20"><th className="py-3 pr-4">Stage</th><th className="pr-4">Status</th><th className="pr-4">Started</th><th>Finished / heartbeat</th></tr></thead><tbody>{data?.jobs.map(job => <tr key={job.id} className="border-b border-hermes-bone/10"><td className="py-4 pr-4 uppercase">{job.type}</td><td className="pr-4">{job.status}{job.has_error && ' · inspect local logs'}</td><td className="pr-4 whitespace-nowrap">{date(job.started_at)}</td><td className="whitespace-nowrap">{date(job.finished_at || job.heartbeat_at)}</td></tr>)}</tbody></table></div>
   </section>;
-  return <main className="min-h-screen bg-hermes-ink text-hermes-bone font-mono">
-    <header className="border-b border-hermes-bone/20 px-4 md:px-8 py-5 flex flex-wrap justify-between gap-4 items-center"><a href="#/dashboard" className="font-display text-3xl">GMEE <span className="font-mono text-[10px] tracking-widest ml-2">DEVELOPER CONSOLE</span></a><div className="flex gap-3"><a href="#/dashboard" className="btn-outline-dark">Reader workspace</a><AccountPanel /></div></header>
-    <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-7">
+  return <div className="space-y-7 min-w-0">
       <section className="flex flex-wrap justify-between items-end gap-5"><div><p className="text-xs text-hermes-red-bright uppercase tracking-widest mb-3">Research operations / approved developers</p><h1 className="font-display text-4xl md:text-5xl">From coverage to evidence.</h1><p className="text-sm text-hermes-bone/65 mt-4 max-w-2xl">Gather, prepare, analyze and review your collection. Publish only completed results with traceable provenance.</p></div>{access.data?.allowed && <button className="btn-outline-dark" disabled={overview.isFetching} onClick={() => void overview.refetch()}><RefreshCw className="w-4 h-4" /> Refresh status</button>}</section>
       {access.isLoading && <p role="status">Checking developer access…</p>}
       {access.isError && <QueryError title="Developer access unavailable" error={access.error} onRetry={() => access.refetch()} />}
@@ -88,6 +85,5 @@ export function DeveloperConsole() {
           {tab === 'Publishing' && <><LocalPublicationExport /><section className="card-brutal-dark p-6 space-y-5"><h2 className="font-display text-3xl">Publish on the live website</h2><ol className="list-decimal pl-5 space-y-3 text-sm text-hermes-bone/70"><li>Review completed analysis and download the publication file above.</li><li>Sign in to the live website with your approved developer account.</li><li>Upload the exact file, review the release and confirm Publish.</li><li>Verify the publication date and articles in the reader workspace.</li></ol><a href="https://global-mass.onrender.com/#/dashboard/upload" target="_blank" rel="noopener noreferrer" className="btn-brutal inline-flex"><Upload className="w-4 h-4" /> Open live publishing workspace</a><p className="text-sm">Keep the downloaded file for safe retries. A failed upload or publish leaves the previous complete release visible.</p></section></>}
         </>}
       </>}
-    </div>
-  </main>;
+  </div>;
 }

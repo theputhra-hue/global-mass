@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { publicationsApi, type PublicationReview, type UploadReceipt } from '../../../shared/api/publications';
-import { AccountPanel } from '../../account/components/AccountPanel';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { useSession } from '../../../shared/session/session';
 
@@ -44,11 +43,7 @@ export function DeveloperUpload() {
     } catch (failure) { setError(failure); }
     finally { setPending(false); }
   }
-  return <main className="min-h-screen bg-hermes-ink text-hermes-bone font-mono p-4 md:p-8">
-    <header className="flex flex-wrap justify-between items-center gap-4 border-b border-hermes-bone/20 pb-5">
-      <a href="#/dashboard" className="btn-outline-dark">Back to dashboard</a><AccountPanel />
-    </header>
-    <div className="max-w-3xl mx-auto py-10 space-y-6">
+  return <div className="max-w-3xl space-y-6">
       <p className="text-xs uppercase tracking-widest text-hermes-red-bright">Developer workspace</p>
       <h1 className="font-display text-4xl">Upload analysis</h1>
       {access.isLoading && <p role="status">Checking developer access…</p>}
@@ -88,6 +83,5 @@ export function DeveloperUpload() {
           {history.data?.items.map(item => <article key={item.run_id} className="card-brutal-dark p-4 text-sm space-y-2"><p>{new Date(item.uploaded_at).toLocaleString()} · Uploaded</p><p>{item.articles} articles · {item.claims} claims · {item.relationships} relationships</p><p className="break-all text-xs text-hermes-bone/60">Run: {item.run_id}</p><button className="btn-outline-dark" disabled={pending} onClick={() => void openReview(item.run_id)}>Review / publish this release</button></article>)}
         </section>
       </>}
-    </div>
-  </main>;
+  </div>;
 }

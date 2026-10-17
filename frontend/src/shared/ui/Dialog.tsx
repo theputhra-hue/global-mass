@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 interface DialogProps {
+  id?: string;
   labelledBy: string;
   onClose: () => void;
   children: ReactNode;
@@ -13,8 +14,9 @@ interface DialogProps {
 // front dialog handles keyboard events, and scrolling stays locked until all close.
 const openDialogs: HTMLElement[] = [];
 let originalBodyOverflow = '';
+const isolatedElements = new Map<Element, { count: number; original: string | null }>();
 
-export function Dialog({ labelledBy, onClose, children, className, backdropClassName }: DialogProps) {
+export function Dialog({ id, labelledBy, onClose, children, className, backdropClassName }: DialogProps) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -26,6 +28,16 @@ export function Dialog({ labelledBy, onClose, children, className, backdropClass
     if (openDialogs.length === 0) originalBodyOverflow = document.body.style.overflow;
     openDialogs.push(element);
     document.body.style.overflow = 'hidden';
+    // Isolate the application (and any older portal) while this dialog is open.
+    // Preserve previous values so nested dialogs restore the earlier modal.
+    const backdrop = element.parentElement;
+    const siblings = Array.from(document.body.children).filter(node => node !== backdrop);
+    siblings.forEach(node => {
+      const state = isolatedElements.get(node) || { count: 0, original: node.getAttribute('inert') };
+      state.count += 1;
+      isolatedElements.set(node, state);
+      node.setAttribute('inert', '');
+    });
     element.focus();
     const onKey = (event: KeyboardEvent) => {
       if (openDialogs[openDialogs.length - 1] !== element) return;
@@ -59,6 +71,13 @@ export function Dialog({ labelledBy, onClose, children, className, backdropClass
       const index = openDialogs.indexOf(element);
       if (index >= 0) openDialogs.splice(index, 1);
       if (openDialogs.length === 0) document.body.style.overflow = originalBodyOverflow;
+      siblings.forEach(node => {
+        const state = isolatedElements.get(node);
+        if (!state || --state.count > 0) return;
+        if (state.original === null) node.removeAttribute('inert');
+        else node.setAttribute('inert', state.original);
+        isolatedElements.delete(node);
+      });
       if (wasTopmost && previousFocus?.isConnected) previousFocus.focus();
     };
   }, []);
@@ -70,6 +89,7 @@ export function Dialog({ labelledBy, onClose, children, className, backdropClass
     >
       <div
         ref={ref}
+        id={id}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}

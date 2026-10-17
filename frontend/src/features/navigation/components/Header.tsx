@@ -3,11 +3,13 @@ import { Activity, RefreshCw, Layers, Database, Network, HardDrive, FlaskConical
 import { AsciiSpinner } from '../../../shared/ui/decorative/AsciiSpinner';
 import { AccountPanel } from '../../account/components/AccountPanel';
 import { useDocumentVisible } from '../../../shared/hooks/polling';
+import { findTool, ADVANCED_TOOL_IDS } from '../../../shared/navigation/registry';
 
 import type { TabType } from '../../../shared/navigation/tabs';
 export type { TabType } from '../../../shared/navigation/tabs';
 
 interface HeaderProps {
+  embedded?: boolean;
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   refetchInterval: number;
@@ -60,10 +62,33 @@ export const Header: React.FC<HeaderProps> = ({
   isFetching,
   onManualRefresh,
   status,
-  demoMode = false
+  demoMode = false,
+  embedded = false
 }) => {
   const statusStyle = STATUS_STYLES[status];
   const visible = useDocumentVisible();
+
+  if (embedded) return <section aria-label="Advanced tool controls" className="space-y-5 border-b border-hermes-bone/20 pb-5">
+    <div className="space-y-3">
+      <p className="text-xs uppercase tracking-widest text-hermes-red-bright">Advanced tools / local analysis workspace</p>
+      <h1 className="font-display text-4xl">{findTool(activeTab)?.label || 'Advanced tool'}</h1>
+      <a href="#/dashboard/tools" className="text-xs underline underline-offset-4">All advanced tools</a>
+    </div>
+    <div className="flex flex-wrap items-end gap-4 text-xs">
+      <label className="space-y-2"><span className="block">Switch advanced tool</span>
+        <select className="field-brutal max-w-full" value={activeTab} onChange={event => setActiveTab(event.target.value as TabType)}>
+          {ADVANCED_TOOL_IDS.map(id => <option key={id} value={id}>{findTool(id)?.label}</option>)}
+        </select>
+      </label>
+      <label className="space-y-2"><span className="block">Background polling interval</span>
+        <select className="field-brutal" value={refetchInterval} onChange={event => setRefetchInterval(Number(event.target.value))}>
+          <option value={2000}>2s live</option><option value={5000}>5s standard</option><option value={15000}>15s slow</option><option value={0}>Paused</option>
+        </select>
+      </label>
+      <button type="button" onClick={onManualRefresh} disabled={isFetching} className="btn-outline-dark" aria-label="Refresh telemetry"><RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />Refresh</button>
+      <span className={`${statusStyle.spinClass} py-3`}><span>{statusStyle.label}</span> (readiness){demoMode ? ' · Simulated telemetry' : ''}</span>
+    </div>
+  </section>;
 
   return (
     <header className="sticky top-0 z-40 -mx-4 md:-mx-8 lg:-mx-6 mb-8">

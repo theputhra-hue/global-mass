@@ -47,7 +47,7 @@ export function WorkspaceSidebar({ route }: WorkspaceSidebarProps) {
   return (
     <aside
       aria-label="Workspace navigation"
-      className="hidden lg:flex flex-col w-64 shrink-0 border-r border-hermes-bone/15 bg-hermes-ink/95 backdrop-blur-sm min-h-screen p-5 select-none"
+      className="hidden lg:flex sticky top-0 self-start h-dvh flex-col w-64 shrink-0 border-r border-hermes-bone/15 bg-hermes-ink/95 backdrop-blur-sm p-5 select-none"
     >
       {/* Brand Header */}
       <div className="pb-6 mb-4 border-b border-hermes-bone/15">
@@ -62,7 +62,7 @@ export function WorkspaceSidebar({ route }: WorkspaceSidebarProps) {
       </div>
 
       {/* Primary Navigation */}
-      <nav className="flex-1 space-y-1.5" aria-label="Primary destinations">
+      <nav className="flex-1 min-h-0 overflow-y-auto space-y-1.5" aria-label="Primary destinations">
         {/* 1. Home */}
         <a
           href="#/dashboard"

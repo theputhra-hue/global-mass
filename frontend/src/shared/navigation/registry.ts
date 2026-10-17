@@ -295,10 +295,12 @@ export const ADVANCED_TOOL_IDS = [
 
 export function findTool(identifier: string): ToolDescriptor | undefined {
   const normalized = identifier.replace(/^#\/?/, '').replace(/^dashboard\/?/, '').split('?')[0];
+  const exact = TOOL_REGISTRY.find(t =>
+    t.id === normalized || t.href === identifier.split('?')[0] ||
+    t.href === `#/${normalized}` || t.href === `#/dashboard/${normalized}`
+  );
+  if (exact) return exact;
   return TOOL_REGISTRY.find(t =>
-    t.id === normalized ||
-    t.href === `#/${normalized}` ||
-    t.href === `#/dashboard/${normalized}` ||
     t.label.toLowerCase() === normalized.toLowerCase() ||
     t.legacySynonyms.some(s => s.toLowerCase() === normalized.toLowerCase())
   );

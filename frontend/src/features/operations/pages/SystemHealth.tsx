@@ -157,13 +157,11 @@ const SystemHealthContent: React.FC = () => {
   const count = (value: number | undefined) => value === undefined ? 'unavailable' : value.toLocaleString();
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 pb-0 md:p-8 md:pb-0 lg:p-6 lg:pb-0 relative bg-hermes-ink text-hermes-bone overflow-x-clip">
-      {/* Paper grain texture — Hermes signature */}
-      <div className="fixed inset-0 z-0 pointer-events-none grain-overlay" />
-
+    <div className="space-y-6 min-w-0">
       <div className="w-full min-w-0 z-10">
         {/* Header & Controls */}
         <Header
+          embedded
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           refetchInterval={refetchInterval}

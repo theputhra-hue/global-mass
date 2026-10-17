@@ -4,7 +4,7 @@ import { Search, ArrowRight, ExternalLink, ShieldAlert } from 'lucide-react';
 import { apiClient } from '../../../shared/api/client';
 import { corpusApi } from '../../../shared/api/corpus';
 import { articlesApi, type ArticleClaim } from '../../../shared/api/articles';
-import { articleHref, navigateHash } from '../../../shared/navigation/articleRoutes';
+import { articleHref, isUuid, navigateHash } from '../../../shared/navigation/articleRoutes';
 import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { QueryError } from '../../../shared/ui/QueryError';
 
@@ -22,8 +22,10 @@ export function ClaimsWorkspace() {
   const [offset, setOffset] = useState(Number.isSafeInteger(initialOffset) && initialOffset >= 0 ? initialOffset : 0);
 
   // Local mode state
-  const [selectedArticleId, setSelectedArticleId] = useState('');
-  const [articleFilter, setArticleFilter] = useState('');
+  const requestedArticle = params.get('article') || '';
+  const [selectedArticleId, setSelectedArticleId] = useState(isUuid(requestedArticle) ? requestedArticle : '');
+  const [articleFilter, setArticleFilter] = useState(params.get('articleQuery') || '');
+  const [articleDraft, setArticleDraft] = useState(params.get('articleQuery') || '');
 
   // 1. Published cloud mode: Global claim text search
   const publishedClaims = useQuery({
@@ -58,7 +60,14 @@ export function ClaimsWorkspace() {
     enabled: !cloud && Boolean(selectedArticleId),
   });
 
-  const currentHref = `#/dashboard/claims${q || offset ? `?${new URLSearchParams({ ...(q ? { q } : {}), ...(offset ? { offset: String(offset) } : {}) })}` : ''}`;
+  function claimsHref(page: number, article = selectedArticleId, filter = articleFilter) {
+    const query = cloud ? { ...(q ? { q } : {}) } : {
+      ...(article ? { article } : {}), ...(filter ? { articleQuery: filter } : {}),
+    };
+    const searchParams = new URLSearchParams({ ...query, ...(page ? { offset: String(page) } : {}) });
+    return `#/dashboard/claims${searchParams.size ? `?${searchParams}` : ''}`;
+  }
+  const currentHref = claimsHref(offset);
 
   function submitSearch(e: FormEvent) {
     e.preventDefault();
@@ -72,10 +81,7 @@ export function ClaimsWorkspace() {
 
   function handlePageChange(nextOffset: number) {
     setOffset(nextOffset);
-    const searchParams = new URLSearchParams();
-    if (q) searchParams.set('q', q);
-    if (nextOffset > 0) searchParams.set('offset', String(nextOffset));
-    navigateHash(`#/dashboard/claims${searchParams.size ? `?${searchParams}` : ''}`);
+    navigateHash(claimsHref(nextOffset));
   }
 
   return (
@@ -171,7 +177,7 @@ export function ClaimsWorkspace() {
                           {claim.verdict && (
                             <span className="chip-brutal text-[10px]">
                               {claim.verdict}
-                              {claim.verdict_probability != null && ` · ${(claim.verdict_probability * 100).toFixed(0)}%`}
+                              {claim.verdict_probability != null && ` · heuristic support score ${claim.verdict_probability.toFixed(3)} (uncalibrated)`}
                             </span>
                           )}
                         </div>
@@ -225,14 +231,23 @@ export function ClaimsWorkspace() {
 
           {/* Article Selector */}
           <div className="card-brutal-dark p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
+            <form onSubmit={event => {
+              event.preventDefault();
+              const filter = articleDraft.trim();
+              setArticleFilter(filter); setSelectedArticleId(''); setOffset(0);
+              navigateHash(claimsHref(0, '', filter));
+            }} className="flex flex-col sm:flex-row gap-3">
+              <label htmlFor="claim-article-filter" className="sr-only">Filter articles by title or author</label>
               <input
+                id="claim-article-filter"
                 className="field-brutal flex-1 min-w-0 !py-2.5 text-xs"
                 placeholder="Filter articles by title…"
-                value={articleFilter}
-                onChange={(e) => setArticleFilter(e.target.value)}
+                maxLength={300}
+                value={articleDraft}
+                onChange={(e) => setArticleDraft(e.target.value)}
               />
-            </div>
+              <button type="submit" className="btn-outline-dark">Find articles</button>
+            </form>
 
             {localArticles.isLoading && <p className="text-xs">Loading articles…</p>}
             {localArticles.isError && <QueryError title="Articles unavailable" error={localArticles.error} />}
@@ -249,9 +264,11 @@ export function ClaimsWorkspace() {
                   onChange={(e) => {
                     setSelectedArticleId(e.target.value);
                     setOffset(0);
+                    navigateHash(claimsHref(0, e.target.value));
                   }}
                 >
                   <option value="">— Select an article —</option>
+                  {selectedArticleId && !localArticles.data.items.some(art => art.id === selectedArticleId) && <option value={selectedArticleId}>Selected article · {selectedArticleId}</option>}
                   {localArticles.data.items.map((art) => (
                     <option key={art.id} value={art.id}>
                       {art.title.slice(0, 90)} ({art.domain || 'Source'})
@@ -275,7 +292,7 @@ export function ClaimsWorkspace() {
                       {localClaims.data.total} claims recorded for this article · Showing {localClaims.data.items.length ? offset + 1 : 0}–{offset + localClaims.data.items.length}
                     </span>
                     <a
-                      href={articleHref(selectedArticleId, 'overview', { back: '#/dashboard/claims' })}
+                      href={articleHref(selectedArticleId, 'overview', { back: currentHref })}
                       className="inline-flex items-center gap-1 underline underline-offset-4 hover:text-hermes-bone"
                     >
                       <span>Open full article</span>
@@ -292,14 +309,14 @@ export function ClaimsWorkspace() {
                       {localClaims.data.items.map((claim: ArticleClaim) => {
                         const href = articleHref(selectedArticleId, 'evidence', {
                           claim: claim.id,
-                          back: '#/dashboard/claims',
+                          back: currentHref,
                         });
                         return (
                           <article key={claim.id} className="card-brutal-dark p-5 space-y-3">
                             <p className="text-sm leading-relaxed whitespace-pre-wrap">{claim.text}</p>
                             <p className="text-xs text-hermes-bone/55">
                               Extracted {claim.extracted_at ? new Date(claim.extracted_at).toLocaleDateString() : 'Unknown date'}
-                              {claim.confidence != null && ` · Confidence ${claim.confidence.toFixed(2)}`}
+                              {claim.confidence != null && ` · Extraction confidence ${claim.confidence.toFixed(2)} (heuristic)`}
                             </p>
                             <div className="flex flex-wrap gap-3 pt-2">
                               <a href={href} className="btn-outline-dark text-xs inline-flex items-center gap-2">
@@ -317,15 +334,15 @@ export function ClaimsWorkspace() {
                     <div className="flex gap-3 pt-3">
                       <button
                         className="btn-outline-dark"
-                        disabled={offset === 0}
-                        onClick={() => setOffset(Math.max(0, offset - 20))}
+                        disabled={offset === 0 || localClaims.isFetching}
+                        onClick={() => handlePageChange(Math.max(0, offset - 20))}
                       >
                         Previous claims
                       </button>
                       <button
                         className="btn-outline-dark"
-                        disabled={offset + 20 >= localClaims.data.total}
-                        onClick={() => setOffset(offset + 20)}
+                        disabled={offset + 20 >= localClaims.data.total || localClaims.isFetching}
+                        onClick={() => handlePageChange(offset + 20)}
                       >
                         Next claims
                       </button>
