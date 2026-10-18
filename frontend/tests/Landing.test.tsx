@@ -23,7 +23,7 @@ describe('honest landing statistics', () => {
     expect(within(screen.getByText('graph nodes').parentElement!).getByText('0')).toBeTruthy();
     expect(within(screen.getByText('graph relationships').parentElement!).getByText('0')).toBeTruthy();
     expect(screen.queryByText(/10,000\+|27,132|80,107/)).toBeNull();
-    expect(screen.queryByText(/decorative globe/)).toBeNull();
+    expect(screen.getByText('decorative globe · not a data visualization')).toBeTruthy();
   });
 
   it('keeps initial/unavailable counts unknown and offers actual retry', async () => {

@@ -53,10 +53,12 @@ The dedicated directory replaces
 repeated all-tool catalogues. Annotation pairs precede optional notes/context/span
 metadata; vote validation, blinding and payloads are unchanged.
 
-Shared tokens use neutral dark surfaces and the existing rose brand accent.
+Shared tokens preserve the original burgundy surfaces, crimson accents and cream
+text requested by the user.
 Inter, restrained borders, rounded controls, readable muted text, focus rings and
 consistent spacing apply to reader, research, administration, auth and public
-pages. Decorative ticker/equalizer/globe content is removed. The original graph
+pages. The original animated globe and serif/monospace typography are restored on
+the landing page; decorative ticker/equalizer content remains removed. The original graph
 still renders individual nodes and real links, with source filters, node search,
 edge toggle, pan/zoom, keyboard selection and article/timeline actions intact.
 

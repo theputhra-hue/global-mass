@@ -7,17 +7,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Restrained surfaces, shared across reader and research views.
+        // Original GMEE burgundy, crimson and cream palette.
         hermes: {
-          red: '#B8324B',
-          'red-bright': '#F58BA0',
-          'red-deep': '#92263A',
-          paper: '#EEF1F5',
-          blush: '#FFFFFF',
-          bone: '#F1F4F9',
-          ink: '#111722',
-          panel: '#1A2332',
-          'panel-deep': '#141C28'
+          red: '#A50E1D',
+          'red-bright': '#E11D2E',
+          'red-deep': '#6E0713',
+          paper: '#E7C9C4',
+          blush: '#F5E2DC',
+          bone: '#FFF7F2',
+          ink: '#1A0608',
+          panel: '#2B1015',
+          'panel-deep': '#200A0E'
         }
       },
       fontFamily: {
