@@ -37,7 +37,8 @@ export function Dialog({ labelledBy, onClose, children, className, backdropClass
         const focusable = Array.from(element.querySelectorAll<HTMLElement>(
           'button, a[href], input, select, textarea, summary, [contenteditable="true"], [tabindex]',
         )).filter((candidate) => candidate.tabIndex >= 0 && !candidate.matches(':disabled, input[type="hidden"]')
-          && !candidate.closest('[hidden], [inert], [aria-hidden="true"]'));
+          && !candidate.closest('[hidden], [inert], [aria-hidden="true"]')
+          && !Array.from(element.querySelectorAll('details:not([open])')).some(details => details.contains(candidate) && candidate !== details.querySelector('summary')));
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
         if (!first) {

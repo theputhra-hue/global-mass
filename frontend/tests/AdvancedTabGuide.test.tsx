@@ -5,15 +5,14 @@ import { AdvancedTabGuide } from '../src/components/AdvancedTabGuide';
 describe('advanced workspace guidance', () => {
   it('explains Project Lab controls without presenting them as scientific accuracy', () => {
     render(<AdvancedTabGuide tab="project" />);
-    expect(screen.getByRole('heading', { name: 'Understanding Project Lab' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Analyzer examples' })).toBeTruthy();
     expect(screen.getByText(/Passing them is not scientific accuracy/)).toBeTruthy();
-    fireEvent.click(screen.getByText('Guide to all 12 tabs'));
-    expect(screen.getByRole('link', { name: 'Casebook' }).getAttribute('href')).toBe('#/dashboard/casebook');
-    expect(screen.getByRole('link', { name: 'Overview Vitals' }).getAttribute('href')).toBe('#/dashboard/overview');
+    fireEvent.click(screen.getByText('How to use this tool & interpret results'));
+    expect(screen.getByRole('link', { name: 'All tools & guides' }).getAttribute('href')).toBe('#/dashboard/tools');
   });
   it('explains that Casebook reviews preserve the original analysis snapshot', () => {
     render(<AdvancedTabGuide tab="casebook" />);
-    expect(screen.getByRole('heading', { name: 'Understanding Casebook' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'My investigations' })).toBeTruthy();
     expect(screen.getByText(/Notes and review status can change; a saved snapshot is not proof/)).toBeTruthy();
   });
 });

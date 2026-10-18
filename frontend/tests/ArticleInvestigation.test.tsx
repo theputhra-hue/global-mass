@@ -73,9 +73,8 @@ describe('article investigation', () => {
   it('keeps every advanced destination and marks provenance unknown', async () => {
     mockApi(fixture); renderWithClient(<ArticleInvestigation route={route('methods')} />);
     expect(await screen.findByText('Not recorded in this article response')).toBeTruthy();
-    for (const name of ['Overview Vitals', 'Neo4j Graph Engine', 'Postgres Vector', 'Redis Queue', 'Graph', 'Timeline', 'Masala Lab', 'FactCheck', 'Eval Lab', 'Corpus']) {
-      expect(screen.getByRole('heading', { name, exact: true }).closest('a')).toBeTruthy();
-    }
+    expect(screen.getByRole('link', { name: 'All tools & guides' }).getAttribute('href')).toBe('#/dashboard/tools');
+    expect(screen.getByRole('link', { name: 'Open this article in the story timeline' }).getAttribute('href')).toBe('#/dashboard/timeline');
   });
   it('orders the focused timeline by publication time and labels the selected article', async () => {
     mockApi(fixture); renderWithClient(<ArticleInvestigation route={route('timeline')} />);
@@ -109,6 +108,8 @@ describe('article investigation', () => {
     const nav = screen.getByRole('navigation', { name: 'Article details' });
     const links = within(nav).getAllByRole('link'); links[0].focus();
     fireEvent.keyDown(nav, { key: 'ArrowRight' }); expect(document.activeElement).toBe(links[1]);
+    fireEvent.keyDown(nav, { key: 'End' }); expect(document.activeElement).toBe(links[2]);
+    fireEvent.click(screen.getByText('Investigate further'));
     fireEvent.keyDown(nav, { key: 'End' }); expect(document.activeElement).toBe(links[8]);
   });
   it('round-trips deep link state and blocks external return URLs', () => {

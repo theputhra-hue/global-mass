@@ -25,6 +25,7 @@ describe('stored FactCheck evidence and uncertainty', () => {
   it('renders the stored score as heuristic/unvalidated, not calibrated probability', async () => {
     mockApi(responses);
     renderWithClient(<FactCheck />);
+    fireEvent.click(screen.getByText('Saved assessments & outlet statistics'));
     expect(await screen.findByText(row.claim_text)).toBeTruthy();
     expect(screen.getByText('81.0%')).toBeTruthy();
     expect(screen.getByText('Heuristic support · unvalidated')).toBeTruthy();
@@ -36,6 +37,7 @@ describe('stored FactCheck evidence and uncertainty', () => {
   it('never substitutes 50% for a missing stored score', async () => {
     mockApi((endpoint) => endpoint === '/verdicts' ? jsonResponse({ total: 1, items: [{ ...row, probability: null }] }) : responses(endpoint));
     renderWithClient(<FactCheck />);
+    fireEvent.click(screen.getByText('Saved assessments & outlet statistics'));
     expect(await screen.findByText('Not scored')).toBeTruthy();
     expect(screen.queryByText('50.0%')).toBeNull();
   });
@@ -44,6 +46,7 @@ describe('stored FactCheck evidence and uncertainty', () => {
     let failure = true;
     mockApi((endpoint) => endpoint === '/verdicts' ? failure ? jsonResponse({ detail: 'Verdicts store unavailable' }, 503) : jsonResponse({ total: 0, items: [] }) : responses(endpoint));
     renderWithClient(<FactCheck />);
+    fireEvent.click(screen.getByText('Saved assessments & outlet statistics'));
     expect(await screen.findByText('Verdict feed unavailable')).toBeTruthy();
     expect(screen.queryByText(/No verdicts yet/)).toBeNull();
     failure = false;
@@ -54,6 +57,7 @@ describe('stored FactCheck evidence and uncertainty', () => {
   it('records anonymous feedback from the actual accessible evidence drawer', async () => {
     const fetch = mockApi(responses);
     renderWithClient(<FactCheck />);
+    fireEvent.click(screen.getByText('Saved assessments & outlet statistics'));
     fireEvent.click(await screen.findByRole('button', { name: `Inspect evidence for ${row.claim_text}` }));
     expect(await screen.findByRole('dialog', { name: /Verdict Dossier/ })).toBeTruthy();
     fireEvent.click(await screen.findByRole('button', { name: 'Agree with engine' }));
@@ -67,6 +71,7 @@ describe('stored FactCheck evidence and uncertainty', () => {
     let failure = true;
     mockApi((endpoint) => endpoint.endsWith(row.id) && failure ? jsonResponse({ detail: 'Evidence detail unavailable' }, 503) : responses(endpoint));
     renderWithClient(<FactCheck />);
+    fireEvent.click(screen.getByText('Saved assessments & outlet statistics'));
     const opener = await screen.findByRole('button', { name: `Inspect evidence for ${row.claim_text}` });
     opener.focus();
     fireEvent.click(opener);
@@ -82,6 +87,7 @@ describe('stored FactCheck evidence and uncertainty', () => {
   it('reports statistics and outlet errors separately from the usable verdict feed', async () => {
     mockApi((endpoint) => endpoint === '/verdicts/stats' || endpoint === '/verdicts/leaderboard' ? jsonResponse({ detail: 'Aggregate unavailable' }, 503) : responses(endpoint));
     renderWithClient(<FactCheck />);
+    fireEvent.click(screen.getByText('Saved assessments & outlet statistics'));
     expect(await screen.findByText(row.claim_text)).toBeTruthy();
     expect(screen.getByText('Verdict statistics unavailable')).toBeTruthy();
     expect(screen.getByText('Outlet scores unavailable')).toBeTruthy();

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { publicationsApi, type PublicationReview, type UploadReceipt } from '../api/publications';
-import { AccountPanel } from '../components/AccountPanel';
 import { QueryError } from '../components/QueryError';
 import { useSession } from '../lib/session';
 
@@ -45,9 +44,7 @@ export function DeveloperUpload() {
     finally { setPending(false); }
   }
   return <main className="min-h-screen bg-hermes-ink text-hermes-bone font-mono p-4 md:p-8">
-    <header className="flex flex-wrap justify-between items-center gap-4 border-b border-hermes-bone/20 pb-5">
-      <a href="#/dashboard" className="btn-outline-dark">Back to dashboard</a><AccountPanel />
-    </header>
+
     <div className="max-w-3xl mx-auto py-10 space-y-6">
       <p className="text-xs uppercase tracking-widest text-hermes-red-bright">Developer workspace</p>
       <h1 className="font-display text-4xl">Upload analysis</h1>

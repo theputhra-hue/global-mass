@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, BookOpen, Search, GitCompare } from 'lucide-react';
 import { useSession } from '../lib/session';
 import { fetchDashboard } from '../api/dashboard';
-import { AsciiGlobe } from '../components/AsciiGlobe';
 import { QueryError } from '../components/QueryError';
 import { usePublicationRuntime } from '../lib/publicationRuntime';
 
@@ -35,7 +34,7 @@ export function Landing() {
       <a href={user ? '#/dashboard' : '#/signin'} className="btn-outline-dark">{user ? 'Explore articles' : 'Sign in'} <ArrowRight className="w-4 h-4" /></a>
     </header>
     <main id="main-content">
-      <section className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20 grid lg:grid-cols-[1.5fr_1fr] gap-10 items-center">
+      <section className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20 ">
         <div className="space-y-6 max-w-3xl">
           <p className="text-[11px] uppercase tracking-widest text-hermes-red-bright">A research collection of news articles</p>
           <h1 className="font-display text-5xl md:text-7xl leading-tight">Find a story.<br /><span className="text-hermes-red-bright">Look closer.</span></h1>
@@ -43,7 +42,7 @@ export function Landing() {
           <a href={user ? '#/dashboard' : '#/signin'} className="btn-brutal">{user ? 'Explore the collection' : 'Sign in to explore'} <ArrowRight className="w-4 h-4" /></a>
           <p className="text-xs text-hermes-bone/55">{runtime.mode === 'published' ? 'A published archive. New AI analysis runs on the developers’ PC.' : 'Search the available collection. Analysis and tool availability depend on the workspace.'}</p>
         </div>
-        <div className="relative hidden lg:block w-full max-w-[330px] aspect-square mx-auto" aria-hidden="true"><AsciiGlobe className="absolute inset-0" /><span className="absolute bottom-0 text-[9px] uppercase tracking-widest text-hermes-bone/40">decorative globe · not a data visualization</span></div>
+
       </section>
       <section aria-labelledby="reading-steps" className="border-y border-hermes-bone/15 bg-hermes-panel px-4 md:px-8 py-10">
         <div className="max-w-7xl mx-auto space-y-6"><h2 id="reading-steps" className="font-display text-3xl">Your first visit, in three steps.</h2>

@@ -1,6 +1,7 @@
 import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { focusManager } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
+import { navigateHash } from '../src/lib/articleRoutes';
 import { SystemHealth } from '../src/pages/SystemHealth';
 import { emptyDashboardApi, jsonResponse, mockApi, renderWithClient, zeroDashboard } from './helpers';
 
@@ -30,10 +31,10 @@ describe('real readiness, independent tabs and shared polling', () => {
     expect(screen.getByText('down: graph unavailable')).toBeTruthy();
     expect(screen.queryByText('Readiness unavailable')).toBeNull();
     expect(screen.getByText('2 / 3 ready')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /^Corpus$/ }));
+    act(() => navigateHash('#/dashboard/corpus'));
     expect(await screen.findByText('No articles match this search.')).toBeTruthy();
     expect(screen.getByText('0 articles')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /FactCheck/ }));
+    act(() => navigateHash('#/dashboard/factcheck'));
     expect(await screen.findByText(/No verdicts yet for this filter/)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Corpus Evidence Check' })).toBeTruthy();
   });
@@ -64,7 +65,7 @@ describe('real readiness, independent tabs and shared polling', () => {
     window.history.replaceState(null, '', '#/dashboard/corpus');
     renderWithClient(<SystemHealth />);
     await screen.findByText('Article Corpus');
-    fireEvent.click(screen.getByRole('button', { name: /Redis Queue/ }));
+    act(() => navigateHash('#/dashboard/cache'));
     await screen.findByText(/Redis Cache & Token Blocklist Telemetry/);
     expect(window.location.hash).toBe('#/dashboard/cache');
     window.history.back();
@@ -89,7 +90,7 @@ describe('real readiness, independent tabs and shared polling', () => {
       await vi.advanceTimersByTimeAsync(90_000);
     });
     expect(fetch).toHaveBeenCalledTimes(beforePause);
-    fireEvent.click(screen.getByRole('button', { name: /FactCheck/ }));
+    act(() => navigateHash('#/dashboard/factcheck'));
     await act(async () => { await vi.advanceTimersByTimeAsync(10); });
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/verdicts'))).toBe(true);
     expect(screen.getByText(/No verdicts yet for this filter/)).toBeTruthy();

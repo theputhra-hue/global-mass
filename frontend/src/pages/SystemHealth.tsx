@@ -24,7 +24,6 @@ import type { MutationComparisonInput } from '../api/features';
 import FullCorpusGraph from '../components/FullCorpusGraph';
 import TimelineTunnel from '../components/TimelineTunnel';
 import MasalaLab from '../components/MasalaLab';
-import AsciiEqualizer from '../components/AsciiEqualizer';
 import {
   Database,
   Network,
@@ -109,7 +108,7 @@ const SystemHealthContent: React.FC = () => {
   const polling = usePollingPolicy(0);
   const visible = useDocumentVisible();
   const [activeTab, setActiveTab] = useDashboardTab();
-  const compactWorkspace = activeTab === 'project' || activeTab === 'casebook';
+  const systemView = activeTab === 'overview' || activeTab === 'cache';
   const [demoMode, setDemoMode] = useState(false);
   const [comparisonDraft, setComparisonDraft] = useState<MutationComparisonInput>();
   const [telemetry, setTelemetry] = useState<DemoTelemetry>(DEMO_BASE);
@@ -123,7 +122,7 @@ const SystemHealthContent: React.FC = () => {
   // Each dependency reports independently; readiness never gates usable tabs.
   const dashboard = useQuery({
     queryKey: ['dashboard'],
-    enabled: !compactWorkspace,
+    enabled: systemView,
     queryFn: ({ signal }) => fetchDashboard({ signal }),
     ...polling,
   });
@@ -161,25 +160,8 @@ const SystemHealthContent: React.FC = () => {
       {/* Paper grain texture — Hermes signature */}
       <div className="fixed inset-0 z-0 pointer-events-none grain-overlay" />
 
-      <div className="w-full min-w-0 z-10">
-        {/* Header & Controls */}
-        <Header
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          refetchInterval={refetchInterval}
-          setRefetchInterval={setRefetchInterval}
-          isFetching={isFetching}
-          onManualRefresh={() => { void refetch(); void dashboard.refetch(); }}
-          status={headerStatus}
-          demoMode={demoMode}
-        />
-
+      <main id="main-content" tabIndex={-1} className="w-full min-w-0 z-10 outline-none">
         <AdvancedTabGuide tab={activeTab} />
-
-        {/* Decorative equalizer, never presented as measured telemetry. */}
-        {!compactWorkspace && <div className="mt-6 mb-8 border border-hermes-bone/15 bg-hermes-panel px-4 py-3">
-          <AsciiEqualizer count={56} className="text-lg" label="Decorative equalizer — not live telemetry" />
-        </div>}
 
         {/* DEMO MODE banner */}
         {demoMode && (
@@ -207,32 +189,11 @@ const SystemHealthContent: React.FC = () => {
           </div>
         )}
 
-        <details open={!compactWorkspace} className="mb-6">
-        <summary className={compactWorkspace ? 'cursor-pointer text-xs font-mono text-hermes-bone/55 py-3' : 'hidden'}>Service details · {headerStatus === 'ready' ? 'all stores ready' : 'data services unavailable or connecting'}</summary>
-        <section aria-label="Dependency readiness" className="card-brutal-dark p-4 space-y-3">
-          {isLoading && <p role="status" className="font-mono text-xs">Connecting to backend readiness… Tabs can fetch independently.</p>}
-          {error && <QueryError title="Readiness unavailable" error={error} onRetry={refetch} retrying={isFetching} />}
-          {data && <>
-            <p className="font-mono text-xs text-hermes-bone/65">
-              {error ? 'Last reported readiness' : 'Readiness'}: {data.status}.
-              {data.status === 'not_ready' && ' A dependency is unavailable; usable tabs remain open.'}
-            </p>
-            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
-              {(['postgres', 'neo4j', 'redis'] as const).map((service) => <div key={service}>
-                <dt className="uppercase text-hermes-bone/50">{service}</dt>
-                <dd className="break-words">{data[service] ?? 'not reported'}</dd>
-              </div>)}
-            </dl>
-          </>}
-          {!demoMode && <button type="button" onClick={() => setDemoMode(true)} className="btn-brutal">
-            <Play className="w-3.5 h-3.5" /> Launch Demo Telemetry
-          </button>}
-        </section>
-        </details>
-        {dashboard.isError && !compactWorkspace && <div className="mb-6"><QueryError title="Dashboard metrics unavailable" error={dashboard.error} onRetry={() => dashboard.refetch()} retrying={dashboard.isFetching} />
+
+        {dashboard.isError && systemView && <div className="mb-6"><QueryError title="Dashboard metrics unavailable" error={dashboard.error} onRetry={() => dashboard.refetch()} retrying={dashboard.isFetching} />
           {dash && <p className="font-mono text-xs mt-2">Showing the last real snapshot from {dash.generated_at}; values may be stale.</p>}
         </div>}
-        <OperationsPanel />
+        {activeTab === 'overview' && <OperationsPanel />}
 
         {activeTab === 'overview' && isLoading && dashboard.isLoading && !demoMode ? <LoadingGrid /> : (
           /* Active Content Views Based on Tab */
@@ -244,7 +205,7 @@ const SystemHealthContent: React.FC = () => {
                   <MetricCard
                     title="PostgreSQL Vector"
                     value={demoMode ? `${telemetry.claimsIndexed.toLocaleString()} simulated claims` : dash?.claims_total !== undefined ? `${count(dash.claims_total)} claims` : isPostgresOk ? 'Ready · counts unavailable' : data ? 'Unavailable' : 'Unknown'}
-                    subtitle={demoMode ? 'Simulated preview — not corpus data' : `${count(dash?.embedded_claims)} embedded · ${count(dash?.entities_total)} entities`} 
+                    subtitle={demoMode ? 'Simulated preview — not corpus data' : `${count(dash?.embedded_claims)} embedded · ${count(dash?.entities_total)} entities`}
                     icon={Database}
                     accentColor={isPostgresOk ? "violet" : "rose"}
                     trend={isPostgresOk ? 'READY' : data?.postgres === undefined ? 'UNKNOWN' : 'NOT READY'}
@@ -288,28 +249,20 @@ const SystemHealthContent: React.FC = () => {
                 {/* Early-warning board — persisted alerts + 24h spike snapshot */}
                 <EarlyWarning />
 
-                {/* Interactive Neo4j Topology Graph */}
-                <GraphVisualizer setActiveTab={setActiveTab} />
-
-                {/* Postgres Vector Telemetry & Audit Stream */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <VectorTelemetry />
-                  <LiveAuditFeed />
-                </div>
+                <details className="card-brutal-dark p-5"><summary className="text-sm font-semibold">Recent collection activity</summary><div className="mt-5"><LiveAuditFeed /></div></details>
+                <div className="flex flex-wrap gap-4 text-sm"><a href="#/dashboard/graph" className="btn-outline-dark">Explore story clusters</a><a href="#/dashboard/vector" className="btn-outline-dark">Open semantic search</a></div>
               </>
             )}
 
             {activeTab === 'graph' && (
               <div className="space-y-6">
                 <GraphVisualizer setActiveTab={setActiveTab} />
-                <LiveAuditFeed />
               </div>
             )}
 
             {activeTab === 'vector' && (
               <div className="space-y-6">
                 <VectorTelemetry />
-                <LiveAuditFeed />
               </div>
             )}
 
@@ -333,7 +286,41 @@ const SystemHealthContent: React.FC = () => {
             )}
           </div>
         )}
-      </div>
+        <details className="mt-8 border-t border-hermes-bone/15 pt-3">
+        <summary className="cursor-pointer text-xs text-hermes-bone/65 py-3">Connection & refresh settings · {headerStatus === 'ready' ? 'all stores ready' : 'data services unavailable or connecting'}</summary>
+        {/* Header & Controls */}
+        <Header
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          refetchInterval={refetchInterval}
+          setRefetchInterval={setRefetchInterval}
+          isFetching={isFetching}
+          onManualRefresh={() => { void refetch(); void dashboard.refetch(); }}
+          status={headerStatus}
+          demoMode={demoMode}
+        />
+
+        <section aria-label="Dependency readiness" className="card-brutal-dark p-4 space-y-3">
+          {isLoading && <p role="status" className="font-mono text-xs">Connecting to backend readiness… Tabs can fetch independently.</p>}
+          {error && <QueryError title="Readiness unavailable" error={error} onRetry={refetch} retrying={isFetching} />}
+          {data && <>
+            <p className="font-mono text-xs text-hermes-bone/65">
+              {error ? 'Last reported readiness' : 'Readiness'}: {data.status}.
+              {data.status === 'not_ready' && ' A dependency is unavailable; usable tabs remain open.'}
+            </p>
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
+              {(['postgres', 'neo4j', 'redis'] as const).map((service) => <div key={service}>
+                <dt className="uppercase text-hermes-bone/50">{service}</dt>
+                <dd className="break-words">{data[service] ?? 'not reported'}</dd>
+              </div>)}
+            </dl>
+          </>}
+          {systemView && !demoMode && <button type="button" onClick={() => setDemoMode(true)} className="btn-brutal">
+            <Play className="w-3.5 h-3.5" /> Launch Demo Telemetry
+          </button>}
+        </section>
+        </details>
+      </main>
     </div>
   );
 };

@@ -4,7 +4,6 @@ import { Activity, ArrowRight, Database, Play, RefreshCw, Upload } from 'lucide-
 import { developerApi, type DeveloperRunResult, type PipelineStage } from '../api/developer';
 import { publicationsApi } from '../api/publications';
 import { useSession } from '../lib/session';
-import { AccountPanel } from '../components/AccountPanel';
 import { QueryError } from '../components/QueryError';
 import { LocalPublicationExport } from '../components/LocalPublicationExport';
 
@@ -52,7 +51,7 @@ export function DeveloperConsole() {
     <div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="border-b border-hermes-bone/20"><th className="py-3 pr-4">Stage</th><th className="pr-4">Status</th><th className="pr-4">Started</th><th>Finished / heartbeat</th></tr></thead><tbody>{data?.jobs.map(job => <tr key={job.id} className="border-b border-hermes-bone/10"><td className="py-4 pr-4 uppercase">{job.type}</td><td className="pr-4">{job.status}{job.has_error && ' · inspect local logs'}</td><td className="pr-4 whitespace-nowrap">{date(job.started_at)}</td><td className="whitespace-nowrap">{date(job.finished_at || job.heartbeat_at)}</td></tr>)}</tbody></table></div>
   </section>;
   return <main className="min-h-screen bg-hermes-ink text-hermes-bone font-mono">
-    <header className="border-b border-hermes-bone/20 px-4 md:px-8 py-5 flex flex-wrap justify-between gap-4 items-center"><a href="#/dashboard" className="font-display text-3xl">GMEE <span className="font-mono text-[10px] tracking-widest ml-2">DEVELOPER CONSOLE</span></a><div className="flex gap-3"><a href="#/dashboard" className="btn-outline-dark">Reader workspace</a><AccountPanel /></div></header>
+
     <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-7">
       <section className="flex flex-wrap justify-between items-end gap-5"><div><p className="text-xs text-hermes-red-bright uppercase tracking-widest mb-3">Research operations / approved developers</p><h1 className="font-display text-4xl md:text-5xl">From coverage to evidence.</h1><p className="text-sm text-hermes-bone/65 mt-4 max-w-2xl">Gather, prepare, analyze and review your collection. Publish only completed results with traceable provenance.</p></div>{access.data?.allowed && <button className="btn-outline-dark" disabled={overview.isFetching} onClick={() => void overview.refetch()}><RefreshCw className="w-4 h-4" /> Refresh status</button>}</section>
       {access.isLoading && <p role="status">Checking developer access…</p>}

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { MutationComparisonInput } from '../api/features';
-import { ReaderNavigation } from '../components/ReaderNavigation';
 import { ProjectLab } from '../components/ProjectLab';
 import { Casebook } from '../components/Casebook';
 import FullCorpusGraph from '../components/FullCorpusGraph';
@@ -16,7 +15,7 @@ export function PublishedWorkspace({ tab }: { tab: string }) {
   if (['corpus', 'vector'].includes(tab)) return <ReaderDashboard view="browse" />;
   if (tab === 'overview') return <ToolsDirectory />;
   return <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono">
-    <ReaderNavigation active="tools" /><PublicationNotice />
+    <PublicationNotice />
     <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-8 space-y-6 outline-none">
       <a href="#/dashboard/tools" className="inline-block text-xs underline underline-offset-4">← All tools &amp; guides</a>
       {tab === 'project' ? investigating ? <><button onClick={() => setInvestigating(false)} className="btn-outline-dark">Back to analyzer controls</button><Casebook key={JSON.stringify(seed)} initialComparison={seed ?? undefined} /></> : <><p className="text-sm text-hermes-bone/65">Authored examples help explain the wording analyzer. To compare your own statements, use <a href="#/dashboard/compare" className="underline">Compare wording</a>.</p><ProjectLab navigate={next => { window.location.hash = `#/dashboard/${next}`; }} investigate={input => { setSeed(input); setInvestigating(true); }} /></> : tab === 'casebook' ? <Casebook /> : tab === 'fullgraph' ? <>

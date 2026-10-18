@@ -1,8 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, ExternalLink, FileText, Network, Clock, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, FileText, Clock, Search } from 'lucide-react';
 import { articlesApi, type ArticleClaim, type ArticleConnections, type ArticleNode, type ConnectionEdge } from '../api/articles';
-import { ReaderNavigation } from '../components/ReaderNavigation';
 import { QueryError } from '../components/QueryError';
 import { ClaimCheck } from '../components/ClaimCheck';
 import { MutationComparator } from '../components/MutationComparator';
@@ -20,15 +19,8 @@ const tabs: Record<DetailTab, { name: string; help: string }> = {
   changes: { name: 'Changes', help: 'Compare two versions and inspect recorded candidate evolution links. Text differences do not prove transmission.' },
   timeline: { name: 'Timeline', help: 'Publication order within this recorded neighborhood. Earlier reporting is not proof of copying.' },
   graph: { name: 'Graph', help: 'A focused map of stored claim relationships, grouped by article. Use the list below for exact claim links.' },
-  methods: { name: 'Data & methods', help: 'Inspect data availability, provenance and limits, and open every existing advanced tool.' },
+  methods: { name: 'Data & methods', help: 'Inspect data availability, provenance and limits, and understand the available evidence.' },
 };
-const tools = [
-  ['overview', 'Overview Vitals', 'Collection and system overview'], ['graph', 'Neo4j Graph Engine', 'Collection-wide technical graph'],
-  ['vector', 'Postgres Vector', 'Collection-wide semantic search'], ['cache', 'Redis Queue', 'System-wide runtime and cache status'],
-  ['fullgraph', 'Graph', 'Full corpus graph'], ['timeline', 'Timeline', 'Existing 3D timeline, focused on this article'],
-  ['masala', 'Masala Lab', 'Full exploratory lab'], ['factcheck', 'FactCheck', 'Standalone evidence workspace'],
-  ['eval', 'Eval Lab', 'Research annotation; existing role requirements apply'], ['corpus', 'Corpus', 'Full collection workspace'],
-];
 const date = (value: string | null | undefined) => value ? new Date(value).toLocaleString() : 'Unknown';
 const panel = 'card-brutal-dark p-5 md:p-7 min-w-0';
 const linkStyle = 'underline underline-offset-4 hover:text-hermes-red-bright';
@@ -105,7 +97,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
   const source = safeHttpUrl(article?.url);
   return <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate">
     <div className="fixed inset-0 -z-10 pointer-events-none grain-overlay" aria-hidden="true" />
-    <ReaderNavigation active="article" />
+
     <PublicationNotice />
     <main id="main-content" tabIndex={-1} className="max-w-7xl mx-auto p-4 md:p-8 space-y-6 min-w-0 outline-none">
       <a href={back} className={`${linkStyle} text-xs inline-flex gap-2 items-center`}><ArrowLeft className="w-4 h-4" /> Back to results</a>
@@ -119,14 +111,16 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-hermes-bone/65"><span>{article.domain || 'Source unknown'}</span><span>{article.author || 'Author unknown'}</span><span>Published {date(article.published_at)}</span></div>
             <div className="flex gap-3 flex-wrap items-center">{source && <a href={source} target="_blank" rel="noopener noreferrer" className="btn-outline-dark">Read original source <ExternalLink className="w-3 h-3" /></a>}<span className="chip-brutal">{article.claims_total.toLocaleString()} extracted claims</span><span className="chip-brutal">NLP: {article.nlp_status || 'unknown'}</span></div>
           </section>
-          <aside aria-label="How to explore this article" className="border border-hermes-bone/20 bg-hermes-panel p-5 space-y-3"><p className="text-sm leading-relaxed">You are viewing one source article. {article.claims_total > 0 ? `${article.claims_total} extracted statements are available to inspect.` : 'No extracted statements are saved for this article.'} A statement is not automatically a verified fact.</p>{runtime.mode === 'published' && !article.body && <p className="text-xs text-hermes-bone/60">This archive contains source metadata and saved analysis. Full article text is not published here; use the original source link to read it.</p>}<div className="flex flex-wrap gap-5 text-xs"><a href={href('claims')} className="underline underline-offset-4">Inspect saved statements</a><a href={href('methods')} className="underline underline-offset-4">What data is available?</a></div><p className="text-[10px] text-hermes-bone/50">The tabs below stay within this article. Related coverage and maps depend on saved links; empty results do not prove no related reporting exists.</p></aside>
-          <nav ref={tabsRef} aria-label="Article details" className="flex overflow-x-auto gap-1 border-b border-hermes-bone/15 pb-3" onKeyDown={event => {
+          {tab === 'overview' && <p className="text-sm leading-relaxed text-hermes-bone/70">{article.claims_total > 0 ? `${article.claims_total} extracted statements are available to inspect.` : 'No extracted statements are saved for this article.'} Start with the source, then inspect the claims and their evidence.</p>}
+          <nav ref={tabsRef} aria-label="Article details" className="flex flex-wrap items-start gap-1 border-b border-hermes-bone/15 pb-3" onKeyDown={event => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-            const links = [...(tabsRef.current?.querySelectorAll<HTMLAnchorElement>('a') || [])];
+            const links = [...(tabsRef.current?.querySelectorAll<HTMLAnchorElement>('a') || [])].filter(link => !link.closest('details') || link.closest('details')?.open);
             const index = links.indexOf(document.activeElement as HTMLAnchorElement);
             const next = event.key === 'Home' ? 0 : event.key === 'End' ? links.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + links.length) % links.length;
             event.preventDefault(); links[next]?.focus();
-          }}>{detailTabs.map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className={`workspace-tab whitespace-nowrap shrink-0 ${tab === key ? '!border-hermes-red-bright !text-hermes-red-bright' : ''}`}>{tabs[key].name}</a>)}</nav>
+          }}>{detailTabs.filter(key => ['overview', 'article', 'claims'].includes(key)).map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className="workspace-tab whitespace-nowrap shrink-0">{tabs[key].name}</a>)}
+            <details key={['overview', 'article', 'claims'].includes(tab) ? 'primary' : 'research'} open={!['overview', 'article', 'claims'].includes(tab)} className="article-more-tabs"><summary>Investigate further</summary><div className="flex flex-wrap gap-1 mt-2">{detailTabs.filter(key => !['overview', 'article', 'claims'].includes(key)).map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className="workspace-tab">{tabs[key].name}</a>)}</div></details>
+          </nav>
           <section aria-labelledby="detail-tab-heading" className="space-y-5">
             <div><h2 id="detail-tab-heading" className="font-display text-3xl">{tabs[tab].name}</h2><p className="text-sm text-hermes-bone/65 mt-2 max-w-4xl leading-relaxed">{tabs[tab].help}</p></div>
             {tab === 'overview' && <>
@@ -161,7 +155,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
             {tab === 'graph' && neighborhood && <><FocusedGraph data={neighborhood} href={relatedHref} />{neighborhood.edges.length === 0 && <Empty>No stored claim links are available for this article.</Empty>}<div className="space-y-3" aria-label="Exact claim relationships">{neighborhood.edges.map(edge => <article key={edge.id} className={panel}><p className="text-xs text-hermes-red-bright mb-3">{edge.relationship_type} · matching signal {edge.score.toFixed(3)}{edge.from_article_id === edge.to_article_id ? ' · Within one article' : ''}</p><div className="grid md:grid-cols-2 gap-4 text-sm leading-relaxed"><a className={linkStyle} href={articleHref(edge.from_article_id, 'claims', { claim: edge.from_claim_id, back })}>{edge.from_text}</a><a className={linkStyle} href={articleHref(edge.to_article_id, 'claims', { claim: edge.to_claim_id, back })}>{edge.to_text}</a></div></article>)}</div></>}
             {tab === 'methods' && <><dl className={`${panel} grid sm:grid-cols-2 gap-5 text-xs`}>{[['Article ID', article.id], ['Text field', article.body_source], ['Text completeness', article.content_completeness], ['Collected at', date(article.collected_at)], ['Processed at', date(article.processed_at)], ['Relationship basis', neighborhood?.basis || 'Unavailable'], ['Model/run revision', 'Not recorded in this article response'], ['Public release provenance', runtime.mode === 'published' ? runtime.publication?.run_id || 'Publication details unavailable' : 'Not available; this response is from the current database']].map(([label, value]) => <div key={label}><dt className="text-hermes-bone/50 uppercase tracking-wider mb-2">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl><p className="text-sm text-hermes-bone/65">An article is a source document, and a claim is extracted text. Similarity, publication order and inferred evolution are research signals. They do not establish truth, independence or observed propagation.</p></>}
           </section>
-          <details className={`${panel} mt-8`} open={tab === 'methods'}><summary className="cursor-pointer font-display text-2xl">All advanced tools <Network className="inline w-5 h-5 ml-2" /></summary><p className="text-xs text-hermes-bone/55 mt-3">All existing workspaces remain available. For explanations and local/cloud availability, open the tools directory.</p><a href="#/dashboard/tools" className="btn-outline-dark mt-4">Tools &amp; guides</a><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">{tools.map(([key, name, help]) => <a key={key} className="border border-hermes-bone/15 p-4 hover:border-hermes-red-bright" href={`#/dashboard/${key}`} onClick={() => { if (key === 'timeline') setSelectedArticle({ id, title: article.title, domain: article.domain }); }}><h3 className="font-display text-xl">{name}</h3><p className="text-xs text-hermes-bone/60 mt-2">{help}</p></a>)}</div></details>
+          <footer className="border-t border-hermes-bone/15 pt-5 flex flex-wrap gap-5 text-xs"><a href="#/dashboard/tools" className="underline underline-offset-4">All tools & guides</a>{runtime.mode !== 'published' && <a href="#/dashboard/timeline" className="underline underline-offset-4" onClick={() => setSelectedArticle({ id, title: article.title, domain: article.domain })}>Open this article in the story timeline</a>}</footer>
           <footer className="text-xs leading-relaxed text-hermes-bone/55 border-t border-hermes-bone/15 pt-5"><Search className="inline w-3 h-3 mr-2" />This page shows one article and its recorded neighborhood, not an exhaustive topic or web search. Missing data remains unknown.</footer>
         </>}
       </>}

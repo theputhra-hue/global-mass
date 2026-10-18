@@ -29,7 +29,7 @@ export function PublicationProvider({ children }: { children: ReactNode }) {
 export function DataServiceState() {
   const runtime = usePublicationRuntime();
   const client = useQueryClient();
-  return <main className="min-h-screen bg-hermes-ink text-hermes-bone font-mono p-8 space-y-5"><h1 className="font-display text-4xl">{runtime.mode === 'connecting' ? 'Connecting to the data service…' : 'Data service unavailable'}</h1><p className="text-sm">The free cloud API may need time to wake up after inactivity. Your published data stays in the managed database.</p><button className="btn-brutal" onClick={() => void client.refetchQueries({ queryKey: ['capabilities'] })}>Retry connection</button><a href="#/" className="btn-outline-dark ml-4">About GMEE</a></main>;
+  return <main className="min-h-screen bg-hermes-ink text-hermes-bone font-mono p-8 space-y-5"><h1 className="font-display text-4xl">{runtime.mode === 'connecting' ? 'Connecting to the data service…' : 'Data service unavailable'}</h1><p className="text-sm">The workspace could not reach its data service. Check that the service is running and your connection is available, then retry.</p><button className="btn-brutal" disabled={runtime.mode === 'connecting'} onClick={() => void client.refetchQueries({ queryKey: ['capabilities'] })}>Retry connection</button><a href="#/" className="btn-outline-dark ml-4">About GMEE</a></main>;
 }
 
 export function PublicationNotice() {

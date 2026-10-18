@@ -251,7 +251,7 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
           </nav>
           <p className="hidden border-t border-hermes-bone/10 px-4 py-4 text-[11px] leading-relaxed text-hermes-bone/40 lg:block">Each dot is one {mode === 'articles' ? 'article' : 'claim'}.<br />Color identifies its outlet.<br /><br />Select a dot to highlight its connections, or filter an outlet above.</p>
         </aside>
-        <div className="min-w-0 bg-[radial-gradient(ellipse_at_center,#201b23_0%,#141114_75%)]">
+        <div className="min-w-0 bg-hermes-panel-deep">
           <div className="flex min-h-[64px] flex-wrap items-center justify-between gap-2 border-b border-hermes-bone/[0.07] px-4 py-3 sm:px-5">
             <div className="flex min-w-0 items-center gap-3">
               {hasFilters && <button onClick={clearFilters} aria-label="Back to full network" className={`${controlClass} !p-1.5`}><ArrowLeft className="h-4 w-4" /></button>}
@@ -265,9 +265,9 @@ const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ 
                 : <>
                   <canvas ref={canvasRef} aria-hidden="true" className={`block touch-none ${hovered ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { dragRef.current = null; }} onLostPointerCapture={() => { dragRef.current = null; }} onPointerLeave={() => setHovered(null)} />
                   {!scene.nodes.length && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"><Search className="h-6 w-6 text-hermes-bone/30" /><p className="text-sm text-hermes-bone/70">{query || outletFilter ? `No ${mode} match these filters.` : 'No graph nodes returned.'}</p>{hasFilters && <button onClick={clearFilters} className={controlClass}>Clear filters</button>}</div>}
-                  {hovered && <div className="pointer-events-none absolute left-4 top-3 max-w-[min(340px,calc(100%-32px))] border border-hermes-bone/15 bg-[#211b20] px-3 py-2.5 shadow-lg"><p className="mb-1 text-[10px]" style={{ color: outletColor(hovered.domain) }}>{outletName(hovered.domain)}</p><p className="line-clamp-2 text-xs leading-relaxed text-hermes-bone/85">{hovered.title}</p></div>}
+                  {hovered && <div className="pointer-events-none absolute left-4 top-3 max-w-[min(340px,calc(100%-32px))] border border-hermes-bone/15 bg-hermes-panel px-3 py-2.5 shadow-lg"><p className="mb-1 text-[10px]" style={{ color: outletColor(hovered.domain) }}>{outletName(hovered.domain)}</p><p className="line-clamp-2 text-xs leading-relaxed text-hermes-bone/85">{hovered.title}</p></div>}
                 </>}
-            <div className="absolute bottom-4 right-4 flex items-center divide-x divide-hermes-bone/10 border border-hermes-bone/15 bg-[#211b20] shadow-lg">
+            <div className="absolute bottom-4 right-4 flex items-center divide-x divide-hermes-bone/10 border border-hermes-bone/15 bg-hermes-panel shadow-lg">
               <button onClick={() => zoomAt(1 / 1.25)} disabled={zoom <= 50} aria-label="Zoom out" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Minus className="h-3.5 w-3.5" /></button><span className="w-12 text-center text-[10px] font-mono text-hermes-bone/55">{zoom}%</span>
               <button onClick={() => zoomAt(1.25)} disabled={zoom >= 800} aria-label="Zoom in" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Plus className="h-3.5 w-3.5" /></button><button onClick={resetView} aria-label="Reset graph view" title="Fit graph to view" className={`${controlClass} !px-2.5`}><Maximize2 className="h-3.5 w-3.5" /></button>
             </div>

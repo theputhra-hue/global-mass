@@ -279,6 +279,8 @@ const EvalLabSession: React.FC = () => {
           : !pair ? <p className="font-mono text-xs border border-dashed border-hermes-bone/25 p-3">
             {next.data?.done ? progress.data?.total_pairs === 0 ? 'No evaluation pairs available. Nothing has been fabricated.' : 'No remaining pairs in the selected split for this account.' : 'The API returned no pair. No completion is inferred.'}
           </p> : <>
+            <PairView pair={pair} annotator={user.id} onLabeled={castVote} pending={!rubric.data || labelMutation.isPending || next.isFetching || !!justLabeled} justLabeled={justLabeled} onSelectSpan={setSpanSelection} />
+            <details className="border border-hermes-bone/15 rounded-lg p-4"><summary>Optional annotation details & changed spans</summary><div className="space-y-4 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><label htmlFor="eval-mutation-types" className="block text-xs font-mono mb-1">Mutation types (optional, comma-separated)</label>
                 <input id="eval-mutation-types" value={mutationTypes} maxLength={1040} disabled={labelMutation.isPending || !!justLabeled} onChange={(event) => setMutationTypes(event.target.value)} className="field-brutal w-full" />
@@ -293,7 +295,7 @@ const EvalLabSession: React.FC = () => {
                   <option value="">Not annotated</option>{Object.entries(rubric.data.context_relations).map(([relation, definition]) => <option key={relation} value={relation}>{relation}: {definition}</option>)}
                 </select>
               </div>
-              <p>To annotate a change, select its exact text in either claim below, choose a mutation type, then add the span. Keyboard text selection is supported.</p>
+              <p>To annotate a change, select its exact text in either claim above, choose a mutation type, then add the span. Keyboard text selection is supported.</p>
               <p className="text-hermes-bone/60">Available mutation types: {rubric.data.mutation_types.join(', ')}</p>
               <div className="flex flex-wrap items-end gap-3">
                 <div><label htmlFor="eval-span-type" className="block font-mono mb-1">Changed span type</label>
@@ -316,9 +318,9 @@ const EvalLabSession: React.FC = () => {
               </li>)}</ul>}
               <label className="flex items-center gap-2"><input type="checkbox" checked={spansReviewed} disabled={changedSpans.length > 0 || labelMutation.isPending || !!justLabeled} onChange={(event) => setSpansReviewed(event.target.checked)} /> Changed spans reviewed (an empty list explicitly records no changed span)</label>
             </div>}
+            </div></details>
             {annotationError && <p role="alert" className="text-xs text-hermes-red-bright">{annotationError}</p>}
             {labelMutation.isError && <QueryError title="Vote failed to record; the pair is preserved" error={labelMutation.error} onRetry={() => { if (labelMutation.variables) labelMutation.mutate(labelMutation.variables); }} retrying={labelMutation.isPending} />}
-            <PairView pair={pair} annotator={user.id} onLabeled={castVote} pending={!rubric.data || labelMutation.isPending || next.isFetching || !!justLabeled} justLabeled={justLabeled} onSelectSpan={setSpanSelection} />
           </>}
 
         {progress.isLoading && <p role="status" className="text-xs font-mono">Loading evaluation progress…</p>}

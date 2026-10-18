@@ -1,3 +1,4 @@
+import { WorkspaceShell } from './components/WorkspaceShell';
 import { useEffect, useState } from 'react';
 import { SystemHealth } from './pages/SystemHealth';
 import { ReaderDashboard } from './pages/ReaderDashboard';
@@ -46,7 +47,7 @@ function App() {
   const readerView = (pathname === 'dashboard' || pathname === 'signin') ? 'home' : pathname.split('/')[1];
   const reader = ['home', 'browse', 'compare', 'check'].includes(readerView);
   const advanced = /^dashboard\/(overview|graph|vector|cache|fullgraph|timeline|masala|factcheck|eval|corpus|project|casebook)$/.test(pathname);
-  if (user && route.startsWith('dashboard') && ['connecting', 'unavailable'].includes(runtime.mode)) return <DataServiceState />;
-  return <div className="App">{route === 'landing' ? <Landing /> : route === 'project' ? <PublicProjectLab /> : user ? pathname === 'dashboard/tools' ? <ToolsDirectory /> : pathname === 'dashboard/developer' ? runtime.mode === 'published' ? <DeveloperUpload key={user.id} /> : <DeveloperConsole key={user.id} /> : pathname === 'dashboard/upload' ? <DeveloperUpload key={user.id} /> : detail ? <ArticleInvestigation key={`${user.id}:${detail.id}`} route={detail} /> : reader ? <ReaderDashboard key={route} view={readerView} /> : advanced ? runtime.mode === 'published' ? <PublishedWorkspace key={pathname} tab={pathname.split('/')[1]} /> : <SystemHealth /> : pathname === 'signin' ? <ReaderDashboard view="home" /> : <main className="min-h-screen bg-hermes-ink text-hermes-bone p-8"><h1 className="text-4xl">Page not found</h1><a href="#/dashboard" className="btn-brutal mt-5">Return to collection</a></main> : <SignIn />}</div>;
+  if (user && route.startsWith('dashboard') && ['connecting', 'unavailable'].includes(runtime.mode)) return <WorkspaceShell route={route}><DataServiceState /></WorkspaceShell>;
+  return <div className="App">{route === 'landing' ? <Landing /> : route === 'project' ? <PublicProjectLab /> : user ? <WorkspaceShell route={route}>{pathname === 'dashboard/tools' ? <ToolsDirectory /> : pathname === 'dashboard/developer' ? runtime.mode === 'published' ? <DeveloperUpload key={user.id} /> : <DeveloperConsole key={user.id} /> : pathname === 'dashboard/upload' ? <DeveloperUpload key={user.id} /> : detail ? <ArticleInvestigation key={`${user.id}:${detail.id}`} route={detail} /> : reader ? <ReaderDashboard key={route} view={readerView} /> : advanced ? runtime.mode === 'published' ? <PublishedWorkspace key={pathname} tab={pathname.split('/')[1]} /> : <SystemHealth /> : pathname === 'signin' ? <ReaderDashboard view="home" /> : <main className="min-h-screen bg-hermes-ink text-hermes-bone p-8"><h1 className="text-4xl">Page not found</h1><a href="#/dashboard" className="btn-brutal mt-5">Return to collection</a></main>}</WorkspaceShell> : <SignIn />}</div>;
 }
 export default App;

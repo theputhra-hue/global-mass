@@ -7,23 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // GMEE red-immersion palette — poster-grade monochrome crimson.
+        // Restrained surfaces, shared across reader and research views.
         hermes: {
-          red: '#A50E1D',          // primary brand crimson (structure, CTAs, data highlights)
-          'red-bright': '#E11D2E', // signal red — halos, live indicators, down-states
-          'red-deep': '#6E0713',   // deep crimson — pressed panels, negative emphasis
-          paper: '#E7C9C4',        // rose-paper canvas (landing)
-          blush: '#F5E2DC',        // raised card surface (landing)
-          bone: '#FFF7F2',         // type & keylines on red
-          ink: '#1A0608',          // near-black with red undertone
-          panel: '#2B1015',        // raised panel on ink (command center)
-          'panel-deep': '#200A0E'  // recessed well on ink
+          red: '#B8324B',
+          'red-bright': '#F58BA0',
+          'red-deep': '#92263A',
+          paper: '#EEF1F5',
+          blush: '#FFFFFF',
+          bone: '#F1F4F9',
+          ink: '#111722',
+          panel: '#1A2332',
+          'panel-deep': '#141C28'
         }
       },
       fontFamily: {
-        display: ['"Instrument Serif"', 'Georgia', 'serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['"Courier Prime"', 'ui-monospace', 'SFMono-Regular', 'monospace']
+        mono: ['Inter', 'system-ui', 'sans-serif']
       }
     },
   },

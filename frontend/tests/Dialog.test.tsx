@@ -22,6 +22,15 @@ function NestedDialogs() {
 }
 
 describe('dialog focus and lifecycle', () => {
+  it('does not trap keyboard focus in collapsed navigation groups', () => {
+    render(<Dialog labelledBy="menu-title" onClose={() => {}}><h2 id="menu-title">Navigation</h2><button>First control</button><details><summary>Research tools</summary><a href="#/dashboard/eval">Hidden research link</a></details></Dialog>);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(screen.getByText('Research tools'));
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'First control' }));
+  });
+
   it('handles Escape and focus trapping only in the top dialog', () => {
     render(<NestedDialogs />);
     const opener = screen.getByRole('button', { name: 'Open inner' });

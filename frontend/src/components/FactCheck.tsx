@@ -81,12 +81,12 @@ const VerdictCard: React.FC<{ row: VerdictRow; onOpen: () => void }> = ({ row, o
       aria-label={`Inspect evidence for ${row.claim_text}`}
       className="w-full text-left border border-hermes-bone/15 bg-hermes-panel-deep p-4 flex flex-col gap-3 cursor-pointer hover:border-hermes-bone/35 transition-colors"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <span className={`chip-brutal w-fit ${band.cls} font-bold`}>
           <Icon className="w-3.5 h-3.5 inline mr-1" />
           {band.label}
         </span>
-        <div className="text-right shrink-0">
+        <div className="text-left max-w-full">
           <div className="font-display text-xl tabular-nums" style={{ color: p == null ? undefined : probColor(p) }}>
             {p == null ? 'Not scored' : `${(p * 100).toFixed(1)}%`}
           </div>
@@ -103,7 +103,7 @@ const VerdictCard: React.FC<{ row: VerdictRow; onOpen: () => void }> = ({ row, o
         />
       </div>
 
-      <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-hermes-bone/45">
+      <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] uppercase tracking-wider text-hermes-bone/45">
         <span className="text-hermes-red-bright/80">{row.outlet?.replace('www.', '')}</span>
         <span className="flex items-center gap-1">
           evidence chain <ChevronDown className="w-3 h-3" />
@@ -354,119 +354,124 @@ export const FactCheck: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Methodology banner — the Guinness-style standard statement */}
-      <div className="card-brutal-dark p-5 flex items-start gap-4 border-l-4 border-l-hermes-red">
-        <Landmark className="w-6 h-6 shrink-0 mt-0.5" />
-        <div className="text-sm leading-relaxed text-hermes-bone/80">
-          <span className="font-display text-base text-hermes-bone">GMEE corpus-local assessment.</span>{' '}
-          Stored support scores are <strong>uncalibrated, unvalidated heuristics</strong>,
-          not probabilities of truth. Corpus corroboration, NLI contradiction,
-          outlet counts and other disclosed signals can be incomplete or biased.
-          Inspect the returned evidence; neither a band nor a score establishes factual correctness.
-        </div>
-      </div>
-
       <ClaimCheck />
 
-      {stats.isLoading && <p role="status" className="text-xs font-mono">Loading stored verdict statistics…</p>}
-      {stats.isError && <QueryError title="Verdict statistics unavailable" error={stats.error} onRetry={() => stats.refetch()} retrying={stats.isFetching} />}
-      {/* stats strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card-brutal-dark p-4">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-hermes-bone/50">Claims scored</div>
-          <div className="text-2xl font-display tabular-nums mt-1">{stats.data?.total_claims ?? '—'}</div>
-        </div>
-        {(stats.data?.distribution ?? [])
-          .filter((d) => d.band !== 'UNSCORED')
-          .slice(0, 3)
-          .map((d) => {
-            const bs = BAND_STYLE[d.band];
-            return (
-              <div key={d.band} className="card-brutal-dark p-4">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-hermes-bone/50">
-                  {bs?.label ?? d.band}
-                </div>
-                <div className="text-2xl font-display tabular-nums mt-1">{d.count}</div>
-              </div>
-            );
-          })}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* main verdict feed */}
-        <section className="xl:col-span-2 card-brutal-dark p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-hermes-bone/12 mb-5">
-            <h2 className="text-2xl font-display flex items-center gap-2">
-              <Scale className="w-5 h-5" /> Verdict Feed
-            </h2>
-            <select
-              aria-label="Stored verdict band filter"
-              value={bandFilter}
-              onChange={(e) => setBandFilter(e.target.value)}
-              className="bg-hermes-panel-deep border border-hermes-bone/25 text-hermes-bone font-mono text-xs px-2 py-1.5 outline-none"
-            >
-              <option value="">all bands</option>
-              <option value="SUPPORTED">SUPPORTED</option>
-              <option value="PARTIALLY_SUPPORTED">PARTIALLY SUPPORTED</option>
-              <option value="WEAKLY_CORROBORATED">WEAKLY CORROBORATED</option>
-              <option value="UNRESOLVED">UNRESOLVED</option>
-              <option value="UNSUPPORTED">UNSUPPORTED</option>
-              <option value="DISPUTED">DISPUTED</option>
-            </select>
-          </div>
-
-          {list.isLoading ? (
-            <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="shimmer h-28" />)}</div>
-          ) : list.isError ? (
-            <QueryError title="Verdict feed unavailable" error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} />
-          ) : (list.data?.items.length ?? 0) === 0 ? (
-            <p className="font-mono text-xs text-hermes-bone/55 py-8 text-center">
-              No verdicts yet for this filter. No stored claims have been returned.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {list.data?.items.map((r) => (
-                <VerdictCard key={r.id} row={r} onOpen={() => setOpenId(r.id)} />
-              ))}
+      <details className="card-brutal-dark p-5">
+        <summary className="cursor-pointer font-semibold">Saved assessments &amp; outlet statistics</summary>
+        <p className="text-sm text-hermes-bone/60 mt-2">Browse previous corpus assessments and inspect their stored evidence.</p>
+        <div className="space-y-6 mt-5">
+          <div className="card-brutal-dark p-5 flex items-start gap-4 border-l-4 border-l-hermes-red">
+            <Landmark className="w-6 h-6 shrink-0 mt-0.5" />
+            <div className="text-sm leading-relaxed text-hermes-bone/80">
+              <span className="font-display text-base text-hermes-bone">GMEE corpus-local assessment.</span>{' '}
+              Stored support scores are <strong>uncalibrated, unvalidated heuristics</strong>,
+              not probabilities of truth. Corpus corroboration, NLI contradiction,
+              outlet counts and other disclosed signals can be incomplete or biased.
+              Inspect the returned evidence; neither a band nor a score establishes factual correctness.
             </div>
-          )}
-        </section>
-
-        {/* outlet credibility leaderboard */}
-        <section className="card-brutal-dark p-6 h-fit">
-          <h2 className="text-2xl font-display flex items-center gap-2 mb-1">
-            <Trophy className="w-5 h-5" /> Outlet Heuristic Scores
-          </h2>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-hermes-bone/45 mb-5">
-            laplace-smoothed support counts · not validated source credibility
-          </p>
-
-          <div className="space-y-2.5">
-            {leaderboard.isLoading && <p role="status" className="text-xs font-mono">Loading outlet scores…</p>}
-            {leaderboard.isError && <QueryError title="Outlet scores unavailable" error={leaderboard.error} onRetry={() => leaderboard.refetch()} retrying={leaderboard.isFetching} />}
-            {leaderboard.isSuccess && leaderboard.data.ranking.length === 0 && <p className="text-xs font-mono text-hermes-bone/55">No outlet scores returned.</p>}
-            {leaderboard.data?.ranking.map((o, idx) => (
-              <div key={o.name} className="flex items-center gap-3">
-                <span className="font-display text-lg w-7 text-hermes-bone/35 tabular-nums">{idx + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-xs text-hermes-bone/80 truncate">{o.name.replace('www.', '')}</span>
-                    <span className="font-mono text-xs tabular-nums" style={{ color: probColor(o.credibility) }}>
-                      {(o.credibility * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="h-1 bg-hermes-bone/10">
-                    <div className="h-full" style={{ width: `${o.credibility * 100}%`, background: probColor(o.credibility) }} />
-                  </div>
-                  <div className="font-mono text-[9px] text-hermes-bone/35 mt-0.5 uppercase tracking-wider">
-                    {o.claims} claims · {o.supported} supported · {o.disputed} disputed
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
-        </section>
-      </div>
+
+          {stats.isLoading && <p role="status" className="text-xs font-mono">Loading stored verdict statistics…</p>}
+          {stats.isError && <QueryError title="Verdict statistics unavailable" error={stats.error} onRetry={() => stats.refetch()} retrying={stats.isFetching} />}
+          {/* stats strip */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="card-brutal-dark p-4">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-hermes-bone/50">Claims scored</div>
+              <div className="text-2xl font-display tabular-nums mt-1">{stats.data?.total_claims ?? '—'}</div>
+            </div>
+            {(stats.data?.distribution ?? [])
+              .filter((d) => d.band !== 'UNSCORED')
+              .slice(0, 3)
+              .map((d) => {
+                const bs = BAND_STYLE[d.band];
+                return (
+                  <div key={d.band} className="card-brutal-dark p-4">
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-hermes-bone/50">
+                      {bs?.label ?? d.band}
+                    </div>
+                    <div className="text-2xl font-display tabular-nums mt-1">{d.count}</div>
+                  </div>
+                );
+              })}
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* main verdict feed */}
+            <section className="xl:col-span-2 card-brutal-dark p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-hermes-bone/12 mb-5">
+                <h2 className="text-2xl font-display flex items-center gap-2">
+                  <Scale className="w-5 h-5" /> Verdict Feed
+                </h2>
+                <select
+                  aria-label="Stored verdict band filter"
+                  value={bandFilter}
+                  onChange={(e) => setBandFilter(e.target.value)}
+                  className="bg-hermes-panel-deep border border-hermes-bone/25 text-hermes-bone font-mono text-xs px-2 py-1.5 outline-none"
+                >
+                  <option value="">all bands</option>
+                  <option value="SUPPORTED">SUPPORTED</option>
+                  <option value="PARTIALLY_SUPPORTED">PARTIALLY SUPPORTED</option>
+                  <option value="WEAKLY_CORROBORATED">WEAKLY CORROBORATED</option>
+                  <option value="UNRESOLVED">UNRESOLVED</option>
+                  <option value="UNSUPPORTED">UNSUPPORTED</option>
+                  <option value="DISPUTED">DISPUTED</option>
+                </select>
+              </div>
+
+              {list.isLoading ? (
+                <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="shimmer h-28" />)}</div>
+              ) : list.isError ? (
+                <QueryError title="Verdict feed unavailable" error={list.error} onRetry={() => list.refetch()} retrying={list.isFetching} />
+              ) : (list.data?.items.length ?? 0) === 0 ? (
+                <p className="font-mono text-xs text-hermes-bone/55 py-8 text-center">
+                  No verdicts yet for this filter. No stored claims have been returned.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {list.data?.items.map((r) => (
+                    <VerdictCard key={r.id} row={r} onOpen={() => setOpenId(r.id)} />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* outlet credibility leaderboard */}
+            <section className="card-brutal-dark p-6 h-fit">
+              <h2 className="text-2xl font-display flex items-center gap-2 mb-1">
+                <Trophy className="w-5 h-5" /> Outlet Heuristic Scores
+              </h2>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-hermes-bone/45 mb-5">
+                laplace-smoothed support counts · not validated source credibility
+              </p>
+
+              <div className="space-y-2.5">
+                {leaderboard.isLoading && <p role="status" className="text-xs font-mono">Loading outlet scores…</p>}
+                {leaderboard.isError && <QueryError title="Outlet scores unavailable" error={leaderboard.error} onRetry={() => leaderboard.refetch()} retrying={leaderboard.isFetching} />}
+                {leaderboard.isSuccess && leaderboard.data.ranking.length === 0 && <p className="text-xs font-mono text-hermes-bone/55">No outlet scores returned.</p>}
+                {leaderboard.data?.ranking.map((o, idx) => (
+                  <div key={o.name} className="flex items-center gap-3">
+                    <span className="font-display text-lg w-7 text-hermes-bone/35 tabular-nums">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs text-hermes-bone/80 truncate">{o.name.replace('www.', '')}</span>
+                        <span className="font-mono text-xs tabular-nums" style={{ color: probColor(o.credibility) }}>
+                          {(o.credibility * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                      <div className="h-1 bg-hermes-bone/10">
+                        <div className="h-full" style={{ width: `${o.credibility * 100}%`, background: probColor(o.credibility) }} />
+                      </div>
+                      <div className="font-mono text-[9px] text-hermes-bone/35 mt-0.5 uppercase tracking-wider">
+                        {o.claims} claims · {o.supported} supported · {o.disputed} disputed
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      </details>
 
       {openId && (detail.data && !detail.isError ? <EvidenceDrawer detail={detail.data} onClose={() => setOpenId(null)} /> : (
         <Dialog labelledBy="verdict-loading-title" onClose={() => setOpenId(null)}>

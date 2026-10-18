@@ -50,7 +50,7 @@ export function AccountPanel({ signInLabel = 'Sign in' }: { signInLabel?: string
 
   return (
     <>
-      <button type="button" onClick={() => { setError(null); setNotice(''); setOpen(true); }} className="btn-brutal">
+      <button type="button" onClick={() => { setError(null); setNotice(''); setOpen(true); }} className="btn-outline-dark">
         <UserRound className="w-3.5 h-3.5" /> {user ? 'Account' : signInLabel}
       </button>
       {open && (

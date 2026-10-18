@@ -16,8 +16,11 @@ describe('dashboard chrome', () => {
   it('activates real dashboard sections and labels polling/refresh controls', () => {
     const setActive = vi.fn();
     renderWithClient(<Header {...baseProps} activeTab="overview" setActiveTab={setActive} status="ready" />);
-    fireEvent.click(screen.getByRole('button', { name: /FactCheck/ }));
-    expect(setActive).toHaveBeenCalledWith('factcheck');
+    fireEvent.click(screen.getByText('Refresh settings'));
+    fireEvent.change(screen.getByLabelText('Background polling interval'), { target: { value: '0' } });
+    expect(baseProps.setRefetchInterval).toHaveBeenCalledWith(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh telemetry' }));
+    expect(baseProps.onManualRefresh).toHaveBeenCalled();
     expect(screen.getByLabelText('Background polling interval')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Refresh telemetry' })).toBeTruthy();
     expect(screen.queryByText(/6.4k nodes|6.4k articles/)).toBeNull();
@@ -25,7 +28,7 @@ describe('dashboard chrome', () => {
 
   it('marks an explicit demo separately and never fabricates a ready status', () => {
     renderWithClient(<Header {...baseProps} activeTab="overview" setActiveTab={vi.fn()} status="error" demoMode />);
-    expect(screen.getByText('Demo Telemetry')).toBeTruthy();
+    expect(screen.getByText('Demo Telemetry · simulated')).toBeTruthy();
     expect(screen.getByText('Connection Failed')).toBeTruthy();
     expect(screen.queryByText('Systems Ready')).toBeNull();
   });

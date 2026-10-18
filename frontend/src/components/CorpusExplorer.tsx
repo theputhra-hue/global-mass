@@ -66,69 +66,6 @@ const CorpusExplorer: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* ------------------------- Story Clusters ------------------------- */}
-      <section className="card-brutal-dark p-6">
-        <div className="flex items-center justify-between pb-3 border-b border-hermes-bone/12 mb-5">
-          <div className="flex items-center gap-2">
-            <Network className="w-5 h-5" />
-            <h2 className="text-2xl font-display">Story Clusters</h2>
-          </div>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-hermes-bone/45">
-            most-linked stories · neo4j
-          </span>
-        </div>
-
-        {clusters.isLoading ? (
-          <div role="status" aria-label="Loading story clusters" className="shimmer h-40" />
-        ) : clusters.isError ? (
-          <QueryError title="Story clusters unavailable" error={clusters.error} onRetry={() => clusters.refetch()} retrying={clusters.isFetching} />
-        ) : clusters.data?.clusters.length === 0 ? (
-          <p className="text-xs font-mono text-hermes-bone/55">No story clusters returned.</p>
-        ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-            {clusters.data?.clusters.map((c) => (
-              <div
-                key={c.id}
-                className="border border-hermes-bone/15 bg-hermes-panel-deep p-4 flex flex-col gap-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <a
-                    href={articleHref(c.id, 'overview', { back: window.location.hash })}
-
-
-                    className="font-display text-lg leading-snug hover:text-hermes-red-bright transition-colors"
-                  >
-                    {c.title}
-                  </a>
-                  <span className="chip-brutal bg-hermes-red text-hermes-bone border-hermes-red shrink-0">
-                    {c.deg} links
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {c.neighbors.map((nb) => (
-                    <a
-                      key={nb.id}
-                      href={articleHref(nb.id, 'overview', { back: window.location.hash })}
-
-
-                      className="group flex items-center gap-2 font-mono text-[11px] text-hermes-bone/70 hover:text-hermes-bone"
-                    >
-                      <span className="w-9 shrink-0 text-right tabular-nums text-hermes-red-bright">
-                        {nb.score.toFixed(2)}
-                      </span>
-                      <span className="w-32 shrink-0 truncate uppercase tracking-wider text-hermes-bone/40 group-hover:text-hermes-bone/70">
-                        {nb.domain?.replace('www.', '')}
-                      </span>
-                      <span className="truncate">{nb.title}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* -------------------------- Corpus search ------------------------- */}
       <section className="card-brutal-dark p-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-hermes-bone/12 mb-5">
@@ -198,15 +135,15 @@ const CorpusExplorer: React.FC = () => {
                     <span className="truncate text-sm font-medium text-hermes-bone/90 group-hover:text-white">
                       {a.title}
                     </span>
-                    <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-hermes-bone/40">
+                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-hermes-bone/40">
                       <span className="text-hermes-red-bright/80">
                         {a.domain?.replace('www.', '')}
                       </span>
                       {a.author && <span>· {a.author}</span>}
                       {a.published_at && (
-                        <span>· {new Date(a.published_at).toLocaleDateString()}</span>
+                        <span className="whitespace-nowrap">· {new Date(a.published_at).toLocaleDateString()}</span>
                       )}
-                      {a.word_count != null ? <span>· {a.word_count}w</span> : null}
+                      {a.word_count != null ? <span className="whitespace-nowrap">· {a.word_count}w</span> : null}
                     </span>
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />
@@ -239,6 +176,71 @@ const CorpusExplorer: React.FC = () => {
         )}
       </section>
 
+      <details><summary className="text-sm py-3">Related story clusters</summary>
+      {/* ------------------------- Story Clusters ------------------------- */}
+      <section className="card-brutal-dark p-6">
+        <div className="flex items-center justify-between pb-3 border-b border-hermes-bone/12 mb-5">
+          <div className="flex items-center gap-2">
+            <Network className="w-5 h-5" />
+            <h2 className="text-2xl font-display">Story Clusters</h2>
+          </div>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-hermes-bone/45">
+            most-linked stories · neo4j
+          </span>
+        </div>
+
+        {clusters.isLoading ? (
+          <div role="status" aria-label="Loading story clusters" className="shimmer h-40" />
+        ) : clusters.isError ? (
+          <QueryError title="Story clusters unavailable" error={clusters.error} onRetry={() => clusters.refetch()} retrying={clusters.isFetching} />
+        ) : clusters.data?.clusters.length === 0 ? (
+          <p className="text-xs font-mono text-hermes-bone/55">No story clusters returned.</p>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            {clusters.data?.clusters.map((c) => (
+              <div
+                key={c.id}
+                className="border border-hermes-bone/15 bg-hermes-panel-deep p-4 flex flex-col gap-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <a
+                    href={articleHref(c.id, 'overview', { back: window.location.hash })}
+
+
+                    className="font-display text-lg leading-snug hover:text-hermes-red-bright transition-colors"
+                  >
+                    {c.title}
+                  </a>
+                  <span className="chip-brutal bg-hermes-red text-hermes-bone border-hermes-red shrink-0">
+                    {c.deg} links
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {c.neighbors.map((nb) => (
+                    <a
+                      key={nb.id}
+                      href={articleHref(nb.id, 'overview', { back: window.location.hash })}
+
+
+                      className="group grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2 gap-y-1 py-2 font-mono text-[11px] text-hermes-bone/70 hover:text-hermes-bone"
+                    >
+                      <span className="w-9 shrink-0 text-right tabular-nums text-hermes-red-bright">
+                        {nb.score.toFixed(2)}
+                      </span>
+                      <span className="min-w-0 truncate uppercase tracking-wider text-hermes-bone/40 group-hover:text-hermes-bone/70">
+                        {nb.domain?.replace('www.', '')}
+                      </span>
+                      <span className="col-start-2 text-sm leading-relaxed">{nb.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      </details>
       {/* ------------------------ Live ingest stream ----------------------- */}
       <section className="card-brutal-dark p-6">
         <div className="flex items-center justify-between pb-3 border-b border-hermes-bone/12 mb-4">

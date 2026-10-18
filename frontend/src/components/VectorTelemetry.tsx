@@ -89,19 +89,19 @@ export const VectorTelemetry: React.FC = () => {
       </div>
 
       {/* Semantic search */}
-      <form onSubmit={submit} className="flex items-stretch gap-2">
-        <div className="flex flex-1 items-center border border-hermes-bone/25 bg-hermes-panel-deep px-3">
+      <form onSubmit={submit} className="flex flex-col sm:flex-row items-stretch gap-2">
+        <div className="flex min-w-0 flex-1 items-center rounded-lg border border-hermes-bone/25 bg-hermes-panel-deep px-3">
           <Search className="w-4 h-4 text-hermes-bone/40 mr-2" />
           <input
             aria-label="Semantic search query"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder='try "earthquake deaths" or "AI regulation"…'
-            className="flex-1 bg-transparent text-hermes-bone font-mono text-xs py-2.5 outline-none placeholder:text-hermes-bone/35"
+            className="min-w-0 flex-1 bg-transparent text-hermes-bone font-mono text-xs py-2.5 outline-none placeholder:text-hermes-bone/35"
           />
         </div>
         <button type="submit" disabled={q.trim().length < 2} className="btn-brutal">
-          <Zap className="w-3.5 h-3.5" /> Embed &amp; Match
+          <Zap className="w-3.5 h-3.5" /> Find related articles
         </button>
       </form>
 
@@ -109,7 +109,7 @@ export const VectorTelemetry: React.FC = () => {
       {submitted.length >= 2 && (
         <div className="border border-hermes-bone/20 bg-hermes-panel-deep p-4">
           <div className="text-[10px] font-mono uppercase tracking-widest text-hermes-bone/45 mb-3">
-            nearest neighbors for “{submitted}” · cosine similarity (uncalibrated, not truth confidence)
+            Related wording for “{submitted}” · cosine similarity × 100 (uncalibrated, not truth confidence)
           </div>
 
           {results.isLoading ? (
@@ -133,15 +133,15 @@ export const VectorTelemetry: React.FC = () => {
                   href={articleHref(r.id, 'overview', { back: window.location.hash })}
 
 
-                  className="group flex items-center gap-3 py-2"
+                  className="group grid grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-3"
                 >
                   <span className="w-12 shrink-0 text-right font-mono text-sm tabular-nums text-hermes-red-bright font-bold">
                     {(r.score * 100).toFixed(1)}
                   </span>
-                  <span className="w-28 shrink-0 truncate font-mono text-[10px] uppercase tracking-wider text-hermes-bone/45">
+                  <span className="col-start-2 truncate font-mono text-[10px] text-hermes-bone/60">
                     {r.domain?.replace('www.', '')}
                   </span>
-                  <span className="flex-1 truncate text-xs text-hermes-bone/85 group-hover:text-white">
+                  <span className="col-start-2 row-start-2 text-sm leading-relaxed text-hermes-bone/85 group-hover:text-white">
                     {r.title}
                   </span>
                   <ArrowRight className="w-3 h-3 shrink-0 text-hermes-bone/30 group-hover:text-hermes-red-bright" />

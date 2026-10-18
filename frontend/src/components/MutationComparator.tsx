@@ -131,7 +131,7 @@ function ComparisonForm({ initialOlder = '', initialNewer = '' }: { initialOlder
         </div>}
         {typeof result.analysis.similarity === 'number' && <p className="text-xs font-mono">Text similarity: {result.analysis.similarity.toFixed(3)} (uncalibrated matching signal)</p>}
         {typeof result.analysis.algorithm_version === 'string' && <p className="text-xs font-mono">Algorithm: {result.analysis.algorithm_version}</p>}
-        {limitations.length > 0 && <ul className="list-disc pl-5 text-xs text-amber-300">{limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul>}
+        {limitations.length > 0 && <details className="text-xs"><summary>Method limitations ({limitations.length})</summary><ul className="list-disc pl-5 mt-3 space-y-2 text-hermes-bone/70">{limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul></details>}
         {result.warnings?.length ? <ul className="list-disc pl-5 text-xs text-amber-300">{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul> : null}
         <p className="text-xs font-mono text-hermes-bone/55">Any similarity or confidence fields below are unvalidated heuristic signals, not calibrated probabilities.</p>
         <details><summary className="cursor-pointer text-xs font-mono">Full API analysis (including additive diff fields)</summary><pre className="mt-2 whitespace-pre-wrap break-words text-xs text-hermes-bone/75">{JSON.stringify(result.analysis, null, 2)}</pre></details>

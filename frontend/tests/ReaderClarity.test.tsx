@@ -21,7 +21,7 @@ describe('reader clarity and capability boundaries', () => {
     expect(within(local).queryByRole('link', { name: 'Open database graph' })).toBeNull();
     expect(await screen.findByText(/No relationship links have been saved/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open my investigations' }).getAttribute('href')).toBe('#/dashboard/casebook');
-    expect(screen.getByText('Existing tool: Postgres Vector')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open article search' })).toBeTruthy();
     expect(fetch.mock.calls.every(([url]) => /\/(capabilities|publications\/status)$/.test(String(url)))).toBe(true);
   });
   it('labels published claim search as saved analysis without promising new evidence inference', async () => {
