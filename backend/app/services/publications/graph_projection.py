@@ -58,14 +58,14 @@ async def published_graph(db: AsyncSession, run: uuid.UUID, *, claims: bool) -> 
             continue
         kind = edge.payload["relationship_type"]
         directed = True if kind == "EVOLVED_FROM" else False if kind == "SIMILAR_TO" else None
-        src, dst = str(a), str(b)
+        src_id, dst_id = str(a), str(b)
         if directed is False:
-            src, dst = sorted((src, dst))
-        key = src, dst, kind
+            src_id, dst_id = sorted((src_id, dst_id))
+        key = (src_id, dst_id, kind)
         score = edge.payload["score"]
         if key not in groups:
             groups[key] = {"id": hashlib.sha256(json.dumps(key).encode()).hexdigest()[:24],
-                "src": src, "dst": dst, "relationship_type": kind, "directed": directed,
+                "src": src_id, "dst": dst_id, "relationship_type": kind, "directed": directed,
                 "score": score, "score_min": score, "score_max": score,
                 "score_kind": "similarity" if kind == "SIMILAR_TO" else "relationship_strength",
                 "score_family": "published_claim_" + kind.lower(),

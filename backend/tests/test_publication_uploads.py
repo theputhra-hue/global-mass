@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -74,7 +75,7 @@ async def test_review_reads_bounded_samples_without_loading_entire_release(async
     payload["claims"] += [{**payload["claims"][0], "id": str(uuid4()), "text": f"Extra claim {i}"} for i in range(7)]
     uploaded = await async_client.post("/api/v1/publications/upload", json=payload)
     assert uploaded.status_code == 200
-    raw_payload_reads = []
+    raw_payload_reads: list[Any] = []
 
     def inspect_columns(conn, statement, multiparams, params, execution_options):
         raw_payload_reads.extend(column for column in getattr(statement, "selected_columns", [])
