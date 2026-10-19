@@ -41,7 +41,7 @@ def test_v1_digest_excludes_new_fields_exactly():
     assert b'topic_map' not in snapshot.canonical_bytes()
 
 
-@pytest.mark.parametrize("bad", ["missing", "extra", "duplicate", "unknown_topic", "wrong_count", "nan", "partial_xy", "v1_map"])
+@pytest.mark.parametrize("bad", ["missing", "extra", "duplicate", "unknown_topic", "wrong_count", "nan", "partial_xy", "unsupported_xy", "missing_usable_xy", "v1_map"])
 def test_map_integrity_validation(bad):
     payload = mapped_payload()
     mapping = payload["topic_map"]
@@ -59,6 +59,13 @@ def test_map_integrity_validation(bad):
         mapping["assignments"][0]["x"] = float("nan")
     elif bad == "partial_xy":
         mapping["assignments"][0]["y"] = None
+    elif bad in ("unsupported_xy", "missing_usable_xy"):
+        mapping["topics"] = []
+        mapping["assignments"][0]["topic_id"] = None
+        if bad == "unsupported_xy":
+            mapping["assignments"][0]["basis"] = "unsupported_language"
+        else:
+            mapping["assignments"][0]["x"] = mapping["assignments"][0]["y"] = None
     else:
         payload["schema_version"] = "1"
     with pytest.raises(ValidationError):

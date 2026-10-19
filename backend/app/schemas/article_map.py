@@ -32,6 +32,10 @@ class ArticleAssignment(MapRecord):
             raise ValueError("Classified articles need projection coordinates")
         if self.basis in ("unsupported_language", "unavailable") and self.topic_id is not None:
             raise ValueError("Unavailable text cannot receive a semantic topic")
+        if self.basis in ("unsupported_language", "unavailable") and self.x is not None:
+            raise ValueError("Unavailable inputs cannot carry semantic coordinates")
+        if self.basis in ("stored_text", "title_only") and self.x is None:
+            raise ValueError("Usable inputs require a document projection")
         if self.duplicate_of == self.article_id:
             raise ValueError("Duplicate cannot refer to itself")
         return self
