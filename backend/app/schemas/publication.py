@@ -15,6 +15,7 @@ from pydantic import (
 )
 
 from app.schemas.article_map import ArticleMap
+from app.schemas.city_network import CityNetwork, road_aggregates, super_aggregates
 
 
 class PublicationRecord(BaseModel):
@@ -73,7 +74,7 @@ class PublicationProvenance(PublicationRecord):
 
 
 class PublicationSnapshot(PublicationRecord):
-    schema_version: Literal["1", "2"] = "1"
+    schema_version: Literal["1", "2", "3"] = "1"
     run_id: UUID
     generated_at: AwareDatetime
     provenance: PublicationProvenance
@@ -81,6 +82,7 @@ class PublicationSnapshot(PublicationRecord):
     claims: list[PublishedClaim] = Field(max_length=50000)
     relationships: list[PublishedRelationship] = Field(max_length=100000)
     topic_map: ArticleMap | None = None
+    city_network: CityNetwork | None = None
 
     @model_validator(mode="after")
     def validate_references(self) -> "PublicationSnapshot":
@@ -92,13 +94,38 @@ class PublicationSnapshot(PublicationRecord):
         article_ids = {article.id for article in self.articles}
         if self.schema_version == "1" and self.topic_map is not None:
             raise ValueError("Article map requires publication version 2")
-        if self.schema_version == "2":
+        if self.schema_version in ("2", "3"):
             if self.topic_map is None:
                 raise ValueError("Version 2 requires a complete article map")
             if {a.article_id for a in self.topic_map.assignments} != article_ids:
                 raise ValueError("Article map must cover exactly this release's articles")
             if self.generated_at < self.topic_map.completed_at:
                 raise ValueError("Snapshot generated before map completed")
+        if self.schema_version != "3" and self.city_network is not None:
+            raise ValueError("City network requires publication version 3")
+        if self.schema_version == "3":
+            city, mapping = self.city_network, self.topic_map
+            if city is None or mapping is None:
+                raise ValueError("Version 3 requires a complete city network and map")
+            if set(city.article_ids) != article_ids or self.generated_at < city.completed_at:
+                raise ValueError("City network must cover this release and finish before export")
+            if city.input_sha256 != mapping.input_sha256 or city.embedding_model != mapping.embedding_model or city.embedding_revision != mapping.embedding_revision:
+                raise ValueError("City network and map use different input or model")
+            assignments = {a.article_id: a for a in mapping.assignments}
+            for a, b, _ in city.roads:
+                if assignments[city.article_ids[a]].x is None or assignments[city.article_ids[b]].x is None:
+                    raise ValueError("Road references an unsupported semantic input")
+            topics = {t.id: t for t in mapping.topics}
+            membership = {topic: theme.id for theme in city.themes for topic in theme.topics}
+            if len(membership) != sum(len(t.topics) for t in city.themes) or set(membership) != set(topics):
+                raise ValueError("Theme membership must cover every topic exactly once")
+            if any(theme.article_count != sum(topics[t].article_count for t in theme.topics) for theme in city.themes):
+                raise ValueError("Theme member counts differ")
+            expected = road_aggregates(city.roads, [assignments[i].topic_id for i in city.article_ids], city.min_highway_support, city.min_highway_endpoints)
+            if expected != [h.model_dump() for h in city.highways]:
+                raise ValueError("Highways differ from their supporting roads")
+            if super_aggregates(city.highways, membership) != [s.model_dump() for s in city.superways]:
+                raise ValueError("Superways differ from their supporting highways")
         claim_ids = {claim.id for claim in self.claims}
         if any(claim.article_id not in article_ids for claim in self.claims):
             raise ValueError("Claim references missing article")
@@ -122,7 +149,9 @@ class PublicationSnapshot(PublicationRecord):
     def canonical_bytes(self) -> bytes:
         """Stable envelope serialization for replay/conflict detection."""
         # A v1 upload must retain its existing fingerprint after the v2 upgrade.
-        data = self.model_dump(mode="json", exclude={"topic_map"} if self.schema_version == "1" else None)
+        excluded = ({"topic_map", "city_network"} if self.schema_version == "1"
+                    else {"city_network"} if self.schema_version == "2" else set())
+        data = self.model_dump(mode="json", exclude=excluded)
         return json.dumps(data, sort_keys=True,
                           separators=(",", ":"), ensure_ascii=False,
                           allow_nan=False).encode("utf-8")

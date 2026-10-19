@@ -110,6 +110,8 @@ async def review_upload(
         payload["schema_version"].as_string().label("schema_version"),
         func.json_array_length(payload["topic_map"]["topics"]).label("topic_count"),
         func.json_array_length(payload["topic_map"]["assignments"]).label("mapped_articles"),
+        *(func.json_array_length(payload["city_network"][key]).label("city_" + key)
+          for key in ("roads", "highways", "themes", "superways")),
         *(func.json_array_length(payload[key]).label(key)
           for key in ("articles", "claims", "relationships")),
         *(payload[key][index].label(f"{key}_{index}")
@@ -123,7 +125,8 @@ async def review_upload(
             **{key: row[key] for key in ("articles", "claims", "relationships")},
             "generated_at": row["generated_at"], "provenance": row["provenance"],
             "schema_version": row["schema_version"],
-            "article_map": {"topics": row["topic_count"], "articles": row["mapped_articles"]} if row["schema_version"] == "2" else None,
+            "article_map": {"topics": row["topic_count"], "articles": row["mapped_articles"]} if row["schema_version"] in ("2", "3") else None,
+            "city_network": {key: row["city_" + key] for key in ("roads", "highways", "themes", "superways")} if row["schema_version"] == "3" else None,
             "sample_articles": [row[f"articles_{index}"] for index in range(5) if row[f"articles_{index}"] is not None],
             "sample_claims": [row[f"claims_{index}"] for index in range(5) if row[f"claims_{index}"] is not None],
             "current": await publication_store.status(db)}

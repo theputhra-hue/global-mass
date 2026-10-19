@@ -22,7 +22,9 @@ export function PublicationProvider({ children }: { children: ReactNode }) {
     }
     previous.current = revision;
   }, [client, status.data?.revision]);
-  const mode = capabilities.isPending ? 'connecting' : capabilities.isError ? 'unavailable' : cloud ? 'published' : 'local';
+  // A failed background refresh must not discard an already validated runtime.
+  // Initial failures still use the explicit unavailable/retry screen.
+  const mode = capabilities.isPending ? 'connecting' : capabilities.isError && !capabilities.data ? 'unavailable' : cloud ? 'published' : 'local';
   return <RuntimeContext.Provider value={{ mode, publication: status.data }}>{children}</RuntimeContext.Provider>;
 }
 

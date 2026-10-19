@@ -1,6 +1,6 @@
 """Local-only resumable article atlas. Source DB is read-only; no cloud writes.
 
-Run from backend: python -m scripts.build_article_map --base <v1-or-v2.json>
+Run from backend: python -m scripts.build_article_map --base <v1-v2-or-v3.json>
   --work-dir <ignored/checkpoints> --output <new-release.json>
 Repeat the same command to reuse unchanged document embeddings. New/changed
 documents are encoded; each completed checkpoint is committed independently.
@@ -195,7 +195,9 @@ def build(args: argparse.Namespace) -> None:
     if source_after != source_before:
         raise RuntimeError("Source corpus changed during processing; reconcile before exporting")
     completed = datetime.now(UTC)
-    payload = base.model_dump(mode="json", exclude={"topic_map"})
+    # New topic assignments need newly computed roads; never carry a prior city
+    # network into a changed projection/topic release.
+    payload = base.model_dump(mode="json", exclude={"topic_map", "city_network"})
     payload.update(schema_version="2", run_id=str(uuid.uuid4()), generated_at=completed.isoformat(),
                    topic_map={"method": METHOD, "started_at": started.isoformat(), "completed_at": completed.isoformat(),
                               "source_commit": source_commit, "input_sha256": input_hash, "config_sha256": config_hash,

@@ -12,6 +12,8 @@ from app.models.publication import (
     PublicationUpload,
     PublishedArticleMapRow,
     PublishedArticleRow,
+    PublishedCityNetworkRow,
+    PublishedCityRoadRow,
     PublishedClaimRow,
     PublishedRelationshipRow,
 )
@@ -98,6 +100,19 @@ async def activate(db: AsyncSession, run_id: UUID, digest: str, expected_revisio
             summary["coverage"] = {basis: sum(a.basis == basis for a in snapshot.topic_map.assignments)
                                    for basis in ("stored_text", "title_only", "unsupported_language", "unavailable")}
             await db.execute(insert(PublishedArticleMapRow), [{"run_id": run_id, "payload": summary}])
+        if snapshot.city_network:
+            city = snapshot.city_network
+            summary = city.model_dump(mode="json", exclude={"roads"})
+            summary["total_roads"] = len(city.roads)
+            degree = [0] * len(city.article_ids)
+            for a, b, _ in city.roads:
+                degree[a] += 1
+                degree[b] += 1
+            summary["degree"] = degree
+            await db.execute(insert(PublishedCityNetworkRow), [{"run_id": run_id, "payload": summary}])
+            for offset in range(0, len(city.roads), 200):
+                await db.execute(insert(PublishedCityRoadRow), [{"run_id": run_id, "ordinal": i,
+                    "payload": list(city.roads[i])} for i in range(offset, min(offset + 200, len(city.roads)))])
     # Compare-and-swap also protects SQLite rehearsal; PostgreSQL locks serialize writers.
     changed = await db.execute(update(PublicationHead).where(
         PublicationHead.id == 1, PublicationHead.revision == expected_revision,

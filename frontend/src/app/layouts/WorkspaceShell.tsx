@@ -13,6 +13,7 @@ interface WorkspaceShellProps {
 }
 
 export function WorkspaceShell({ route, articleTitle, articleTab, children }: WorkspaceShellProps) {
+  const wideMap = route.kind === 'advanced' && (route.tab === 'atlas' || route.tab === 'fullgraph');
   return (
     <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate flex flex-col lg:flex-row">
       {/* Skip to main content link for keyboard accessibility */}
@@ -42,7 +43,7 @@ export function WorkspaceShell({ route, articleTitle, articleTab, children }: Wo
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto min-w-0 outline-none space-y-6"
+          className={`flex-1 p-4 md:p-8 ${wideMap ? 'max-w-none' : 'max-w-7xl'} w-full mx-auto min-w-0 outline-none space-y-6`}
         >
           {/* Breadcrumbs */}
           <WorkspaceBreadcrumbs route={route} articleTitle={articleTitle} articleTab={articleTab} />
