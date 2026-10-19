@@ -82,9 +82,10 @@
 .city-workspace:fullscreen .city-intro { display: none; }
 .city-workspace:fullscreen .city-scope-strip { padding: 8px 0; }
 .city-workspace:fullscreen .city-toolbar { margin: 2px 0 12px; }
-.city-workspace:fullscreen .city-body { flex: 1; min-height: 0; }
-.city-workspace:fullscreen .city-explorer { overflow: auto; }
-.city-workspace:fullscreen .city-canvas { height: 100%; min-height: 0; }
+.city-workspace:fullscreen .city-body { flex: 1; height: 0; min-height: 0; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+.city-workspace:fullscreen .city-explorer { min-height: 0; height: 100%; overflow: auto; }
+.city-workspace:fullscreen .city-stage { min-height: 0; height: 100%; overflow: hidden; }
+.city-workspace:fullscreen .city-canvas { position: absolute; inset: 0; height: 100%; min-height: 0; }
 .city-workspace:fullscreen .city-legend { padding: 12px 20px; }
 .city-workspace:fullscreen .city-view-status { padding: 6px 0 0; }
 .city-workspace:fullscreen .city-methods, .city-workspace:fullscreen .city-records { display: none; }

@@ -60,7 +60,7 @@ export default function ArticleAtlas() {
   useEffect(() => { const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') { select(null); selectEdge(null); setExploring(false); } }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
   const reset = () => { setTopic(''); setTheme(''); setQuery(''); setSearch(''); setPage(0); select(null); selectEdge(null); setView(null); requestAnimationFrame(() => canvas.current?.fit()); };
   const latest = () => { reset(); pinRelease(null); void queryClient.invalidateQueries({ queryKey: ['complete-article-map', null] }); };
-  const pick = (id: string | null) => { select(id); selectEdge(null); };
+  const pick = (id: string | null) => { select(id); selectEdge(null); setExploring(false); };
   const pickEdge = (id: string) => { select(null); selectEdge(id); };
   const fullscreenMap = async () => {
     try { if (document.fullscreenElement) await document.exitFullscreen(); else if (root.current?.requestFullscreen) await root.current.requestFullscreen(); else setScreenError('Fullscreen is unavailable in this browser. The map uses the available width.'); }
