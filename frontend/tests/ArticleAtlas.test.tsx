@@ -40,6 +40,7 @@ describe('article atlas interface', () => {
     expect(screen.getByRole('link', { name: 'Browse source articles' })).toBeTruthy();
   });
   it('shows coverage, topic filters, full-title search and source drill-down', async () => {
+    window.location.hash = '#/dashboard/atlas';
     mockApi(() => jsonResponse(first));
     renderWithClient(<ArticleAtlas />);
     expect(await screen.findByText(/Complete collection loaded: 1 of 1/)).toBeTruthy();
@@ -48,7 +49,9 @@ describe('article atlas interface', () => {
     expect(within(inspector).getByRole('link', { name: 'Open article details' }).getAttribute('href')).toContain('/overview?back=');
     fireEvent.change(screen.getByRole('combobox', { name: 'Topic group' }), { target: { value: '__unclassified' } });
     expect(screen.getByText('No articles match these map filters.')).toBeTruthy();
+    expect(window.location.hash).toContain('topic=__unclassified');
     fireEvent.click(screen.getByRole('button', { name: 'Clear map filters' }));
+    expect(window.location.hash).toBe('#/dashboard/atlas');
     fireEvent.change(screen.getByRole('textbox', { name: 'Search all mapped articles' }), { target: { value: 'missing topic' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search map' }));
     expect(screen.getByText('No articles match these map filters.')).toBeTruthy();

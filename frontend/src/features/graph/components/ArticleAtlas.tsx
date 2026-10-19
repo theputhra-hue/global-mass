@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { loadArticleMap } from '../../../shared/api/articleMap';
 import { graphApi } from '../../../shared/api/graph';
@@ -32,6 +32,8 @@ export default function ArticleAtlas() {
   const backParams = new URLSearchParams();
   if (topic) backParams.set('topic', topic); if (query) backParams.set('q', query); if (selected) backParams.set('node', selected);
   const back = `#/dashboard/atlas${backParams.size ? '?' + backParams : ''}`;
+  useEffect(() => { if (window.location.hash.split('?')[0] === '#/dashboard/atlas') window.history.replaceState(null, '', back); }, [back]);
+  useEffect(() => { if (request.isSuccess && selected && !filtered.some(a => a.id === selected)) select(null); }, [request.isSuccess, selected, filtered]);
   const reset = () => { setTopic(''); setQuery(''); setSearch(''); setPage(0); select(null); };
   return <section className="card-brutal-dark p-5 md:p-6 space-y-6 min-w-0" aria-label="Complete collection map">
     <header className="space-y-3"><p className="text-xs uppercase tracking-widest text-hermes-red-bright">The whole collection</p><h1 className="font-display text-4xl">Articles, grouped into topics.</h1><p className="text-sm text-hermes-bone/70 leading-relaxed">Explore every article in this published collection. Colors identify machine-generated topic groups. Nearby dots reflect an approximate projection of article text, not truth, copying or observed transmission.</p><a href="#/dashboard/fullgraph" className="btn-outline-dark inline-block !text-xs">Inspect recorded relationship links →</a></header>
