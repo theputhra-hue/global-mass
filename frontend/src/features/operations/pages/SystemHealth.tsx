@@ -22,6 +22,7 @@ import { ProjectLab } from '../../research/components/ProjectLab';
 import { Casebook } from '../../investigations/components/Casebook';
 import type { MutationComparisonInput } from '../../../shared/api/features';
 import FullCorpusGraph from '../../graph/components/FullCorpusGraph';
+import ArticleAtlas from '../../graph/components/ArticleAtlas';
 import TimelineTunnel from '../../graph/components/TimelineTunnel';
 import MasalaLab from '../../experiments/components/MasalaLab';
 import AsciiEqualizer from '../../../shared/ui/decorative/AsciiEqualizer';
@@ -316,6 +317,7 @@ const SystemHealthContent: React.FC = () => {
             {activeTab === 'timeline' && <TimelineTunnel />}
             {activeTab === 'masala' && <MasalaLab />}
             {activeTab === 'fullgraph' && <FullCorpusGraph setActiveTab={setActiveTab} />}
+            {activeTab === 'atlas' && <ArticleAtlas />}
             {activeTab === 'factcheck' && <FactCheck />}
             {activeTab === 'eval' && <EvalLab />}
             {activeTab === 'corpus' && <CorpusExplorer />}

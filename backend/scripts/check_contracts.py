@@ -45,7 +45,7 @@ def main() -> int:
         CORS_ORIGINS="http://localhost:3000", ENABLE_SCHEDULER="false",
         DEVELOPER_PIPELINE_ENABLED="false",
     )
-    target = ROOT / "contracts" / ("publication-v1.schema.json" if args.mode == "publication" else f"{args.mode}-api-v1.routes.json")
+    target = ROOT / "contracts" / ("publication-v2.schema.json" if args.mode == "publication" else f"{args.mode}-api-v1.routes.json")
     current = contract(args.mode)
     if args.write:
         target.parent.mkdir(parents=True, exist_ok=True)

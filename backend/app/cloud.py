@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db_session
-from app.api.v1 import auth, casebook, project, publications, published
+from app.api.v1 import article_map, auth, casebook, project, publications, published
 from app.api.v1.graph import MutationCompareRequest
 from app.core.config import get_settings
 from app.core.observability import install_request_context
@@ -40,6 +40,7 @@ def create_cloud_app() -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=get_settings().CORS_ORIGINS,
         allow_credentials=True, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
     for router, prefix in ((auth.router, "/auth"), (publications.router, "/publications"),
+                           (article_map.router, "/graph"),
                            (published.router, ""), (project.router, "/project"), (casebook.router, "/casebook")):
         app.include_router(router, prefix="/api/v1" + prefix)
 

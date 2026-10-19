@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.publication import (
     PublicationHead,
     PublicationUpload,
+    PublishedArticleMapRow,
     PublishedArticleRow,
     PublishedClaimRow,
     PublishedRelationshipRow,
@@ -75,10 +76,12 @@ async def activate(db: AsyncSession, run_id: UUID, digest: str, expected_revisio
         raise HTTPException(422, "A public release needs articles and analyzed claims.")
     prepared = await db.scalar(select(func.count()).select_from(PublishedArticleRow).where(PublishedArticleRow.run_id == run_id))
     if not prepared:
+        assignments = {a.article_id: a.model_dump(mode="json", exclude={"article_id"})
+                       for a in snapshot.topic_map.assignments} if snapshot.topic_map else {}
         batches: list[tuple[Any, list[dict[str, Any]]]] = [
             (PublishedArticleRow, [{"run_id": run_id, "id": a.id, "title": a.title,
                 "author": a.author, "domain": a.domain, "published_at": a.published_at,
-                "payload": a.model_dump(mode="json")} for a in snapshot.articles]),
+                "payload": {**a.model_dump(mode="json"), **({"article_map": assignments[a.id]} if a.id in assignments else {})}} for a in snapshot.articles]),
             (PublishedClaimRow, [{"run_id": run_id, "id": c.id, "article_id": c.article_id,
                 "text": c.text, "payload": c.model_dump(mode="json")} for c in snapshot.claims]),
             (PublishedRelationshipRow, [{"run_id": run_id, "id": e.id,
@@ -88,6 +91,13 @@ async def activate(db: AsyncSession, run_id: UUID, digest: str, expected_revisio
         for model, rows in batches:
             for offset in range(0, len(rows), 200):
                 await db.execute(insert(model), rows[offset:offset + 200])
+        if snapshot.topic_map:
+            summary = snapshot.topic_map.model_dump(mode="json", exclude={"assignments"})
+            summary["total_articles"] = len(snapshot.articles)
+            summary["unclassified"] = sum(a.topic_id is None for a in snapshot.topic_map.assignments)
+            summary["coverage"] = {basis: sum(a.basis == basis for a in snapshot.topic_map.assignments)
+                                   for basis in ("stored_text", "title_only", "unsupported_language", "unavailable")}
+            await db.execute(insert(PublishedArticleMapRow), [{"run_id": run_id, "payload": summary}])
     # Compare-and-swap also protects SQLite rehearsal; PostgreSQL locks serialize writers.
     changed = await db.execute(update(PublicationHead).where(
         PublicationHead.id == 1, PublicationHead.revision == expected_revision,

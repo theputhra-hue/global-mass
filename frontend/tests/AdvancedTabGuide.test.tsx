@@ -7,7 +7,7 @@ describe('advanced workspace guidance', () => {
     render(<AdvancedTabGuide tab="project" />);
     expect(screen.getByRole('heading', { name: 'Understanding Project Lab' })).toBeTruthy();
     expect(screen.getByText(/Passing them is not scientific accuracy/)).toBeTruthy();
-    fireEvent.click(screen.getByText('Guide to all 12 tabs'));
+    fireEvent.click(screen.getByText('Guide to all 13 tabs'));
     expect(screen.getByRole('link', { name: 'Casebook' }).getAttribute('href')).toBe('#/dashboard/casebook');
     expect(screen.getByRole('link', { name: 'Overview Vitals' }).getAttribute('href')).toBe('#/dashboard/overview');
   });

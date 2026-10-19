@@ -15,6 +15,7 @@
     "GET /api/v1/corpus/search",
     "GET /api/v1/corpus/stats",
     "GET /api/v1/dashboard",
+    "GET /api/v1/graph/atlas",
     "GET /api/v1/graph/claims",
     "GET /api/v1/graph/full",
     "GET /api/v1/health",

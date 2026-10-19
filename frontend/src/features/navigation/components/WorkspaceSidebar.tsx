@@ -28,12 +28,12 @@ export function WorkspaceSidebar({ route }: WorkspaceSidebarProps) {
     (route.kind === 'reader' && route.view === 'browse') ||
     route.kind === 'claims' ||
     route.kind === 'article' ||
-    (route.kind === 'advanced' && (route.tab === 'fullgraph' || route.tab === 'corpus'));
+    (route.kind === 'advanced' && ['atlas', 'fullgraph', 'corpus'].includes(route.tab));
   const isCompare = route.kind === 'reader' && route.view === 'compare';
   const isCasebook = route.kind === 'advanced' && route.tab === 'casebook';
   const isTools =
     route.kind === 'tools' ||
-    (route.kind === 'advanced' && !['fullgraph', 'corpus', 'casebook'].includes(route.tab));
+    (route.kind === 'advanced' && !['atlas', 'fullgraph', 'corpus', 'casebook'].includes(route.tab));
   const isDev = route.kind === 'developer' || route.kind === 'upload';
 
   // Sub-items for Explore data
@@ -126,6 +126,7 @@ export function WorkspaceSidebar({ route }: WorkspaceSidebarProps) {
             >
               Recorded connections
             </a>
+            <a href="#/dashboard/atlas" aria-current={route.kind === 'advanced' && route.tab === 'atlas' ? 'page' : undefined} className={`block px-2.5 py-1.5 text-[11px] font-mono rounded ${route.kind === 'advanced' && route.tab === 'atlas' ? 'text-hermes-red-bright font-semibold bg-hermes-panel/40' : 'text-hermes-bone/60 hover:text-hermes-bone'}`}>Collection map</a>
           </div>
         </div>
 

@@ -91,6 +91,12 @@ export const TOOL_REGISTRY: readonly ToolDescriptor[] = [
     primary: false,
   },
   {
+    id: 'atlas', label: 'Collection map', href: '#/dashboard/atlas', legacySynonyms: ['atlas'],
+    group: 'explore', summary: 'Explore every article in a published release, grouped by article topics.',
+    input: 'Complete versioned article map', output: 'All articles, topic groups and source detail links',
+    availability: 'both', permission: 'authenticated', primary: false,
+  },
+  {
     id: 'compare',
     label: 'Compare wording',
     href: '#/dashboard/compare',
@@ -287,7 +293,7 @@ export const TOOL_REGISTRY: readonly ToolDescriptor[] = [
 ] as const;
 
 export const PRIMARY_NAV_IDS = ['home', 'browse', 'compare', 'casebook', 'tools'] as const;
-export const EXPLORE_NAV_IDS = ['browse', 'claims', 'fullgraph'] as const;
+export const EXPLORE_NAV_IDS = ['browse', 'claims', 'atlas', 'fullgraph'] as const;
 export const ADVANCED_TOOL_IDS = [
   'overview', 'factcheck', 'fullgraph', 'timeline', 'masala',
   'graph', 'vector', 'cache', 'corpus', 'eval', 'project', 'casebook',

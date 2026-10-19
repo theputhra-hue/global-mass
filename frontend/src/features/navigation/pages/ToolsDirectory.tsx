@@ -9,7 +9,7 @@ export function ToolsDirectory() {
   // Directory tools to show (12 advanced + casebook & compare shortcuts)
   const directoryToolIds = [
     // Read & explore
-    'corpus', 'vector', 'factcheck', 'fullgraph',
+    'corpus', 'vector', 'factcheck', 'atlas', 'fullgraph',
     // Compare & investigate
     'compare', 'casebook', 'project', 'masala',
     // System & local operations
@@ -25,7 +25,7 @@ export function ToolsDirectory() {
       key: 'read',
       heading: 'Explore the collection',
       description: 'Start from stored articles, statements or connections in the archive.',
-      toolIds: ['corpus', 'vector', 'factcheck', 'fullgraph'],
+      toolIds: ['corpus', 'vector', 'factcheck', 'atlas', 'fullgraph'],
     },
     {
       key: 'research',

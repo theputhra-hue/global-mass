@@ -185,7 +185,7 @@ export function DeveloperUpload() {
               }}
             />
             <p className="text-xs text-hermes-bone/60">
-              Publication format v1 · maximum 10 MiB · JSON only · complete replacement release
+              Publication format v1 or v2 · maximum 10 MiB · JSON only · complete replacement release
             </p>
             {file && <p className="text-sm break-all font-mono text-xs">Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)</p>}
             <button
@@ -238,6 +238,7 @@ export function DeveloperUpload() {
               <h2 className="font-display text-3xl">Stage 3 & 4: Review before publishing</h2>
               <div className="border-l-2 border-amber-300/60 pl-3 py-1 text-sm space-y-1">
                 <p className="font-bold">Staged release summary:</p>
+                {review.article_map && <p>Complete article map: {review.article_map.articles} articles · {review.article_map.topics} machine-generated topic groups. Review input coverage and topic method in the complete export; topic membership is not a verified claim relationship.</p>}
                 <p>
                   {review.articles} articles · {review.claims} claims · {review.relationships} relationships
                 </p>

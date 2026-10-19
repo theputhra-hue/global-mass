@@ -44,6 +44,7 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
   } else if (route.kind === 'advanced') {
     if (route.tab === 'casebook') currentSection = 'My investigations';
     else if (route.tab === 'fullgraph') currentSection = 'Recorded connections';
+    else if (route.tab === 'atlas') currentSection = 'Collection map';
     else {
       const tool = findTool(route.tab);
       currentSection = tool ? tool.label : 'Advanced tool';
@@ -61,7 +62,7 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
   const isFullgraph = route.kind === 'advanced' && route.tab === 'fullgraph';
   const isCompare = route.kind === 'reader' && route.view === 'compare';
   const isCasebook = route.kind === 'advanced' && route.tab === 'casebook';
-  const isTools = route.kind === 'tools' || (route.kind === 'advanced' && !['fullgraph', 'corpus', 'casebook'].includes(route.tab));
+  const isTools = route.kind === 'tools' || (route.kind === 'advanced' && !['atlas', 'fullgraph', 'corpus', 'casebook'].includes(route.tab));
   const isDev = route.kind === 'developer' || route.kind === 'upload';
 
   // A drawer opened on mobile must not remain over the desktop navigation.
@@ -158,6 +159,7 @@ export function WorkspaceMobileHeader({ route }: WorkspaceMobileHeaderProps) {
                 <Compass className="w-4 h-4 shrink-0" />
                 <span>Extracted claims</span>
               </a>
+              <a href="#/dashboard/atlas" onClick={closeMenu} aria-current={route.kind === 'advanced' && route.tab === 'atlas' ? 'page' : undefined} className={navItemClass(route.kind === 'advanced' && route.tab === 'atlas')}><Compass className="w-4 h-4 shrink-0" /><span>Collection map</span></a>
               <a href="#/dashboard/fullgraph" onClick={closeMenu} aria-current={isFullgraph ? 'page' : undefined} className={navItemClass(isFullgraph)}>
                 <Compass className="w-4 h-4 shrink-0" />
                 <span>Recorded connections</span>
