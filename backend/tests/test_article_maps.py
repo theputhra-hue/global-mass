@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -16,7 +17,7 @@ from tests.test_published_results import (  # noqa: F401
 )
 
 
-def mapped_payload(count=1):
+def mapped_payload(count: int = 1) -> dict[str, Any]:
     payload = snapshot_payload()
     first = payload["articles"][0]
     payload["articles"] += [{**first, "id": str(uuid4()), "title": f"Synthetic article {i}"} for i in range(count - 1)]
