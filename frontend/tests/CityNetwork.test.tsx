@@ -1,7 +1,7 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import ArticleAtlas from '../src/features/graph/components/ArticleAtlas';
-import { buildCityScene, parseCityView, percentile95, sizeRadius, visibleCityEdges } from '../src/features/graph/lib/cityScene';
+import { buildCityScene, parseCityView, percentile95, prioritizeCityEdges, sizeRadius, visibleCityEdges } from '../src/features/graph/lib/cityScene';
 import { loadCityNetwork, type CitySummary, type CompleteCity } from '../src/shared/api/cityNetwork';
 import type { AtlasArticle, AtlasSummary } from '../src/shared/api/articleMap';
 import { jsonResponse, mockApi, renderWithClient } from './helpers';
@@ -48,6 +48,13 @@ describe('meaningful city geometry', () => {
     expect(sizeRadius(2, 10, 2.5, 7)).toBeLessThan(sizeRadius(5, 10, 2.5, 7));
     expect(percentile95([1, 4, 2, 3])).toBe(3);
     expect(percentile95([])).toBe(1);
+  });
+  it('keeps major routes and selected streets inside a bounded drawing budget', () => {
+    const edges = buildCityScene(articles, map, city).edges;
+    const before = structuredClone(edges);
+    expect(prioritizeCityEdges(edges, null, null)[0].kind).toBe('highway');
+    expect(prioritizeCityEdges(edges, null, 'street:0')[0].id).toBe('street:0');
+    expect(edges).toEqual(before);
   });
   it('keeps article coordinates and recorded source data immutable while adding typed hubs', () => {
     const before = structuredClone(articles), scene = buildCityScene(articles, map, city);

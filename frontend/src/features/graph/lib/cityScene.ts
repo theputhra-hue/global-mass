@@ -83,3 +83,8 @@ export function buildCityScene(articles: AtlasArticle[], summary: AtlasSummary, 
 export function visibleCityEdges(scene: CityScene, level: 'city' | 'district' | 'article', streets: 'auto' | 'all' | 'off', selected: string | null): CityEdge[] {
   return scene.edges.filter(e => e.kind !== 'street' || streets === 'all' || (streets === 'auto' && (level !== 'city' || e.a === selected || e.b === selected)));
 }
+
+export function prioritizeCityEdges(edges: CityEdge[], selected: string | null, route: string | null): CityEdge[] {
+  const rank = (edge: CityEdge) => (edge.id === route || edge.a === selected || edge.b === selected ? 100 : 0) + ({ street: 0, recorded: 1, highway: 2, superway: 3 }[edge.kind]);
+  return [...edges].sort((a, b) => rank(b) - rank(a));
+}

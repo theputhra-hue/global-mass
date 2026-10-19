@@ -1,7 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { LocateFixed, Minus, Plus } from 'lucide-react';
 import { fitScene } from '../lib/graphScene';
-import { percentile95, sizeRadius, visibleCityEdges, type CityEdge, type CityNode, type CityScene, type CityView } from '../lib/cityScene';
+import { percentile95, prioritizeCityEdges, sizeRadius, visibleCityEdges, type CityEdge, type CityNode, type CityScene, type CityView } from '../lib/cityScene';
 
 export interface CityCanvasHandle { fit: () => void; focus: (id: string) => void }
 interface Props { scene: CityScene; scaleScene: CityScene; selected: string | null; selectedEdge: string | null; streets: 'auto' | 'all' | 'off'; uniform: boolean; onSelect: (id: string | null) => void; onRoute: (id: string) => void; initialView?: CityView | null; onView?: (view: CityView) => void }
@@ -61,7 +61,7 @@ export const CityNetworkCanvas = forwardRef<CityCanvasHandle, Props>(function Ci
       ctx.fillStyle = '#fff7f2'; ctx.globalAlpha = .045;
       for (let x = 24; x < width; x += 48) for (let y = 24; y < height; y += 48) ctx.fillRect(x, y, 1, 1);
       routeHits.current = []; hits.current = [];
-      const prioritized = [...edges].sort((a, b) => Number(b.id === selectedEdge || b.a === focus || b.b === focus) - Number(a.id === selectedEdge || a.a === focus || a.b === focus));
+      const prioritized = prioritizeCityEdges(edges, focus, selectedEdge);
       for (const edge of prioritized) {
         const a = nodes.get(edge.a), b = nodes.get(edge.b); if (!a || !b) continue;
         const p = screen(a), q = screen(b);
