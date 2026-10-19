@@ -45,6 +45,21 @@ async def test_detail_uses_plain_text_and_reports_unknown_completeness(async_cli
     assert result["body_source"] == "content"
     assert result["content_completeness"] == "unknown"
     assert "raw_metadata" not in result
+    assert result["assessment_counts"] == {"UNASSESSED": 1}
+
+
+async def test_assessment_totals_include_all_claims_and_exclude_other_articles(async_client, db_session):
+    articles, claims = await dataset(db_session)
+    claims[0].verdict = " supported "
+    claims[1].verdict = "UNSUPPORTED"
+    db_session.add_all([Claim(article_id=articles[0].id, claim_text=f"Statement {i}", verdict="SUPPORTED") for i in range(24)])
+    db_session.add(Claim(article_id=articles[0].id, claim_text="No assessment", verdict=" "))
+    await db_session.commit()
+    result = (await async_client.get(f"/api/v1/corpus/articles/{articles[0].id}")).json()
+    assert result["claims_total"] == 26
+    assert result["assessment_counts"] == {"SUPPORTED": 25, "UNASSESSED": 1}
+    page = (await async_client.get(f"/api/v1/corpus/articles/{articles[0].id}/claims?limit=20")).json()
+    assert len(page["items"]) == 20
 
 
 @pytest.mark.asyncio

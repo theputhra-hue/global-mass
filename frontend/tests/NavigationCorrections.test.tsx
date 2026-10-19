@@ -31,6 +31,22 @@ function fixture(mode: 'local' | 'published' = 'local', calls: string[] = [], al
 function visit(hash: string) { act(() => navigateHash(hash)); }
 
 describe('Navigation review regressions', () => {
+  it('collapses Explore data without redirecting and reopens it on article navigation', async () => {
+    window.history.replaceState(null, '', '/#/dashboard');
+    fixture('published');
+    const nav = screen.getByRole('navigation', { name: 'Primary destinations' });
+    const toggle = within(nav).getByRole('button', { name: 'Explore data' });
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(within(nav).queryByRole('link', { name: 'Articles' })).toBeNull();
+    expect(window.location.hash).toBe('#/dashboard');
+    fireEvent.click(toggle);
+    expect(within(nav).getByRole('link', { name: 'Articles' })).toBeTruthy();
+    fireEvent.click(toggle);
+    visit('#/dashboard/browse');
+    await waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('true'));
+    expect(within(nav).getByRole('link', { name: 'Articles' }).getAttribute('aria-current')).toBe('page');
+  });
   it('resolves every canonical ID and href before considering synonyms', () => {
     for (const tool of TOOL_REGISTRY) {
       expect(findTool(tool.id)?.id, tool.id).toBe(tool.id);

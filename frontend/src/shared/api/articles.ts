@@ -4,6 +4,7 @@ import type { CorpusArticle } from './corpus';
 export interface ArticleDetail extends CorpusArticle {
   body: string; body_source: string; content_completeness: string;
   collected_at: string; processed_at: string | null; processing_status: string; claims_total: number;
+  assessment_counts?: Record<string, number>;
 }
 export interface ArticleClaim {
   id: string; article_id: string; text: string; extracted_at: string;

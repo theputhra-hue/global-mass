@@ -1,13 +1,14 @@
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 
 from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.main import app
 from app.models.publication import PublicationUpload
 from app.models.user import RoleEnum, User
+from app.schemas.publication import PublicationSnapshot
 from tests.test_publication_contract import snapshot_payload
 
 
@@ -65,3 +66,32 @@ async def test_invalid_private_and_oversized_uploads_are_not_saved(async_client,
 
 async def test_anonymous_cannot_upload(async_client):
     assert (await async_client.post("/api/v1/publications/upload", json=snapshot_payload())).status_code in (401, 403)
+
+
+async def test_review_reads_bounded_samples_without_loading_entire_release(async_client, db_session, developer):
+    payload = snapshot_payload()
+    payload["articles"] += [{**payload["articles"][0], "id": str(uuid4()), "title": f"Extra article {i}"} for i in range(7)]
+    payload["claims"] += [{**payload["claims"][0], "id": str(uuid4()), "text": f"Extra claim {i}"} for i in range(7)]
+    uploaded = await async_client.post("/api/v1/publications/upload", json=payload)
+    assert uploaded.status_code == 200
+    raw_payload_reads = []
+
+    def inspect_columns(conn, statement, multiparams, params, execution_options):
+        raw_payload_reads.extend(column for column in getattr(statement, "selected_columns", [])
+                                 if column is PublicationUpload.__table__.c.payload)
+
+    event.listen(db_session.bind.sync_engine, "before_execute", inspect_columns)
+    try:
+        response = await async_client.get(f"/api/v1/publications/{payload['run_id']}/review")
+    finally:
+        event.remove(db_session.bind.sync_engine, "before_execute", inspect_columns)
+    assert response.status_code == 200
+    review = response.json()
+    assert (review["articles"], review["claims"], review["relationships"]) == (8, 9, 1)
+    normalized = PublicationSnapshot.model_validate(payload).model_dump(mode="json")
+    assert review["sample_articles"] == normalized["articles"][:5]
+    assert [c["id"] for c in review["sample_claims"]] == [c["id"] for c in payload["claims"][:5]]
+    assert review["provenance"] == payload["provenance"]
+    assert review["sha256"] == uploaded.json()["sha256"]
+    assert raw_payload_reads == []
+    assert "payload" not in review

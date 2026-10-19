@@ -96,13 +96,43 @@ async def test_knn_fallback_is_similarity_not_invented_lineage(monkeypatch):
             _result([(_id(2), _id(1), 0.95, "SIMILAR_TO", None)]),
         ],
     )
-    result = await graph_api.claims_graph()
+    result = await graph_api.claims_graph(infer_similarity=True)
     assert result["edge_source"] == "pgvector_knn"
     edge = result["edges"][0]
     assert edge["relationship_type"] == "SIMILAR_TO"
     assert edge["parent_claim_id"] is edge["child_claim_id"] is None
     assert edge["analysis"] is None
     assert edge["observed_propagation"] is False
+
+
+async def test_recorded_claim_graph_does_not_silently_infer_knn_edges(monkeypatch):
+    db = _database(monkeypatch, [_result([(_id(1), "A", "one.example", None, None, _id(101))]), _result([])])
+    result = await graph_api.claims_graph()
+    assert result["edges"] == []
+    assert result["basis"] == "claim_relationships"
+    assert db.execute.await_count == 2
+    assert result["scope"]["total_relationships"] is None
+
+
+async def test_local_article_graph_is_bounded_typed_and_does_not_lose_duplicate_kind(monkeypatch):
+    def handler(query, params):
+        if "elementId" in query:
+            assert params["lim"] == 40001
+            return [{"id": "sim", "src": _id(1), "dst": _id(2), "score": .9, "relationship_type": "SIMILAR"},
+                    {"id": "dup", "src": _id(1), "dst": _id(2), "score": None, "relationship_type": "DUPLICATE_OF"}]
+        if "count(e)" in query:
+            return [{"total": 2}]
+        if "count(a)" in query:
+            return [{"total": 2}]
+        if "WHERE NOT" in query:
+            return []
+        return [{"id": _id(n), "title": f"Article {n}", "domain": "example.org"} for n in (1, 2)]
+    _neo4j(monkeypatch, handler)
+    graph = await graph_api.full_graph()
+    assert len(graph["edges"]) == 2
+    assert {e["relationship_type"] for e in graph["edges"]} == {"SIMILAR", "DUPLICATE_OF"}
+    assert next(e for e in graph["edges"] if e["relationship_type"] == "DUPLICATE_OF")["score"] is None
+    assert graph["scope"]["truncated"] is False
 
 
 @pytest.mark.parametrize("selected", [_id(1), _id(101)])

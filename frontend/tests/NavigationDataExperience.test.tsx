@@ -105,7 +105,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
       const nav = screen.getByRole('navigation', { name: 'Primary destinations' });
       expect(nav).toBeTruthy();
       expect(within(nav).getByRole('link', { name: 'Home' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Explore data' })).toBeTruthy();
+      expect(within(nav).getByRole('button', { name: 'Explore data' }).getAttribute('aria-expanded')).toBe('true');
       expect(within(nav).getByRole('link', { name: 'Articles' })).toBeTruthy();
       expect(within(nav).getByRole('link', { name: 'Extracted claims' })).toBeTruthy();
       expect(within(nav).getByRole('link', { name: 'Recorded connections' })).toBeTruthy();

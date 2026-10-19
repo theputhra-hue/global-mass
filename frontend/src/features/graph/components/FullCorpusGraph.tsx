@@ -1,294 +1,127 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowUpRight, ExternalLink, Layers, Maximize2, Minus, Network, Orbit, Plus, Search, X, Zap } from 'lucide-react';
-import { graphApi, type FullGraph } from '../../../shared/api/graph';
+import { Download, ExternalLink, Network, RefreshCw, X } from 'lucide-react';
+import { graphApi, type FullGraph, type GraphNode } from '../../../shared/api/graph';
+import { publicationsApi } from '../../../shared/api/publications';
+import { useSession } from '../../../shared/session/session';
 import { setSelectedArticle } from '../../../shared/navigation/useSelectedArticle';
 import type { TabType } from '../../../shared/navigation/tabs';
-import { usePollingPolicy } from '../../../shared/hooks/polling';
-import { articleHref } from '../../../shared/navigation/articleRoutes';
+import { useDocumentVisible, usePollingPolicy } from '../../../shared/hooks/polling';
+import { articleHref, isUuid } from '../../../shared/navigation/articleRoutes';
 import { safeHttpUrl } from '../../../shared/lib/urls';
 import { QueryError } from '../../../shared/ui/QueryError';
-import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, outletName, type GraphPoint } from '../lib/corpusGraph';
+import { groupOutlets, outletColor, outletName } from '../lib/corpusGraph';
+import { edgeName, graphDegrees, isSimilarity, normalizeGraph, selectGraph } from '../lib/graphModel';
+import { LAYOUT_SEED, LAYOUT_VERSION } from '../lib/graphScene';
+import { useGraphLayout } from '../lib/useGraphLayout';
+import { RecordedNetworkCanvas, type NetworkCanvasHandle } from './RecordedNetworkCanvas';
 
-const EMPTY_GRAPH: FullGraph = { nodes: [], edges: [], counts: { nodes: 0, edges: 0 } };
-const controlClass = 'inline-flex items-center justify-center gap-2 px-3 py-2 text-xs text-hermes-bone/70 hover:bg-white/5 hover:text-hermes-bone focus-visible:outline-offset-[-3px]';
+const EMPTY: FullGraph = { nodes: [], edges: [], counts: { nodes: 0, edges: 0 } };
+const button = 'btn-outline-dark !text-xs disabled:opacity-40';
+const initial = () => new URLSearchParams(window.location.hash.split('?')[1] || '');
+const owner = (node: GraphNode, mode: string) => node.article_id || (mode === 'articles' ? node.id : null);
 
-/** The original connected corpus: one real article or claim per node. */
-const FullCorpusGraph: React.FC<{ setActiveTab?: (tab: TabType) => void }> = ({ setActiveTab }) => {
-  const [mode, setMode] = useState<'articles' | 'claims'>('articles');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [outletFilter, setOutletFilter] = useState('');
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
-  const [showConnections, setShowConnections] = useState(true);
-  const [hovered, setHovered] = useState<GraphPoint | null>(null);
-  const [renderVersion, setRenderVersion] = useState(0);
-  const [zoom, setZoom] = useState(100);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef({ ox: 0, oy: 0, scale: 1 });
-  const baseScaleRef = useRef(1);
-  const dragRef = useRef<{ node: GraphPoint | null; x: number; y: number; startX: number; startY: number; moved: boolean } | null>(null);
-  const polling = usePollingPolicy(60000);
-  const g = useQuery({
-    queryKey: ['full-graph', mode],
-    queryFn: ({ signal }) => mode === 'articles' ? graphApi.full({ signal }) : graphApi.claims({ signal }),
-    ...polling,
-    staleTime: 30000,
-  });
-  const graph = g.data ?? EMPTY_GRAPH;
-  const hasFilters = !!outletFilter || !!query;
+export default function FullCorpusGraph({ setActiveTab }: { setActiveTab?: (tab: TabType) => void }) {
+  const [mode, setMode] = useState<'articles' | 'claims'>(() => initial().get('mode') === 'claims' ? 'claims' : 'articles');
+  const [outlet, setOutlet] = useState(() => initial().get('outlet') || '');
+  const [search, setSearch] = useState(() => initial().get('q') || ''), [query, setQuery] = useState(search);
+  const [type, setType] = useState(() => initial().get('type') || ''), [family, setFamily] = useState(() => initial().get('family') || '');
+  const [threshold, setThreshold] = useState(() => Math.max(0, Math.min(1, Number(initial().get('min')) || 0)));
+  const [selectedId, setSelected] = useState<string | null>(() => initial().get('node'));
+  const [showUnlinked, setShowUnlinked] = useState(() => initial().get('unlinked') !== '0'), [showConnections, setShowConnections] = useState(true);
+  const [page, setPage] = useState(0), [neighborPage, setNeighborPage] = useState(0), [seed, setSeed] = useState(() => { const value = Number(initial().get('seed')); return Number.isInteger(value) && value > 0 && value < 4294967296 ? value : LAYOUT_SEED; });
+  const [exportError, setExportError] = useState('');
+  const canvas = useRef<NetworkCanvasHandle>(null), inspector = useRef<HTMLDivElement>(null);
+  const polling = usePollingPolicy(60000), visible = useDocumentVisible(), { user, revision } = useSession();
+  const access = useQuery({ queryKey: ['publication-access', user?.id, revision], queryFn: publicationsApi.access, enabled: Boolean(user), retry: false, staleTime: 60000 });
+  const request = useQuery({ queryKey: ['full-graph', mode], queryFn: ({ signal }) => mode === 'articles' ? graphApi.full({ signal }) : graphApi.claims({ signal }), ...polling, staleTime: 30000 });
+  const parsed = useMemo(() => { try { return { graph: normalizeGraph(request.data || EMPTY), error: null }; } catch (error) { return { graph: normalizeGraph(EMPTY), error }; } }, [request.data]);
+  const graph = parsed.graph;
+  const filtered = useMemo(() => selectGraph(graph, outlet, query, type, threshold, family), [graph, outlet, query, type, threshold, family]);
+  const degrees = useMemo(() => graphDegrees(filtered), [filtered]);
+  const unlinked = filtered.nodes.filter(node => !degrees.get(node.id));
+  const records = showUnlinked ? filtered.nodes : filtered.nodes.filter(node => degrees.get(node.id));
   const groups = useMemo(() => groupOutlets(graph), [graph]);
-  const filtered = useMemo(() => filterGraph(graph, outletFilter, query), [graph, outletFilter, query]);
-  const scene = useMemo(() => articleScene(filtered), [filtered]);
-  const nodeOptions = useMemo(() => filtered.nodes.map((node) => <option key={node.id} value={node.id}>{node.title}</option>), [filtered]);
-  const index = useMemo(() => new Map(scene.nodes.map((node) => [node.id, node])), [scene]);
-  const degrees = useMemo(() => {
-    const result = new Map<string, number>();
-    for (const edge of scene.edges) {
-      result.set(edge.a, (result.get(edge.a) ?? 0) + 1);
-      result.set(edge.b, (result.get(edge.b) ?? 0) + 1);
-    }
-    return result;
-  }, [scene]);
-  const selected = graph.nodes.find((node) => node.id === selectedId) ?? null;
-  const focusedId = hovered?.id ?? selected?.id ?? null;
-  const neighbors = useMemo(() => {
-    const ids = new Set<string>();
-    if (focusedId) {
-      ids.add(focusedId);
-      for (const edge of scene.edges) {
-        if (edge.a === focusedId) ids.add(edge.b);
-        if (edge.b === focusedId) ids.add(edge.a);
-      }
-    }
-    return ids;
-  }, [scene, focusedId]);
-  const redraw = useCallback(() => setRenderVersion((value) => value + 1), []);
-  const resetView = useCallback(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    viewRef.current = fitScene(scene.nodes, wrap.clientWidth, wrap.clientHeight, false);
-    baseScaleRef.current = viewRef.current.scale;
-    setZoom(100);
-    redraw();
-  }, [scene, redraw]);
-
-  useEffect(() => {
-    setHovered(null);
-    dragRef.current = null;
-    resetView();
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resetView) : null;
-    if (wrapRef.current) observer?.observe(wrapRef.current);
-    return () => observer?.disconnect();
-  }, [resetView]);
-
-  // Draw on changes only. A resting graph does no animation or physics work.
-  useEffect(() => {
-    const canvas = canvasRef.current, wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const width = wrap.clientWidth, height = wrap.clientHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = width * dpr; canvas.height = height * dpr;
-    canvas.style.width = `${width}px`; canvas.style.height = `${height}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-    const { ox, oy, scale } = viewRef.current;
-    const screenPoint = (node: GraphPoint) => ({ x: width / 2 + ox + node.x * scale, y: height / 2 + oy + node.y * scale });
-
-    // Keep every real edge, with low-contrast strokes for dense networks.
-    // Inspection brings the selected node and its direct neighbors forward.
-    const edgeOpacity = Math.max(0.035, Math.min(0.22, 12 / Math.sqrt(scene.edges.length || 1)));
-    for (const edge of scene.edges) {
-      const hot = edge.a === focusedId || edge.b === focusedId;
-      if (!hot && !showConnections) continue;
-      const a = index.get(edge.a), b = index.get(edge.b);
-      if (!a || !b) continue;
-      const p = screenPoint(a), q = screenPoint(b);
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
-      ctx.strokeStyle = hot ? outletColor(a.domain) : '#B7A6A0';
-      const density = Math.sqrt(Math.max(1, Math.min(degrees.get(edge.a) ?? 1, degrees.get(edge.b) ?? 1)));
-      ctx.globalAlpha = hot ? 0.8 : (focusedId ? 0.015 : edgeOpacity) / density;
-      ctx.lineWidth = hot ? 1.4 : 0.65;
-      ctx.stroke();
-    }
-    const term = query.toLowerCase();
-    for (const node of scene.nodes) {
-      const p = screenPoint(node);
-      if (p.x < -120 || p.x > width + 120 || p.y < -80 || p.y > height + 80) continue;
-      const focus = node.id === focusedId;
-      const related = neighbors.has(node.id);
-      const match = !!term && node.title.toLowerCase().includes(term);
-      const radius = Math.max(focus ? 4 : 1.25, node.radius * Math.min(scale, 2));
-      const color = outletColor(node.domain);
-      ctx.globalAlpha = focusedId && !related ? 0.16 : 0.92;
-      ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      if (focus || match || node.id === selectedId) {
-        ctx.globalAlpha = 1;
-        ctx.beginPath(); ctx.arc(p.x, p.y, radius + 3, 0, Math.PI * 2);
-        ctx.strokeStyle = focus ? '#FFF7F2' : color; ctx.lineWidth = 1; ctx.stroke();
-      }
-    }
-    ctx.globalAlpha = 1;
-  }, [scene, index, degrees, focusedId, neighbors, selectedId, query, showConnections, renderVersion, g.isLoading, g.isError]);
-
-  const zoomAt = useCallback((factor: number, mx?: number, my?: number) => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const view = viewRef.current;
-    const next = Math.max(baseScaleRef.current * 0.5, Math.min(baseScaleRef.current * 8, view.scale * factor));
-    const x = (mx ?? wrap.clientWidth / 2) - wrap.clientWidth / 2;
-    const y = (my ?? wrap.clientHeight / 2) - wrap.clientHeight / 2;
-    view.ox = x - (x - view.ox) * next / view.scale;
-    view.oy = y - (y - view.oy) * next / view.scale;
-    view.scale = next;
-    setZoom(Math.round(next / baseScaleRef.current * 100));
-    redraw();
-  }, [redraw]);
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const wheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
-      event.preventDefault();
-      const rect = wrap.getBoundingClientRect();
-      zoomAt(Math.exp(-event.deltaY * 0.002), event.clientX - rect.left, event.clientY - rect.top);
-    };
-    wrap.addEventListener('wheel', wheel, { passive: false });
-    return () => wrap.removeEventListener('wheel', wheel);
-  }, [zoomAt]);
-
-  const pickNode = (mx: number, my: number) => {
-    const wrap = wrapRef.current;
-    if (!wrap) return null;
-    const { ox, oy, scale } = viewRef.current;
-    let picked: GraphPoint | null = null, closest = Infinity;
-    for (const node of scene.nodes) {
-      const dx = mx - (wrap.clientWidth / 2 + ox + node.x * scale);
-      const dy = my - (wrap.clientHeight / 2 + oy + node.y * scale);
-      const distance = dx * dx + dy * dy;
-      const radius = Math.max(7, node.radius * Math.min(scale, 2) + 3);
-      if (distance < radius * radius && distance < closest) { picked = node; closest = distance; }
-    }
-    return picked;
+  const layout = useGraphLayout(filtered, seed, visible && !parsed.error && filtered.edges.length > 0);
+  const selected = records.find(node => node.id === selectedId);
+  const neighbors = filtered.edges.filter(edge => edge.src === selectedId || edge.dst === selectedId);
+  const nodeIndex = useMemo(() => new Map(filtered.nodes.map(node => [node.id, node])), [filtered]);
+  const hasFilters = Boolean(outlet || query || type || family);
+  const types = [...new Set(graph.edges.map(edge => edge.relationship_type))].sort();
+  const families = [...new Set(graph.edges.filter(isSimilarity).map(edge => edge.score_family))].sort();
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(records.length / 12) - 1));
+  const neighborOffset = Math.min(neighborPage, Math.max(0, Math.ceil(neighbors.length / 10) - 1)) * 10;
+  const selectNode = useCallback((id: string | null) => { setSelected(id); setNeighborPage(0); }, []);
+  const clear = () => { setOutlet(''); setSearch(''); setQuery(''); setType(''); setFamily(''); setThreshold(0); setPage(0); selectNode(null); };
+  useEffect(() => { if (request.isSuccess && selectedId && !records.some(node => node.id === selectedId)) setSelected(null); }, [request.isSuccess, records, selectedId]);
+  useEffect(() => { const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && inspector.current) { setSelected(null); document.getElementById('graph-node-select')?.focus(); } }; document.addEventListener('keydown', escape); return () => document.removeEventListener('keydown', escape); }, []);
+  useEffect(() => { if (selectedId) inspector.current?.focus(); }, [selectedId]);
+  const back = useMemo(() => {
+    const params = new URLSearchParams();
+    if (mode !== 'articles') params.set('mode', mode); if (outlet) params.set('outlet', outlet); if (query) params.set('q', query); if (type) params.set('type', type); if (family) { params.set('family', family); params.set('min', String(threshold)); } if (selectedId) params.set('node', selectedId);
+    if (!showUnlinked) params.set('unlinked', '0'); if (seed !== LAYOUT_SEED) params.set('seed', String(seed));
+    return `#/dashboard/fullgraph${params.size ? '?' + params : ''}`;
+  }, [mode, outlet, query, type, family, threshold, selectedId, showUnlinked, seed]);
+  useEffect(() => { if (window.location.hash.split('?')[0] === '#/dashboard/fullgraph') window.history.replaceState(null, '', back); }, [back]);
+  const details = (node: GraphNode, tab: 'overview' | 'claims' | 'timeline' = 'overview') => {
+    const id = owner(node, mode); return id && isUuid(id) ? articleHref(id, mode === 'claims' && tab === 'overview' ? 'claims' : tab, { claim: mode === 'claims' && isUuid(node.id) ? node.id : undefined, back }) : null;
   };
-  const pointFromEvent = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  const exportGraph = () => {
+    setExportError('');
+    try {
+      const view = canvas.current?.snapshot();
+      const output = { schema_version: 'gmee-graph-view-1', exported_at: new Date().toISOString(), mode,
+        basis: graph.basis || graph.edge_source || 'unknown', run_id: graph.run_id || null, scope: graph.scope || null,
+        filters: { outlet, query, relationship_type: type, score_family: family, minimum_score: family ? threshold : null, include_unlinked: showUnlinked },
+        nodes: records.map(({ id, title, domain, article_id, kind, published_at, url }) => ({ id, title, domain, article_id, kind, published_at, url: safeHttpUrl(url) || null })),
+        edges: filtered.edges.map(({ id, src, dst, relationship_type, directed, score, raw_score, score_kind, score_family, support_count, score_min, score_max, basis, references, references_truncated }) => ({ id, src, dst, relationship_type, directed, score, raw_score, score_kind, score_family, support_count, score_min, score_max, basis, references, references_truncated })),
+        diagnostics: graph.diagnostics, layout: { version: LAYOUT_VERSION, seed, ticks: layout.scene?.ticks || 0, settled: layout.scene?.settled ?? null, elapsed_ms: layout.elapsedMs ?? null, positions: view?.positions || [], pins: view?.pins || [], camera: view?.camera || null, distance_meaning: 'Approximate weighted recorded-relationship layout. Component packing and unlinked records have no semantic distance.' } };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = `gmee-graph-${mode}-${graph.run_id || 'local'}.json`; link.click(); URL.revokeObjectURL(url);
+    } catch { setExportError('Graph export failed. Retry after the current layout completes.'); }
   };
-  const openOutlet = (id: string) => { setOutletFilter(id); setSelectedId(null); setHovered(null); };
-  const onPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (event.button !== 0) return;
-    const { x, y } = pointFromEvent(event);
-    dragRef.current = { node: pickNode(x, y), x, y, startX: x, startY: y, moved: false };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-  const onPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const { x, y } = pointFromEvent(event), drag = dragRef.current;
-    if (drag) {
-      if (Math.hypot(x - drag.startX, y - drag.startY) > 4) drag.moved = true;
-      if (drag.moved) {
-        if (drag.node) {
-          drag.node.x += (x - drag.x) / viewRef.current.scale;
-          drag.node.y += (y - drag.y) / viewRef.current.scale;
-        } else { viewRef.current.ox += x - drag.x; viewRef.current.oy += y - drag.y; }
-        drag.x = x; drag.y = y; setHovered(null); redraw();
-      }
-    } else {
-      const node = pickNode(x, y);
-      if (node?.id !== hovered?.id) setHovered(node);
-    }
-  };
-  const onPointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current;
-    dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (!drag || drag.moved) return;
-    setSelectedId(drag.node?.id ?? null);
-  };
-  const clearFilters = () => { setOutletFilter(''); setQuery(''); setSearch(''); setSelectedId(null); };
-  const changeMode = (next: 'articles' | 'claims') => { setMode(next); clearFilters(); };
-  const inspectNode = (id: string) => {
-    const node = graph.nodes.find((item) => item.id === id);
-    setSelectedId(node?.id ?? null);
-  };
-  const timelineArticleId = selected?.article_id || (mode === 'articles' ? selected?.id : undefined);
-  const focusGroup = groups.outlets.find((outlet) => outlet.id === outletFilter);
-
-  return (
-    <section className="card-brutal-dark overflow-hidden" aria-label="Whole-Corpus Graph">
-      <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-5 sm:px-6">
-        <div>
-          <div className="flex items-center gap-2.5"><Network className="h-5 w-5 text-hermes-bone/55" /><h2 className="text-2xl font-display">Whole-Corpus Graph</h2></div>
-          <p className="mt-1.5 text-xs text-hermes-bone/55">Explore the original article and claim network. Follow the connections between stories.</p>
-        </div>
-        <div className="flex border border-hermes-bone/15 bg-black/10" aria-label="Graph type">
-          <button onClick={() => changeMode('articles')} aria-pressed={mode === 'articles'} className={`${controlClass} ${mode === 'articles' ? '!bg-hermes-bone/10 !text-hermes-bone' : ''}`}><Layers className="w-3.5 h-3.5" /> Articles</button>
-          <button onClick={() => changeMode('claims')} aria-pressed={mode === 'claims'} className={`${controlClass} ${mode === 'claims' ? '!bg-hermes-bone/10 !text-hermes-bone' : ''}`}><Zap className="w-3.5 h-3.5" /> Claims</button>
-        </div>
+  return <section aria-label="Whole-Corpus Graph" className="card-brutal-dark min-w-0 overflow-hidden">
+    <header className="p-5 md:p-6 space-y-4 border-b border-hermes-bone/20">
+      <div className="flex flex-wrap justify-between gap-4"><div><h2 className="font-display text-3xl flex gap-3 items-center"><Network className="w-5 h-5 text-hermes-red-bright" /> Recorded connections</h2><p className="text-sm text-hermes-bone/65 mt-3 max-w-3xl">Explore relationships saved between articles or claims. Distances describe an approximate layout of recorded links, not truth or observed copying.</p></div><div className="flex gap-2 self-start" aria-label="Graph type">{(['articles', 'claims'] as const).map(item => <button key={item} aria-pressed={mode === item} className={mode === item ? 'btn-brutal' : button} onClick={() => { setMode(item); clear(); }}>{item === 'articles' ? 'Articles' : 'Claims'}</button>)}</div></div>
+      <p className="text-xs text-hermes-bone/60 break-words">Source: {graph.basis || graph.edge_source || 'Not supplied by this API'} · {graph.run_id ? `Release ${graph.run_id}` : 'Release/version unavailable'}.</p>
+      {request.data && <p className="text-xs leading-relaxed" aria-live="polite">Fetched: {graph.nodes.length.toLocaleString()} {mode} · {graph.edges.length.toLocaleString()} relationship groups. {graph.scope ? <>Known source totals: {graph.scope.total_nodes?.toLocaleString() ?? 'unknown'} nodes · {graph.scope.total_relationships?.toLocaleString() ?? 'unknown'} underlying relationships. Limits: {graph.scope.node_limit.toLocaleString()} nodes / {graph.scope.relationship_limit.toLocaleString()} relationships. {graph.scope.truncated === true ? 'This is a partial projection.' : graph.scope.truncated === false ? 'All source records fit within these limits.' : 'Completeness is unknown.'} {graph.scope.within_node_relationships > 0 && `${graph.scope.within_node_relationships} within-node links are counted separately from map lines.`}</> : 'Selection limits and whole-corpus totals are unavailable. Do not assume this is the complete corpus.'}</p>}
+    </header>
+    <div className="p-5 md:p-6 space-y-4 border-b border-hermes-bone/15">
+      <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery(search.trim()); setPage(0); selectNode(null); }}><label className="flex-1 min-w-[min(240px,100%)] text-xs">Search fetched titles or statements<input aria-label="Graph title search" value={search} maxLength={300} onChange={event => setSearch(event.target.value)} className="field-brutal w-full mt-2" placeholder="Enter words, then Search" /></label><button className={`${button} self-end`} aria-label="Search graph titles">Search</button><button type="button" className={`${button} self-end`} onClick={() => void request.refetch()} disabled={request.isFetching}><RefreshCw className="w-3 h-3" /> Refresh data</button></form>
+      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        <label className="text-xs">Outlet<select className="field-brutal w-full mt-2" aria-label="Graph outlet filter" value={outlet} onChange={event => { setOutlet(event.target.value); setPage(0); selectNode(null); }}><option value="">All outlets</option>{groups.outlets.map(group => <option key={group.id} value={group.id}>{outletName(group.id)} ({group.count})</option>)}</select></label>
+        <label className="text-xs">Relationship type<select className="field-brutal w-full mt-2" value={type} onChange={event => { setType(event.target.value); setPage(0); }}><option value="">All recorded types</option>{types.map(item => <option key={item} value={item}>{edgeName({ src: '', dst: '', score: null, relationship_type: item })}</option>)}</select></label>
+        <label className="text-xs">Comparable similarity family<select className="field-brutal w-full mt-2" value={family} onChange={event => { setFamily(event.target.value); setThreshold(0); setPage(0); }}><option value="">No score threshold</option>{families.map(item => <option key={item} value={item}>{item}</option>)}</select></label>
       </div>
-      <div className="flex flex-wrap items-center gap-3 border-y border-hermes-bone/10 px-5 py-3 sm:px-6">
-        <form onSubmit={(event) => { event.preventDefault(); setQuery(search.trim()); setSelectedId(null); }} className="flex min-w-0 flex-1 basis-full items-center border border-hermes-bone/15 bg-black/15 focus-within:border-hermes-bone/40 sm:max-w-sm sm:basis-0">
-          <Search className="ml-3 h-4 w-4 shrink-0 text-hermes-bone/40" />
-          <input aria-label="Graph title search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find an article or topic…" className="min-w-0 w-full bg-transparent px-2.5 py-2 text-xs text-hermes-bone outline-none placeholder:text-hermes-bone/40" />
-          <button type="submit" aria-label="Search graph titles" className={controlClass}><ArrowUpRight className="h-4 w-4" /></button>
-        </form>
-        <label className="flex items-center gap-2 text-xs text-hermes-bone/65 cursor-pointer"><input type="checkbox" checked={showConnections} onChange={(event) => setShowConnections(event.target.checked)} className="accent-hermes-red-bright" /> Show all connections</label>
-        <div className="ml-auto flex gap-4 text-[11px] font-mono text-hermes-bone/50" aria-live="polite">{g.data && <><span><strong className="font-normal text-hermes-bone/85">{graph.nodes.length.toLocaleString()}</strong> {mode}</span><span><strong className="font-normal text-hermes-bone/85">{graph.edges.length.toLocaleString()}</strong> links</span></>}</div>
-      </div>
-      <div className="grid min-w-0 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="min-w-0 border-b border-hermes-bone/10 bg-black/10 lg:border-b-0 lg:border-r">
-          <div className="flex items-center justify-between px-4 pb-3 pt-4"><h3 className="!font-sans text-[10px] uppercase tracking-[0.18em] text-hermes-bone/45">Outlets</h3><span className="text-[10px] font-mono text-hermes-bone/40">{groups.outlets.length}</span></div>
-          <nav aria-label="Graph outlet filter" className="flex gap-1 overflow-x-auto px-2 pb-3 lg:max-h-[490px] lg:flex-col lg:overflow-y-auto">
-            <button aria-pressed={!outletFilter} onClick={() => openOutlet('')} className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 text-left text-xs ${!outletFilter ? 'bg-white/[0.07] text-hermes-bone' : 'text-hermes-bone/60 hover:bg-white/5'}`}><Network className="h-3.5 w-3.5" /><span className="flex-1 whitespace-nowrap">All outlets</span><span className="hidden font-mono text-[10px] text-hermes-bone/40 lg:inline">{graph.nodes.length.toLocaleString()}</span></button>
-            {groups.outlets.map((outlet) => <button key={outlet.id} title={outlet.id} aria-pressed={outletFilter === outlet.id} onClick={() => openOutlet(outlet.id)} className={`flex shrink-0 items-center gap-2.5 px-3 py-2.5 text-left text-xs ${outletFilter === outlet.id ? 'bg-white/[0.07] text-hermes-bone' : 'text-hermes-bone/60 hover:bg-white/5 hover:text-hermes-bone'}`}>
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: outletColor(outlet.id) }} /><span className="flex-1 whitespace-nowrap">{outletName(outlet.id)}</span><span className="hidden font-mono text-[10px] text-hermes-bone/40 lg:inline">{outlet.count.toLocaleString()}</span>
-            </button>)}
-          </nav>
-          <p className="hidden border-t border-hermes-bone/10 px-4 py-4 text-[11px] leading-relaxed text-hermes-bone/40 lg:block">Each dot is one {mode === 'articles' ? 'article' : 'claim'}.<br />Color identifies its outlet.<br /><br />Select a dot to highlight its connections, or filter an outlet above.</p>
-        </aside>
-        <div className="min-w-0 bg-[radial-gradient(ellipse_at_center,#201b23_0%,#141114_75%)]">
-          <div className="flex min-h-[64px] flex-wrap items-center justify-between gap-2 border-b border-hermes-bone/[0.07] px-4 py-3 sm:px-5">
-            <div className="flex min-w-0 items-center gap-3">
-              {hasFilters && <button onClick={clearFilters} aria-label="Back to full network" className={`${controlClass} !p-1.5`}><ArrowLeft className="h-4 w-4" /></button>}
-              <div className="min-w-0"><h3 className="!font-sans text-sm">{query ? `Results for “${query}”` : outletFilter ? outletName(outletFilter) : 'The connected corpus'}</h3><p className="mt-1 text-[11px] text-hermes-bone/40">{`${filtered.nodes.length.toLocaleString()} ${mode} · ${filtered.edges.length.toLocaleString()} ${mode === 'claims' ? 'near-duplicate' : 'similarity'} link${filtered.edges.length === 1 ? '' : 's'}${query ? ' · matches + direct neighbors' : ''}`}</p></div>
-            </div>
-            {query && <button onClick={() => { setQuery(''); setSearch(''); setSelectedId(null); }} className={controlClass}><X className="h-3 w-3" /> Clear search</button>}
-          </div>
-          <div ref={wrapRef} className="relative h-[440px] overflow-hidden sm:h-[570px]">
-            {g.isLoading ? <div role="status" aria-label="Loading corpus graph" className="flex h-full items-center justify-center text-sm text-hermes-bone/50">Loading corpus graph…</div>
-              : g.isError ? <div className="p-6"><QueryError title="Corpus graph unavailable" error={g.error} onRetry={() => g.refetch()} retrying={g.isFetching} /></div>
-                : <>
-                  <canvas ref={canvasRef} aria-hidden="true" className={`block touch-none ${hovered ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { dragRef.current = null; }} onLostPointerCapture={() => { dragRef.current = null; }} onPointerLeave={() => setHovered(null)} />
-                  {!scene.nodes.length && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"><Search className="h-6 w-6 text-hermes-bone/30" /><p className="text-sm text-hermes-bone/70">{query || outletFilter ? `No ${mode} match these filters.` : 'No graph nodes returned.'}</p>{hasFilters && <button onClick={clearFilters} className={controlClass}>Clear filters</button>}</div>}
-                  {hovered && <div className="pointer-events-none absolute left-4 top-3 max-w-[min(340px,calc(100%-32px))] border border-hermes-bone/15 bg-[#211b20] px-3 py-2.5 shadow-lg"><p className="mb-1 text-[10px]" style={{ color: outletColor(hovered.domain) }}>{outletName(hovered.domain)}</p><p className="line-clamp-2 text-xs leading-relaxed text-hermes-bone/85">{hovered.title}</p></div>}
-                </>}
-            <div className="absolute bottom-4 right-4 flex items-center divide-x divide-hermes-bone/10 border border-hermes-bone/15 bg-[#211b20] shadow-lg">
-              <button onClick={() => zoomAt(1 / 1.25)} disabled={zoom <= 50} aria-label="Zoom out" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Minus className="h-3.5 w-3.5" /></button><span className="w-12 text-center text-[10px] font-mono text-hermes-bone/55">{zoom}%</span>
-              <button onClick={() => zoomAt(1.25)} disabled={zoom >= 800} aria-label="Zoom in" className={`${controlClass} !px-2.5 disabled:opacity-30`}><Plus className="h-3.5 w-3.5" /></button><button onClick={resetView} aria-label="Reset graph view" title="Fit graph to view" className={`${controlClass} !px-2.5`}><Maximize2 className="h-3.5 w-3.5" /></button>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-hermes-bone/[0.07] px-4 py-3 text-[10px] text-hermes-bone/40 sm:px-5"><span>{mode === 'articles' ? 'Dots = articles · Lines = similarity' : 'Dots = claims · Lines = near-duplicates'}{focusGroup && ` · ${focusGroup.internalLinks.toLocaleString()} links within this outlet`}</span><span>Click a node to inspect<span className="hidden sm:inline"> · Drag to pan · Ctrl/⌘ + scroll to zoom</span></span></div>
-        </div>
-      </div>
-      {g.data && <div className="flex flex-wrap items-center gap-3 border-t border-hermes-bone/10 px-5 py-3 sm:px-6">
-        <label htmlFor="graph-node-select" className="text-xs text-hermes-bone/50">Inspect {mode === 'articles' ? 'an article' : 'a claim'}</label>
-        <select id="graph-node-select" aria-label="Inspect a node (keyboard alternative)" value={selectedId ?? ''} onChange={(event) => inspectNode(event.target.value)} className="min-w-0 max-w-full flex-1 border border-hermes-bone/15 bg-hermes-panel-deep px-3 py-2 text-xs text-hermes-bone/70 sm:max-w-xl"><option value="">Choose a {mode === 'articles' ? 'title' : 'claim'} to inspect…</option>{nodeOptions}</select>
+      {family && <label className="block text-xs">Minimum similarity for {family}: {threshold.toFixed(2)}<input aria-label="Minimum comparable similarity" type="range" min="0" max="1" step="0.01" value={threshold} onChange={event => { setThreshold(Number(event.target.value)); setPage(0); }} className="block w-full mt-3 accent-hermes-red-bright" /><span className="block mt-2 text-hermes-bone/60">Filters only this family in the fetched projection. Other relationship families remain visible. Unknown scores in this family are excluded.</span></label>}
+      <div className="flex flex-wrap gap-5 text-xs"><label className="flex items-center gap-2"><input type="checkbox" checked={showUnlinked} onChange={event => { setShowUnlinked(event.target.checked); setPage(0); }} /> Include unlinked records in lists</label><label className="flex items-center gap-2"><input type="checkbox" checked={showConnections} onChange={event => setShowConnections(event.target.checked)} /> Show all connections</label>{hasFilters && <button className="underline" onClick={clear}>Clear filters</button>}</div>
+      {query && <p className="text-xs text-hermes-bone/65">Search matches plus their direct neighbors after relationship and outlet filters. This searches fetched records, not the web or the full database.</p>}
+    </div>
+    <div className="p-5 md:p-6 space-y-5">
+      {request.isPending && <p role="status">Loading recorded graph… The free API may need time to wake.</p>}
+      {request.isError && <QueryError title="Corpus graph unavailable" error={request.error} onRetry={() => request.refetch()} retrying={request.isFetching} />}
+      {request.isError && request.data && <p className="text-xs">Refresh failed. The last fetched snapshot is still displayed below.</p>}
+      {parsed.error != null && <QueryError title="Invalid graph response" error={parsed.error} onRetry={() => request.refetch()} />}
+      {Object.values(graph.diagnostics).some(Boolean) && <details className="border border-amber-200/30 p-4 text-xs"><summary>Data validation notices</summary><pre className="mt-3 whitespace-pre-wrap break-words">{JSON.stringify(graph.diagnostics, null, 2)}</pre><p className="mt-3">Duplicate IDs, unusable endpoints and self-links are reported rather than drawn. Invalid scores remain unknown; no connections are invented.</p></details>}
+      {request.data && !parsed.error && <>
+        <p className="text-xs" aria-live="polite">In this view: {filtered.nodes.length} {mode} · {filtered.edges.length} relationship groups · {unlinked.length} unlinked records. {showUnlinked ? 'Unlinked records are listed separately from the map.' : `${unlinked.length} unlinked records hidden from lists.`}</p>
+        {filtered.nodes.length === 0 ? <p className="border border-hermes-bone/20 p-5">{hasFilters ? `No ${mode} match these filters.` : 'No valid graph records returned.'}</p> : filtered.edges.length === 0 ? <section aria-label="No recorded connections" className="border border-hermes-bone/25 bg-hermes-panel p-5 space-y-3"><h3 className="font-display text-2xl">{graph.edges.length ? 'No connections in this filtered view' : 'No recorded connections in this snapshot'}</h3><p className="text-sm leading-relaxed">{graph.scope?.total_relationships === 0 ? `${graph.run_id ? 'This published release' : 'This graph source'} contains zero saved relationship records. Its articles and claims can still be browsed below.` : 'The fetched records contain no usable links for this view. This does not establish that no connections exist elsewhere.'}</p><p className="text-xs text-hermes-bone/65">Without relationship data, distances between dots would be arbitrary. A decorative node map is not shown. Analysis and publication are separate developer steps.</p>{access.data?.allowed && <a href="#/dashboard/developer" className={button}>Open developer workflow</a>}</section> : <>
+          {layout.error ? <div role="alert" className="border border-hermes-red-bright/40 p-4 text-sm">{layout.error} <button className="underline" onClick={() => setSeed(value => value + 1)}>Retry layout</button></div> : !layout.scene ? <p role="status">Computing weighted layout… {Math.round(layout.progress * 100)}% of fixed relaxation passes. Record controls remain available.</p> : <RecordedNetworkCanvas key={layout.key} ref={canvas} scene={layout.scene} selected={selectedId} onSelect={selectNode} showConnections={showConnections} />}
+          <div className="flex flex-wrap items-center gap-3 text-xs"><button className={button} onClick={() => setSeed(value => value + 1)}>Recompute layout</button><button className={button} disabled={!layout.scene} onClick={() => canvas.current?.unpin()}>Clear pins</button><p className="text-hermes-bone/60">{layout.scene && `${layout.scene.components} connected components · ${Math.round(layout.elapsedMs || 0)} ms layout · ${layout.scene.ticks} ticks · ${layout.scene.settled ? 'velocity cooled' : 'iteration limit reached'}.`} Drag nodes to pin; drag space to pan; use zoom buttons or Ctrl/⌘ + wheel. Vertical touch gestures scroll the page.</p></div>
+        </>}
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs" aria-label="Outlet color legend">{groups.outlets.map(group => <span className="inline-flex items-center gap-2" key={group.id}><span className="w-2 h-2 rounded-full" style={{ background: outletColor(group.id) }} aria-hidden="true" />{outletName(group.id)}</span>)}</div>
+        <details className="border border-hermes-bone/20 p-4 text-sm"><summary className="cursor-pointer">How to read this graph</summary><div className="mt-4 space-y-3 text-hermes-bone/70 leading-relaxed"><p>Dots are individual {mode}; color identifies the source outlet. Larger dots have more distinct neighbors in this filtered graph. Lines are recorded relationships; arrows point from child to candidate parent for EVOLVED_FROM and from duplicate to canonical record for DUPLICATE_OF. Neither is observed transmission. Dashed lines have unknown direction metadata. The exact relationship type is available in the inspector.</p><p>Similarity-family scores use preferred link lengths of 45 + 150 × (1 − score) layout units. Duplicate-record links use 55 units; candidate evolution and unknown scores use a neutral 100. Actual positions also depend on other links, repulsion and collisions. Screen distance is approximate, not exact semantic distance or truth probability.</p><p>Separate components are packed for readability; the gaps between them have no semantic meaning. Unlinked records are not positioned on the map. A symmetric network may legitimately look symmetric. The view is bounded and filtered; absent lines do not prove absence of related reporting.</p><p>Projected article lines can represent multiple underlying claim relationships. The inspector reports support counts, score ranges and up to 25 references per group. Hidden or sampled records are not synthesized. Source totals and graph counts describe different scopes.</p></div></details>
+        <section aria-label="Graph records" className="space-y-4"><div className="flex flex-wrap gap-4 justify-between items-end"><h3 className="font-display text-2xl">{filtered.edges.length ? 'Browse fetched records' : 'Browse unlinked records'}</h3><button className={button} onClick={exportGraph} disabled={filtered.edges.length > 0 && !layout.scene}><Download className="w-3 h-3" /> Export displayed graph</button></div>{exportError && <p role="alert">{exportError}</p>}
+          {!records.length && filtered.nodes.length > 0 && <p>All matching records are unlinked and hidden. <button className="underline" onClick={() => setShowUnlinked(true)}>Show unlinked records</button>.</p>}
+          <div className="grid md:grid-cols-2 gap-3">{records.slice(currentPage * 12, currentPage * 12 + 12).map(node => <article key={node.id} className="border border-hermes-bone/15 p-4 space-y-3 min-w-0"><p className="text-xs text-hermes-bone/60 break-words">{outletName(node.domain)} · {degrees.get(node.id) || 0} displayed neighbors{query && node.title.toLowerCase().includes(query.toLowerCase()) ? ' · Search match' : query ? ' · Direct neighbor' : ''}</p><button className="text-left text-sm leading-relaxed underline underline-offset-4 break-words" onClick={() => selectNode(node.id)}>{node.title}</button>{details(node) && <a className="block text-xs underline" href={details(node)!}>Open article details</a>}</article>)}</div>
+          <div className="flex flex-wrap items-center gap-4 text-xs"><button className={button} disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Previous records</button><span>{records.length ? currentPage * 12 + 1 : 0}–{Math.min(records.length, (currentPage + 1) * 12)} of {records.length} records</span><button className={button} disabled={(currentPage + 1) * 12 >= records.length} onClick={() => setPage(currentPage + 1)}>Next records</button></div>
+          <label className="block text-xs">Keyboard node picker (first 200 filtered records; search or paginate for more)<select id="graph-node-select" aria-label="Inspect a node (keyboard alternative)" className="field-brutal w-full mt-2" value={selectedId || ''} onChange={event => selectNode(event.target.value || null)}><option value="">Choose a record…</option>{selected && !records.slice(0, 200).some(node => node.id === selected.id) && <option value={selected.id}>{selected.title}</option>}{records.slice(0, 200).map(node => <option value={node.id} key={node.id}>{node.title}</option>)}</select></label>
+        </section>
+      </>}
+      {selected && <div ref={inspector} tabIndex={-1} role="region" aria-label="Selected graph record" className="border border-hermes-red-bright/40 bg-hermes-panel p-5 space-y-4 outline-none"><div className="flex justify-between items-start gap-4"><h3 className="font-display text-2xl break-words">{selected.title}</h3><button aria-label="Close node inspector" onClick={() => selectNode(null)} className="p-2"><X className="w-4 h-4" /></button></div><p className="text-xs text-hermes-bone/65">{outletName(selected.domain)} · {degrees.get(selected.id) || 0} distinct displayed neighbors · {neighbors.length} recorded relationship groups</p><div className="flex flex-wrap gap-3">{details(selected) && <a href={details(selected)!} className="btn-brutal">Open article details</a>}{details(selected, 'timeline') ? setActiveTab ? <button className={button} onClick={() => { const id = owner(selected, mode); if (id) { setSelectedArticle({ id, title: selected.title, domain: selected.domain }); setActiveTab('timeline'); } }}>View in Timeline</button> : <a className={button} href={details(selected, 'timeline')!}>View in Timeline</a> : <button className={button} disabled title="This claim has no article_id; timeline drill-down is unsupported">View in Timeline</button>}{safeHttpUrl(selected.url) && <a href={safeHttpUrl(selected.url)} target="_blank" rel="noopener noreferrer" className={button}><ExternalLink className="w-3 h-3" /> Read original</a>}<button className={button} disabled={!degrees.get(selected.id) || !layout.scene} onClick={() => canvas.current?.pin(selected.id)}>Pin selected node</button></div>
+        <dl className="grid sm:grid-cols-2 gap-3 text-xs text-hermes-bone/65"><div><dt>Record ID</dt><dd className="break-all mt-1">{selected.id}</dd></div><div><dt>Publication date</dt><dd className="mt-1">{selected.published_at && Number.isFinite(Date.parse(selected.published_at)) ? new Date(selected.published_at).toLocaleString() : 'Not supplied'}</dd></div></dl>
+        <h4 className="text-sm">Exact recorded neighbors</h4>{!neighbors.length && <p className="text-sm text-hermes-bone/65">No relationship is recorded for this node within the current fetched and filtered graph.</p>}
+        <ul className="space-y-3">{neighbors.slice(neighborOffset, neighborOffset + 10).map(edge => { const other = nodeIndex.get(edge.src === selected.id ? edge.dst : edge.src); return <li className="border border-hermes-bone/20 p-4 text-xs space-y-3" key={edge.id}><p>{edgeName(edge)} · {edge.directed === true ? `${edge.relationship_type === 'EVOLVED_FROM' ? edge.src === selected.id ? 'Outgoing to parent' : 'Incoming from child' : edge.relationship_type === 'DUPLICATE_OF' ? edge.src === selected.id ? 'Outgoing to canonical record' : 'Incoming from duplicate' : 'Directed relationship'}` : edge.directed === false ? 'Undirected' : 'Direction unknown'}</p><button className="underline text-left break-words leading-relaxed" onClick={() => selectNode(other?.id || null)}>{other?.title || 'Endpoint unavailable'}</button><p>Recorded score: {edge.score ?? 'unknown'} · family: {edge.score_family} · {edge.support_count || 1} supporting record(s) in this fetched projection{edge.score_min != null && edge.score_max != null ? ` · range ${edge.score_min}–${edge.score_max}` : ''}. This is not a probability of truth.</p>{edge.references?.length ? <details><summary>Supporting claim references{edge.references_truncated ? ' (bounded sample)' : ''}</summary><ul className="mt-3 space-y-2">{edge.references.map(reference => <li key={reference.id} className="break-all">{reference.from_article_id && isUuid(reference.from_article_id) && isUuid(reference.from_claim_id) ? <a className="underline" href={articleHref(reference.from_article_id, 'claims', { claim: reference.from_claim_id, back })}>From claim {reference.from_claim_id}</a> : reference.from_claim_id} → {reference.to_article_id && isUuid(reference.to_article_id) && isUuid(reference.to_claim_id) ? <a className="underline" href={articleHref(reference.to_article_id, 'claims', { claim: reference.to_claim_id, back })}>To claim {reference.to_claim_id}</a> : reference.to_claim_id} · score {reference.score}</li>)}</ul></details> : <p>Underlying claim references are unavailable in this response.</p>}</li>; })}</ul>{neighbors.length > 10 && <div className="flex flex-wrap items-center gap-3 text-xs"><button className={button} disabled={!neighborOffset} onClick={() => setNeighborPage(value => value - 1)}>Previous neighbors</button><span>{neighborOffset + 1}–{Math.min(neighborOffset + 10, neighbors.length)}</span><button className={button} disabled={neighborOffset + 10 >= neighbors.length} onClick={() => setNeighborPage(value => value + 1)}>Next neighbors</button></div>}
       </div>}
-      {selected && <div className="flex flex-wrap items-start justify-between gap-5 border-t border-hermes-bone/15 bg-black/15 p-5 sm:p-6">
-        <div className="min-w-0 flex-1 basis-64"><div className="mb-2 text-[10px] uppercase tracking-widest" style={{ color: outletColor(selected.domain) }}>{outletName(selected.domain)}{selected.deg != null && ` · ${selected.deg} similarity links`}</div><h3 className="text-xl leading-snug">{selected.title}</h3></div>
-        <div className="flex flex-wrap items-center gap-2">
-          {timelineArticleId && <a href={articleHref(timelineArticleId)} className="btn-brutal">Open article details <ArrowUpRight className="h-3.5 w-3.5" /></a>}
-          {timelineArticleId && !setActiveTab ? <a href={articleHref(timelineArticleId, 'timeline')} className="btn-brutal">View in Timeline <Orbit className="h-3.5 w-3.5" /></a> : <button disabled={!timelineArticleId} title={timelineArticleId ? 'Open this article’s story timeline' : 'This claim has no article_id; timeline drill-down is unsupported'} onClick={() => { if (!timelineArticleId) return; setSelectedArticle({ id: timelineArticleId, title: selected.title, domain: selected.domain }); setActiveTab?.('timeline'); }} className="btn-brutal">View in Timeline <Orbit className="h-3.5 w-3.5" /></button>}
-          {safeHttpUrl(selected.url) && <a href={safeHttpUrl(selected.url)} target="_blank" rel="noreferrer" className={controlClass}>Read original <ExternalLink className="h-3.5 w-3.5" /></a>}<button aria-label="Close node inspector" onClick={() => setSelectedId(null)} className={controlClass}><X className="h-4 w-4" /></button>
-        </div>
-      </div>}
-    </section>
-  );
-};
-
-export default FullCorpusGraph;
+    </div>
+  </section>;
+}

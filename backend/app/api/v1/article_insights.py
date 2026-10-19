@@ -36,6 +36,7 @@ class ArticleDetail(BaseModel):
     body_source: str
     content_completeness: str = "unknown"
     claims_total: int
+    assessment_counts: dict[str, int]
 
 
 class EntityItem(BaseModel):
@@ -121,6 +122,12 @@ async def article_detail(
 ) -> ArticleDetail:
     article = await _article(article_id, db)
     claims = await db.scalar(select(func.count()).select_from(Claim).where(Claim.article_id == article_id))
+    # Aggregate every stored claim, independently of the claims page size. These
+    # are recorded model labels, not validated truth or a misinformation rate.
+    label = func.coalesce(func.nullif(func.upper(func.trim(Claim.verdict)), ""), "UNASSESSED")
+    assessment_counts = dict((await db.execute(
+        select(label, func.count()).where(Claim.article_id == article_id).group_by(label)
+    )).all())
     cleaned = article.cleaned_content
     body = cleaned if cleaned and cleaned.strip() else article.content or ""
     # Raw RSS content may contain HTML. Return plain text, never executable markup.
@@ -133,6 +140,7 @@ async def article_detail(
         nlp_status=article.nlp_status.value, processing_status=article.processing_status.value,
         body=body, body_source="cleaned_content" if cleaned and cleaned.strip() else "content" if body else "missing",
         claims_total=claims or 0,
+        assessment_counts=assessment_counts,
     )
 
 

@@ -42,10 +42,7 @@ export default defineConfig({
         'src/shared/ui/decorative/AsciiSpinner.tsx',
         // 3D timeline tunnel — canvas/WebGL animation core, no API logic.
         'src/features/graph/components/TimelineTunnel.tsx',
-        // Force-simulation / whole-corpus canvas renderers: pure visual
-        // layout & draw loops without API or decision logic (documented
-        // exclusion policy — visually exercised, not unit-testable here).
-        'src/features/graph/components/FullCorpusGraph.tsx',
+        // Recorded graph state/model/layout participate in normal coverage.
         // Arcade component driven by a requestAnimationFrame game loop.
         'src/features/experiments/components/MasalaLab.tsx',
       ],

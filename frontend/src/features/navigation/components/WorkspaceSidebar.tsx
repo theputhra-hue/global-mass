@@ -1,3 +1,4 @@
+import { useEffect, useId, useState } from 'react';
 import { Home, Compass, GitCompare, Bookmark, Wrench, Shield, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { ResolvedAppRoute } from '../../../shared/navigation/registry';
@@ -39,6 +40,9 @@ export function WorkspaceSidebar({ route }: WorkspaceSidebarProps) {
   const isArticlesSub = (route.kind === 'reader' && route.view === 'browse') || route.kind === 'article' || (route.kind === 'advanced' && route.tab === 'corpus');
   const isClaimsSub = route.kind === 'claims';
   const isConnectionsSub = route.kind === 'advanced' && route.tab === 'fullgraph';
+  const [exploreOpen, setExploreOpen] = useState(true);
+  const exploreId = useId();
+  useEffect(() => { if (isExplore) setExploreOpen(true); }, [route.raw, isExplore]);
 
   const linkBase = 'flex items-center gap-3 px-3.5 py-2.5 text-xs font-mono font-medium rounded transition-colors';
   const activeStyle = 'bg-hermes-panel text-hermes-red-bright border-l-2 border-hermes-red-bright font-semibold';
@@ -75,18 +79,20 @@ export function WorkspaceSidebar({ route }: WorkspaceSidebarProps) {
 
         {/* 2. Explore data */}
         <div className="space-y-1">
-          <a
-            href="#/dashboard/browse"
-            aria-current={isExplore && !isClaimsSub && !isConnectionsSub ? 'page' : undefined}
-            className={`${linkBase} ${isExplore ? activeStyle : inactiveStyle}`}
+          <button
+            type="button"
+            aria-expanded={exploreOpen}
+            aria-controls={exploreId}
+            onClick={() => setExploreOpen(open => !open)}
+            className={`${linkBase} w-full text-left ${isExplore ? activeStyle : inactiveStyle}`}
           >
             <Compass className="w-4 h-4 shrink-0" />
             <span className="flex-1">Explore data</span>
-            <ChevronDown className={`w-3 h-3 text-hermes-bone/40 transition-transform ${isExplore ? 'rotate-180' : ''}`} />
-          </a>
+            <ChevronDown aria-hidden="true" className={`w-3 h-3 text-hermes-bone/60 transition-transform ${exploreOpen ? 'rotate-180' : ''}`} />
+          </button>
 
           {/* Sub-destinations under Explore data */}
-          <div className="pl-7 pr-1 py-1 space-y-1 border-l border-hermes-bone/10 ml-5">
+          <div id={exploreId} hidden={!exploreOpen} className="pl-7 pr-1 py-1 space-y-1 border-l border-hermes-bone/10 ml-5">
             <a
               href="#/dashboard/browse"
               aria-current={isArticlesSub ? 'page' : undefined}

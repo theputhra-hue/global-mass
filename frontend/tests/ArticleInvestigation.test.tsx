@@ -24,6 +24,33 @@ function fixture(endpoint: string) {
 function route(tab = 'overview', query = '') { return parseArticleRoute(`dashboard/articles/${id}/${tab}${query}`)!; }
 
 describe('article investigation', () => {
+  it('shows all-claim assessment totals separately from the bounded overview preview', async () => {
+    const fetch = mockApi(endpoint => endpoint.includes('/claims?') ? jsonResponse({ article_id: id, total: 25, items: [
+      { ...claim, verdict: 'UNSUPPORTED', verdict_probability: .29, verdict_rationale: 'Stored corpus comparison.' },
+    ], selected: null, limit: 20, offset: 0 }) : jsonResponse({ ...detail, claims_total: 25, assessment_counts: { UNSUPPORTED: 24, UNASSESSED: 1 } }));
+    renderWithClient(<ArticleInvestigation route={route('overview')} />);
+    const analysis = await screen.findByRole('region', { name: 'Saved article analysis' });
+    expect(await within(analysis).findByText('Stored corpus comparison.')).toBeTruthy();
+    expect(within(analysis).getByText('24')).toBeTruthy();
+    expect(within(analysis).getByText('No saved assessment')).toBeTruthy();
+    expect(within(analysis).getByText(/Preview: 1 of 25/)).toBeTruthy();
+    expect(within(analysis).getByText(/heuristic support score 0.290 \(uncalibrated\)/)).toBeTruthy();
+    expect(fetch.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
+  });
+  it('keeps missing overview claims distinct from a failed claims request', async () => {
+    mockApi(endpoint => endpoint.includes('/claims?') ? jsonResponse({ detail: 'Saved claim service unavailable' }, 503) : jsonResponse(detail));
+    renderWithClient(<ArticleInvestigation route={route('overview')} />);
+    expect(await screen.findByText('Saved claim service unavailable')).toBeTruthy();
+    expect(screen.queryByText(/This article has no saved extracted/)).toBeNull();
+  });
+  it('preserves claim, pagination and return state when using the mobile section selector', async () => {
+    mockApi(fixture);
+    renderWithClient(<ArticleInvestigation route={route('claims', `?claim=${claimId}&offset=20&back=${encodeURIComponent('#/dashboard/browse?q=river')}`)} />);
+    await screen.findByRole('heading', { name: detail.title });
+    fireEvent.change(screen.getByLabelText('Jump to article section'), { target: { value: 'methods' } });
+    const next = parseArticleRoute(window.location.hash.slice(2));
+    expect(next).toMatchObject({ tab: 'methods', claim: claimId, offset: 20, back: '#/dashboard/browse?q=river' });
+  });
   it('updates and repeats a query route without clearing the memory-only session', () => {
     signInFixture();
     navigateHash('#/dashboard/browse?q=river&offset=6');

@@ -40,6 +40,10 @@ function ClaimCard({ claim, href }: { claim: ArticleClaim; href: (tab: DetailTab
   return <article className={panel}>
     <p className="text-base leading-relaxed whitespace-pre-wrap break-words">{claim.text}</p>
     <p className="mt-3 text-xs text-hermes-bone/55">Extracted {date(claim.extracted_at)} · {claim.confidence == null ? 'Extraction confidence unknown' : `Extraction confidence ${claim.confidence.toFixed(2)} · heuristic`}</p>
+    <div className="mt-4 border-l-2 border-hermes-red-bright/60 pl-4 space-y-2">
+      <p className="text-xs font-mono">Saved assessment: <strong>{claim.verdict || 'Not recorded'}</strong>{claim.verdict_probability == null ? '' : ` · heuristic support score ${claim.verdict_probability.toFixed(3)} (uncalibrated)`}</p>
+      {claim.verdict_rationale && <p className="text-sm leading-relaxed text-hermes-bone/70 whitespace-pre-wrap break-words">{claim.verdict_rationale}</p>}
+    </div>
     {claim.entities.length > 0 && <div className="flex flex-wrap gap-2 mt-4">{claim.entities.map((entity, i) => <span key={i} className="chip-brutal break-words max-w-full">{entity.text} · {entity.type}</span>)}</div>}
     <div className="flex flex-wrap gap-4 mt-5 text-xs"><a className={linkStyle} href={href('evidence', claim.id)}>Inspect evidence</a><a className={linkStyle} href={href('changes', claim.id)}>Compare wording</a></div>
   </article>;
@@ -91,7 +95,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
   const valid = route.valid && (!claim || isUuid(claim));
   const details = useQuery({ queryKey: ['article-detail', id], queryFn: ({ signal }) => articlesApi.detail(id, { signal }), enabled: valid, staleTime: 30_000 });
   const claimTab = ['claims', 'evidence', 'changes'].includes(tab);
-  const claims = useQuery({ queryKey: ['article-claims', id, offset, claim], queryFn: ({ signal }) => articlesApi.claims(id, offset, claim, { signal }), enabled: valid && details.isSuccess && claimTab, staleTime: 30_000 });
+  const claims = useQuery({ queryKey: ['article-claims', id, offset, claim], queryFn: ({ signal }) => articlesApi.claims(id, offset, claim, { signal }), enabled: valid && details.isSuccess && (claimTab || tab === 'overview'), staleTime: 30_000 });
   const connectionTab = ['related', 'changes', 'timeline', 'graph', 'methods'].includes(tab);
   const connections = useQuery({ queryKey: ['article-connections', id], queryFn: ({ signal }) => articlesApi.connections(id, { signal }), enabled: valid && details.isSuccess && connectionTab, staleTime: 30_000 });
   const article = details.data;
@@ -182,11 +186,11 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
             </select>
           </div>
 
-          {/* Full Tab Navigation with keyboard arrows and visible section grouping */}
+          {/* Groups wrap within the workspace instead of clipping a long tab strip. */}
           <nav
             ref={tabsRef}
             aria-label="Article details"
-            className="flex overflow-x-auto gap-4 border-b border-hermes-bone/15 pb-2 scrollbar-thin"
+            className="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-3"
             onKeyDown={(event) => {
               if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
               const links = [...(tabsRef.current?.querySelectorAll<HTMLAnchorElement>('a') || [])];
@@ -202,10 +206,11 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
               { name: 'Context', tabs: ['related', 'timeline', 'graph'] as const },
               { name: 'Methods', tabs: ['methods'] as const },
             ].map((group) => (
-              <div key={group.name} className="flex items-center gap-1 shrink-0">
-                <span className="text-[10px] uppercase tracking-wider font-mono text-hermes-bone/45 px-1.5 select-none">
+              <div key={group.name} className="min-w-0 border border-hermes-bone/15 bg-hermes-panel/40 p-3 space-y-2">
+                <span className="block text-[10px] uppercase tracking-wider font-mono text-hermes-bone/60 select-none">
                   {group.name}
                 </span>
+                <div className="flex flex-wrap gap-1">
                 {group.tabs.map((key) => {
                   const isSelected = tab === key;
                   return (
@@ -213,14 +218,13 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
                       key={key}
                       href={href(key)}
                       aria-current={isSelected ? 'page' : undefined}
-                      className={`workspace-tab whitespace-nowrap shrink-0 text-xs font-mono transition-colors ${
-                        isSelected ? '!border-hermes-red-bright !text-hermes-red-bright font-bold' : ''
-                      }`}
+                      className={`rounded px-3 py-2 text-xs font-mono leading-relaxed border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-hermes-red-bright ${isSelected ? 'border-hermes-red-bright text-hermes-bone bg-hermes-red/30 font-bold' : 'border-transparent text-hermes-bone/70 hover:bg-hermes-panel hover:text-hermes-bone'}`}
                     >
                       {tabs[key].name}
                     </a>
                   );
                 })}
+                </div>
               </div>
             ))}
           </nav>
@@ -232,6 +236,17 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
             <p className="text-sm text-hermes-bone/65 mt-2 max-w-4xl leading-relaxed">{tabs[tab].help}</p>
           </div>
             {tab === 'overview' && <>
+              <section aria-label="Saved article analysis" className={`${panel} space-y-5`}>
+                <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-display text-2xl">Saved article analysis</h3><a href={href('claims')} className={`${linkStyle} text-xs`}>Open all saved claims</a></div>
+                <p className="text-sm text-hermes-bone/70">{article.claims_total ? `${article.claims_total} extracted statements belong to this article. The labels below summarize saved assessments across all of them.` : 'This article has no saved extracted statements. Its metadata is available, but claim analysis has not been recorded here.'}</p>
+                {article.assessment_counts && Object.keys(article.assessment_counts).length > 0 && <dl className="grid sm:grid-cols-2 gap-4">{Object.entries(article.assessment_counts).map(([label, count]) => <div key={label} className="border border-hermes-bone/15 p-4 min-w-0"><dt className="text-xs font-mono break-words text-hermes-bone/70">{label === 'UNASSESSED' ? 'No saved assessment' : label}</dt><dd className="font-display text-3xl mt-2">{count.toLocaleString()}</dd></div>)}</dl>}
+                {!article.assessment_counts && article.claims_total > 0 && <p className="text-xs text-hermes-bone/60">Assessment totals are unavailable from this API version. Open the saved claims to inspect individual results.</p>}
+                <p className="text-xs text-hermes-bone/55 leading-relaxed">These are stored model assessments, not a verified percentage of fake news. No new AI analysis runs when you open this page. Related coverage, changes and graphs need saved relationship links.</p>
+                {claims.isPending && <p role="status">Loading saved statement preview…</p>}
+                {claims.isError && <QueryError title="Saved analysis preview unavailable" error={claims.error} onRetry={() => claims.refetch()} />}
+                {claims.data && claims.data.total > 0 && <div className="space-y-4"><p className="text-xs text-hermes-bone/60">Preview: {Math.min(3, claims.data.items.length)} of {claims.data.total} statements. Open all saved claims for the complete paginated list.</p>{claims.data.items.slice(0, 3).map(c => <ClaimCard key={c.id} claim={c} href={href} />)}</div>}
+                {article.claims_total === 0 && <p className="text-xs text-hermes-bone/65">{runtime.mode === 'published' ? 'An approved developer must analyze this article locally and publish a complete release containing its results.' : 'An approved developer can check extraction jobs in the developer workspace.'} <a className={linkStyle} href="#/dashboard/browse">Browse another article</a>.</p>}
+              </section>
               <div className="grid lg:grid-cols-[2fr_1fr] gap-5"><div className={panel}><FileText className="w-5 h-5 text-hermes-red-bright mb-4" /><h3 className="text-2xl mb-3">Inside this report</h3><p className="text-sm leading-loose whitespace-pre-wrap break-words">{article.body ? `${article.body.slice(0, 650)}${article.body.length > 650 ? '…' : ''}` : runtime.mode === 'published' ? 'Full article text is not included in this published archive. Follow the original source above to read the report.' : 'No article text is stored for this item.'}</p><p className="text-xs text-hermes-bone/50 mt-4">{article.body ? 'Excerpt from stored text · completeness unknown; it may be a feed summary.' : 'Source metadata and saved statements remain available when recorded.'}</p><a href={href('article')} className="btn-outline-dark mt-5">{article.body ? 'Read available text' : 'Source text availability'} <ArrowRight className="w-3 h-3" /></a></div>
               <dl className={`${panel} space-y-4 text-sm`}>{[['Published', date(article.published_at)], ['Collected', date(article.collected_at)], ['Language', article.language || 'Unknown'], ['Text preparation', article.processing_status], ['Claim extraction', article.nlp_status || 'Unknown']].map(([label, value]) => <div key={label}><dt className="text-[10px] uppercase tracking-wider text-hermes-bone/50">{label}</dt><dd className="mt-1 break-words">{value}</dd></div>)}</dl></div>
               <div className="grid sm:grid-cols-3 gap-4">{[['claims', 'Inspect the claims', `${article.claims_total} statements extracted from this article.`], ['related', 'Follow related coverage', 'Explore recorded links to reporting from other sources.'], ['timeline', 'Read the timeline', 'See publication dates within this neighborhood.']].map(([target, title, description]) => <a key={target} href={href(target as DetailTab)} className={panel}><h3 className="text-2xl mb-3">{title}</h3><p className="text-xs leading-relaxed text-hermes-bone/65">{description}</p></a>)}</div>

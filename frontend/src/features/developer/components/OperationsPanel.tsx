@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { apiClient } from '../../../shared/api/client';
 import { developerApi } from '../../../shared/api/developer';
 import { publicationsApi } from '../../../shared/api/publications';
+import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { useSession } from '../../../shared/session/session';
 import { usePollingPolicy } from '../../../shared/hooks/polling';
 import { QueryError } from '../../../shared/ui/QueryError';
@@ -75,10 +76,16 @@ function OperatorControls() {
 
 export function OperationsPanel() {
   const { user, revision } = useSession();
+  const runtime = usePublicationRuntime();
   const [open, setOpen] = useState(false);
   const access = useQuery({ queryKey: ['publication-access', user?.id, revision], queryFn: publicationsApi.access, enabled: user?.role === 'admin', retry: false });
-  const overview = useQuery({ queryKey: ['developer-overview', user?.id, revision], queryFn: developerApi.overview, enabled: access.data?.allowed === true, retry: false });
-  if (!access.data?.allowed || !overview.data?.pipeline_enabled) return null;
+  const overview = useQuery({
+    queryKey: ['developer-overview', user?.id, revision],
+    queryFn: developerApi.overview,
+    enabled: runtime.mode === 'local' && access.data?.allowed === true,
+    retry: false,
+  });
+  if (runtime.mode !== 'local' || !access.data?.allowed || !overview.data?.pipeline_enabled) return null;
   return <section className="card-brutal-dark p-4" aria-label="Pipeline operations">
     <button type="button" className="btn-brutal" aria-expanded={open} onClick={() => setOpen((value) => !value)}>Pipeline operations</button>
     {open && <OperatorControls key={revision} />}

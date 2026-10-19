@@ -101,13 +101,26 @@ async def review_upload(
     run_id: uuid.UUID, user: User = Depends(require_developer),
     db: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    row = await db.get(PublicationUpload, run_id)
+    # Review needs bounded metadata/samples, not the whole multi-megabyte file.
+    payload = PublicationUpload.payload
+    statement = select(
+        PublicationUpload.run_id, PublicationUpload.digest, PublicationUpload.uploaded_at,
+        payload["generated_at"].as_string().label("generated_at"),
+        payload["provenance"].label("provenance"),
+        *(func.json_array_length(payload[key]).label(key)
+          for key in ("articles", "claims", "relationships")),
+        *(payload[key][index].label(f"{key}_{index}")
+          for key in ("articles", "claims") for index in range(5)),
+    ).where(PublicationUpload.run_id == run_id)
+    row = (await db.execute(statement)).mappings().one_or_none()
     if row is None:
         raise HTTPException(404, "Upload not found.")
-    return {**receipt(row), "generated_at": row.payload["generated_at"],
-            "provenance": row.payload["provenance"],
-            "sample_articles": row.payload["articles"][:5],
-            "sample_claims": row.payload["claims"][:5],
+    return {"run_id": str(row["run_id"]), "sha256": row["digest"],
+            "uploaded_at": row["uploaded_at"], "status": "staged", "replayed": False,
+            **{key: row[key] for key in ("articles", "claims", "relationships")},
+            "generated_at": row["generated_at"], "provenance": row["provenance"],
+            "sample_articles": [row[f"articles_{index}"] for index in range(5) if row[f"articles_{index}"] is not None],
+            "sample_claims": [row[f"claims_{index}"] for index in range(5) if row[f"claims_{index}"] is not None],
             "current": await publication_store.status(db)}
 
 

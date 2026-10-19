@@ -1,11 +1,9 @@
-"""Full-graph endpoint: every article node + every SIMILAR/DUPLICATE_OF edge.
-
-The whole corpus graph in one payload (6.4k nodes, ~800 edges ≈ 1-2MB JSON).
-"""
+"""Bounded reads of recorded article and claim relationships; no default inference."""
 
 import asyncio
 import html as htmllib
 import logging
+import math
 import re
 import uuid
 from datetime import datetime
@@ -129,86 +127,95 @@ def _clean_text(v: Any, limit: int = 200) -> str | None:
 
 @router.get("/full")
 async def full_graph() -> dict[str, Any]:
+    """Bounded Neo4j projection: relationship endpoints first, no inferred edges."""
     driver = await neo4j_client.get_driver()
+    node_limit, edge_limit = 10000, 40000
 
-    async def _run(tx: Any) -> Any:
-        # nodes: all articles with their outlet + degree
-        nodes_res = await tx.run(
-            """
-            MATCH (a:Article)
-            OPTIONAL MATCH (a)-[e:SIMILAR]-()
-            RETURN a.id AS id,
-                   a.title AS title,
-                   a.domain AS domain,
-                   a.url AS url,
-                   a.publishedAt AS published_at,
-                   count(e) AS deg
-            """
-        )
-        nodes = await nodes_res.data()
-
-        edges_res = await tx.run(
-            """
-            MATCH (a:Article)-[e:SIMILAR]-(b:Article)
-            RETURN a.id AS src, b.id AS dst, e.score AS score
-            """
-        )
-        raw = await edges_res.data()
-
-        dupe_res = await tx.run(
-            """
-            MATCH (a:Article)-[:DUPLICATE_OF]-(b:Article)
-            RETURN a.id AS src, b.id AS dst
-            """
-        )
-        dupes = await dupe_res.data()
-        return nodes, raw, dupes
-
-    async with driver.session() as ses:
-        nodes, raw, dupes = await ses.execute_read(_run)
-
-    seen = set()
-    edges = []
-    for e in raw:
-        key = tuple(sorted((e["src"], e["dst"])))
-        if key in seen:
-            continue
-        seen.add(key)
-        edges.append({"src": e["src"], "dst": e["dst"], "score": round(float(e["score"]), 3)})
-    for e in dupes:
-        key = tuple(sorted((e["src"], e["dst"])))
-        if key in seen:
-            continue
-        seen.add(key)
-        edges.append({"src": e["src"], "dst": e["dst"], "score": 1.0})
-
-    return {
-        "nodes": [
-            {
-                "id": n["id"],
-                "title": _clean_text(n.get("title"), 160) or "",
-                "domain": _clean_text(n.get("domain"), 80),
-                "url": n.get("url"),
-                "published_at": n.get("published_at"),
-                "deg": n.get("deg", 0),
-            }
-            for n in nodes
-        ],
-        "edges": edges,
-        "counts": {"nodes": len(nodes), "edges": len(edges)},
-    }
+    async def read(tx: Any) -> dict[str, Any]:
+        result = await tx.run("""MATCH (a:Article)-[e:SIMILAR|DUPLICATE_OF]->(b:Article)
+            RETURN a.id AS src, b.id AS dst, e.score AS score,
+                   type(e) AS relationship_type, elementId(e) AS id
+            ORDER BY id LIMIT $lim""", lim=edge_limit + 1)
+        raw = await result.data()
+        chosen: set[str] = set()
+        accepted = []
+        for edge in raw[:edge_limit]:
+            pair = {edge["src"], edge["dst"]}
+            if None not in pair and len(chosen | pair) <= node_limit:
+                chosen.update(pair)
+                accepted.append(edge)
+        result = await tx.run("""MATCH (a:Article) WHERE a.id IN $ids
+            RETURN a.id AS id, a.title AS title, a.domain AS domain,
+                   a.url AS url, a.publishedAt AS published_at ORDER BY a.id LIMIT $lim""",
+            ids=sorted(chosen), lim=node_limit)
+        nodes = await result.data()
+        if len(nodes) < node_limit:
+            result = await tx.run("""MATCH (a:Article) WHERE NOT a.id IN $ids
+                RETURN a.id AS id, a.title AS title, a.domain AS domain,
+                       a.url AS url, a.publishedAt AS published_at ORDER BY a.id LIMIT $lim""",
+                ids=sorted(chosen), lim=node_limit-len(nodes))
+            nodes.extend(await result.data())
+        result = await tx.run("MATCH (a:Article) RETURN count(a) AS total")
+        total_nodes = (await result.data())[0]["total"]
+        result = await tx.run("MATCH (:Article)-[e:SIMILAR|DUPLICATE_OF]->(:Article) RETURN count(e) AS total")
+        total_edges = (await result.data())[0]["total"]
+        groups: dict[tuple[str, str, str], dict[str, Any]] = {}
+        within = 0
+        for edge in accepted:
+            if edge["src"] == edge["dst"]:
+                within += 1
+                continue
+            kind = edge["relationship_type"]
+            a, b = (str(edge["src"]), str(edge["dst"])) if kind == "DUPLICATE_OF" else sorted((str(edge["src"]), str(edge["dst"])))
+            key = a, b, kind
+            score = edge.get("score")
+            score = float(score) if isinstance(score, (int, float)) and not isinstance(score, bool) and math.isfinite(score) and 0 <= score <= 1 else None
+            if key not in groups:
+                groups[key] = {"id": str(edge["id"]), "src": a, "dst": b,
+                    "relationship_type": kind, "directed": kind == "DUPLICATE_OF", "score": score,
+                    "score_min": score, "score_max": score, "support_count": 0,
+                    "score_kind": "similarity" if kind == "SIMILAR" else "membership",
+                    "score_family": "neo4j_" + kind.lower(), "basis": "neo4j_recorded_relationships"}
+            group = groups[key]
+            group["support_count"] += 1
+            if score is not None:
+                group["score_min"] = min(group["score_min"], score) if group["score_min"] is not None else score
+                group["score_max"] = group["score"] = max(group["score_max"], score) if group["score_max"] is not None else score
+        links = list(groups.values())
+        return {"nodes": [{"id": str(n["id"]), "kind": "article", "title": _clean_text(n.get("title"), 500) or "",
+                           "domain": _clean_text(n.get("domain"), 300), "url": n.get("url"), "published_at": n.get("published_at")} for n in nodes],
+                "edges": links, "counts": {"nodes": len(nodes), "edges": len(links)},
+                "basis": "neo4j_recorded_relationships", "bounded": True,
+                "scope": {"total_nodes": total_nodes, "total_relationships": total_edges,
+                    "relationships_returned": len(accepted), "within_node_relationships": within,
+                    "node_limit": node_limit, "relationship_limit": edge_limit,
+                    "truncated": total_nodes > len(nodes) or total_edges > len(accepted),
+                    "selection": "stable_relationship_ids_endpoints_first_then_node_ids"}}
+    try:
+        async with asyncio.timeout(12):
+            async with driver.session() as session:
+                return dict(await session.execute_read(read))
+    except TimeoutError as exc:
+        raise HTTPException(503, "Recorded graph timed out. Retry or inspect the local graph store.") from exc
 
 
 @router.get("/claims")
-async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, Any]:
-    """Claims network: persisted mutation edges, with a bounded pgvector fallback.
+async def claims_graph(limit: int = 1200, threshold: float = 0.86, infer_similarity: bool = False) -> dict[str, Any]:
+    try:
+        async with asyncio.timeout(15):
+            return await _claims_graph(limit, threshold, infer_similarity)
+    except TimeoutError as exc:
+        raise HTTPException(503, "Claim graph query timed out. Retry with fewer records.") from exc
+
+
+async def _claims_graph(limit: int, threshold: float, infer_similarity: bool) -> dict[str, Any]:
+    """Recorded claims network; inferred KNN retrieval requires explicit opt-in.
 
     Edges come from ``claim_relationships`` (EVOLVED_FROM / SIMILAR_TO rows the
-    evolution pipeline already computed and indexed). Only when the selected
-    claims have no persisted links do we fall back to per-row HNSW KNN via a
-    LATERAL join. The previous implementation ran a full claims×claims cross
-    join with a cosine-distance filter — ~20M distance computations per request
-    (~120 s on the live corpus) while the UI polls this endpoint every 60 s.
+    evolution pipeline already computed and indexed). With explicit
+    ``infer_similarity=True`` only, an empty saved-link selection may request
+    per-row HNSW KNN retrieval. Its basis is labelled separately. The ordinary
+    graph reader never computes new links to conceal missing relationship data.
     """
     from app.db.postgres import async_session_maker
 
@@ -220,8 +227,10 @@ async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, 
                c.verdict_probability AS prob,
                c.article_id::text AS article_id
         FROM claims c JOIN articles a ON a.id = c.article_id
-        WHERE c.embedding IS NOT NULL AND c.verdict IS NOT NULL
-        ORDER BY c.confidence DESC NULLS LAST, c.id
+        ORDER BY CASE WHEN c.id IN (
+            SELECT from_claim_id FROM (SELECT from_claim_id FROM claim_relationships ORDER BY id LIMIT greatest(1, CAST(:lim AS integer) / 2)) f
+            UNION SELECT to_claim_id FROM (SELECT to_claim_id FROM claim_relationships ORDER BY id LIMIT greatest(1, CAST(:lim AS integer) / 2)) t
+        ) THEN 0 ELSE 1 END, c.confidence DESC NULLS LAST, c.id
         LIMIT :lim
         """
 
@@ -236,8 +245,10 @@ async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, 
                     WITH chosen AS (
                         SELECT c.id
                         FROM claims c
-                        WHERE c.embedding IS NOT NULL AND c.verdict IS NOT NULL
-                        ORDER BY c.confidence DESC NULLS LAST, c.id
+                        ORDER BY CASE WHEN c.id IN (
+                            SELECT from_claim_id FROM (SELECT from_claim_id FROM claim_relationships ORDER BY id LIMIT greatest(1, CAST(:lim AS integer) / 2)) f
+                            UNION SELECT to_claim_id FROM (SELECT to_claim_id FROM claim_relationships ORDER BY id LIMIT greatest(1, CAST(:lim AS integer) / 2)) t
+                        ) THEN 0 ELSE 1 END, c.confidence DESC NULLS LAST, c.id
                         LIMIT :lim
                     )
                     SELECT r.from_claim_id::text AS src,
@@ -247,7 +258,7 @@ async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, 
                     FROM claim_relationships r
                     JOIN chosen f ON f.id = r.from_claim_id
                     JOIN chosen t ON t.id = r.to_claim_id
-                    LIMIT 6000
+                    ORDER BY r.id LIMIT 6000
                     """
                 ),
                 {"lim": limit},
@@ -255,7 +266,7 @@ async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, 
         ).all()
         edge_source = "claim_relationships"
 
-        if not pair_rows:
+        if not pair_rows and infer_similarity:
             edge_source = "pgvector_knn"
             pair_rows = (
                 await db.execute(
@@ -291,9 +302,10 @@ async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, 
 
     nodes = [
         {
-            "id": r[0], "title": _clean_text(r[1], 180) or "", "domain": _clean_text(r[2], 80),
+            "id": r[0], "kind": "claim", "title": _clean_text(r[1], 180) or "", "domain": _clean_text(r[2], 80),
             "verdict": r[3], "prob": float(r[4]) if r[4] is not None else None,
             "article_id": r[5],
+            "url": None, "published_at": None,
         }
         for r in rows
     ]
@@ -304,8 +316,12 @@ async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, 
         relationship_type = str(r[3])
         analysis = {**r[4], "observed_propagation": False} if isinstance(r[4], dict) else None
         edges.append({
-            "src": r[0], "dst": r[1], "score": round(float(r[2] or 0.0), 3),
+            "src": r[0], "dst": r[1], "score": float(r[2]) if r[2] is not None and math.isfinite(float(r[2])) and 0 <= float(r[2]) <= 1 else None,
+            "id": f"{edge_source}:{r[0]}:{r[1]}:{relationship_type}",
             "relationship_type": relationship_type,
+            "directed": True if relationship_type == "EVOLVED_FROM" else False if relationship_type == "SIMILAR_TO" else None,
+            "score_kind": "similarity" if relationship_type == "SIMILAR_TO" else "relationship_strength",
+            "score_family": edge_source + "_" + relationship_type.lower(), "basis": edge_source,
             "parent_claim_id": r[1] if relationship_type == "EVOLVED_FROM" else None,
             "child_claim_id": r[0] if relationship_type == "EVOLVED_FROM" else None,
             "analysis": analysis, "observed_propagation": False,
@@ -315,7 +331,11 @@ async def claims_graph(limit: int = 1200, threshold: float = 0.86) -> dict[str, 
         "nodes": nodes,
         "edges": edges,
         "counts": {"nodes": len(nodes), "edges": len(edges)},
-        "edge_source": edge_source,
+        "edge_source": edge_source, "basis": edge_source, "bounded": True,
+        "scope": {"total_nodes": None, "total_relationships": None,
+                  "relationships_returned": len(edges), "within_node_relationships": 0,
+                  "node_limit": limit, "relationship_limit": 6000, "truncated": None,
+                  "selection": "recorded_endpoints_priority_then_confidence; global_totals_unavailable"},
     }
 
 

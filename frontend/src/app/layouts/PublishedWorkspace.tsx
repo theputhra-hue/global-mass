@@ -4,12 +4,10 @@ import { ProjectLab } from '../../features/research/components/ProjectLab';
 import { Casebook } from '../../features/investigations/components/Casebook';
 import FullCorpusGraph from '../../features/graph/components/FullCorpusGraph';
 import { ReaderDashboard } from '../../features/articles/pages/ReaderDashboard';
-import { usePublicationRuntime } from '../../shared/runtime/publicationRuntime';
 import { PublishedClaimSearch } from '../../features/claims/components/PublishedClaimSearch';
 import { ToolAvailabilityNotice } from '../../features/navigation/components/ToolAvailabilityNotice';
 
 export function PublishedWorkspace({ tab }: { tab: string }) {
-  const runtime = usePublicationRuntime();
   const [seed, setSeed] = useState<MutationComparisonInput | null>(null);
   const [investigating, setInvestigating] = useState(false);
 
@@ -53,19 +51,9 @@ export function PublishedWorkspace({ tab }: { tab: string }) {
           <section className="space-y-3">
             <h1 className="font-display text-4xl">Explore recorded connections.</h1>
             <p className="text-sm leading-relaxed text-hermes-bone/65">
-              Each dot represents an article or claim; a line is a saved relationship. Select a dot, then open its article details to investigate it.
-            </p>
-            <p className="text-xs text-hermes-bone/50">
-              This view is bounded to 1,000 nodes and 2,000 links. It does not show every record in larger collections.
+              Inspect saved relationship records, or browse the unlinked articles and claims when no connections have been published.
             </p>
           </section>
-          {runtime.publication?.counts.relationships === 0 && (
-            <p className="border border-hermes-bone/25 p-5 text-sm leading-relaxed">
-              This release has no saved relationship links, so its dots will not be connected. You can still{' '}
-              <a href="#/dashboard" className="underline">search all articles</a> or{' '}
-              <a href="#/dashboard/compare" className="underline">compare two supplied statements</a>. No missing links are inferred automatically.
-            </p>
-          )}
           <FullCorpusGraph />
         </div>
       ) : tab === 'factcheck' ? (

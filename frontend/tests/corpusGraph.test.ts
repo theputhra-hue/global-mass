@@ -1,6 +1,7 @@
+import { articleScene } from '../src/features/graph/lib/graphLayout';
 import { describe, expect, it } from 'vitest';
 import type { FullGraph, GraphNode } from '../src/shared/api/graph';
-import { articleScene, filterGraph, fitScene, groupOutlets, outletColor, UNKNOWN_OUTLET } from '../src/features/graph/lib/corpusGraph';
+import { filterGraph, fitScene, groupOutlets, outletColor, UNKNOWN_OUTLET } from '../src/features/graph/lib/corpusGraph';
 
 const node = (id: string, domain: string | null = 'www.thehindu.com', title = id): GraphNode => ({ id, domain, title });
 const graph = (nodes: GraphNode[], edges: FullGraph['edges'] = []): FullGraph => ({ nodes, edges, counts: { nodes: nodes.length, edges: edges.length } });
@@ -16,7 +17,8 @@ describe('connected corpus graph', () => {
     expect(groups.outlets.find((outlet) => outlet.id === UNKNOWN_OUTLET)?.count).toBe(1);
     expect(groups.edges).toEqual([{ a: 'nytimes.com', b: 'thehindu.com', weight: 2 }]);
     expect(outletColor('www.theverge.com')).toBe(outletColor('theverge.com'));
-    expect(articleScene(data).nodes.map((item) => item.id).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(articleScene(data).nodes.map((item) => item.id).sort()).toEqual(['a', 'b', 'c']);
+    expect(articleScene(data).isolated).toBe(1);
   });
 
   it('searches one hop from original matches regardless of edge order', () => {
@@ -34,7 +36,8 @@ describe('connected corpus graph', () => {
     const edges = nodes.flatMap((a, i) => nodes.slice(i + 1).map((b) => ({ src: a.id, dst: b.id, score: 1 })));
     const data = graph([...nodes, node('isolated')], edges);
     const scene = articleScene(data);
-    expect(scene.nodes).toHaveLength(101);
+    expect(scene.nodes).toHaveLength(100);
+    expect(scene.isolated).toBe(1);
     expect(scene.edges).toHaveLength(edges.length);
     expect(articleScene(data)).toEqual(scene);
     for (let i = 0; i < scene.nodes.length; i++) {
@@ -74,7 +77,7 @@ describe('connected corpus graph', () => {
       const meanRadius = points.reduce((sum, point) => sum + Math.hypot(point.x - centroid.x, point.y - centroid.y), 0) / points.length;
       expect(distance).toBeGreaterThan(meanRadius * 2);
     }
-    expect(scene.edges).toContainEqual({ a: '0', b: '12', weight: 0.8 });
+    expect(scene.edges).toContainEqual(expect.objectContaining({ a: '0', b: '12', weight: 0.8 }));
     expect(scene.edges).toHaveLength(edges.length);
     expect(data).toEqual(before);
     expect(articleScene({ ...data, nodes: [...nodes].reverse(), edges: [...edges].reverse() }).nodes).toEqual(scene.nodes);
@@ -87,27 +90,21 @@ describe('connected corpus graph', () => {
       { src: 'article-b', dst: 'article-b', score: 1 },
     ]);
     const scene = articleScene(data);
-    expect(scene.nodes.map((item) => item.id).sort()).toEqual(['article-a', 'article-b', 'isolated']);
-    expect(scene.edges).toEqual([{ a: 'article-a', b: 'article-b', weight: 0.75 }]);
+    expect(scene.nodes.map((item) => item.id).sort()).toEqual(['article-a', 'article-b']);
+    expect(scene.isolated).toBe(1);
+    expect(scene.edges).toHaveLength(1);
+    expect(scene.edges[0]).toMatchObject({ a: 'article-a', b: 'article-b', weight: 0.75 });
   });
 
-  it('centers connected stories and spreads isolated articles in an organic halo', () => {
-    const stories = Array.from({ length: 12 }, (_, i) => node(`story-${i}`));
-    const isolated = Array.from({ length: 80 }, (_, i) => node(`unlinked-${i}`));
-    const edges = stories.flatMap((a, i) => stories.slice(i + 1).map((b) => ({ src: a.id, dst: b.id, score: 1 })));
-    const scene = articleScene(graph([...isolated, ...stories], edges));
-    const network = scene.nodes.filter((item) => item.id.startsWith('story-'));
-    const halo = scene.nodes.filter((item) => item.id.startsWith('unlinked-'));
-    const networkRadius = Math.max(...network.map((item) => Math.hypot(item.x, item.y) + item.radius));
-    expect(halo.every((item) => Math.hypot(item.x, item.y) > networkRadius + 20)).toBe(true);
-    expect(new Set(halo.map((item) => item.y.toFixed(3))).size).toBeGreaterThan(75);
-    expect(halo.some((item) => item.x < 0 && item.y < 0)).toBe(true);
-    expect(halo.some((item) => item.x > 0 && item.y > 0)).toBe(true);
-    for (let i = 0; i < scene.nodes.length; i++) {
-      const a = scene.nodes[i];
-      expect(scene.nodes.slice(i + 1).every((b) => Math.hypot(a.x - b.x, a.y - b.y) > a.radius + b.radius)).toBe(true);
-    }
-    expect(scene.nodes).toHaveLength(stories.length + isolated.length);
+  it('keeps unlinked articles out of geometric layout without losing their count', () => {
+    const scene = articleScene(graph([node('unlinked-a'), node('unlinked-b')]));
+    expect(scene.nodes).toEqual([]);
+    expect(scene.isolated).toBe(2);
+    expect(scene.ticks).toBe(0);
+    const mixed = articleScene(graph([node('a'), node('b'), node('unlinked')], [{ src: 'a', dst: 'b', score: 1 }]));
+    expect(mixed.nodes.map(n => n.id).sort()).toEqual(['a', 'b']);
+    expect(mixed.isolated).toBe(1);
+    expect(mixed.components).toBe(1);
   });
 
   it('handles a full-size connected corpus with finite positions and no lost relationships', () => {
@@ -127,4 +124,23 @@ describe('connected corpus graph', () => {
       return x > 0 && x < 900 && y > 0 && y < 570;
     })).toBe(true);
   }, 15_000);
+
+  it('retains weighted chains, stars and disconnected components without overlapping component boxes', () => {
+    const nodes = Array.from({ length: 16 }, (_, i) => node(String(i)));
+    const chain = [0, 1, 2, 3].map(i => ({ src: String(i), dst: String(i + 1), score: .2 + i * .2, relationship_type: 'SIMILAR_TO', score_kind: 'similarity', score_family: 'synthetic_chain' }));
+    const star = [6, 7, 8, 9, 10].map(i => ({ src: '5', dst: String(i), score: .9, relationship_type: 'SIMILAR_TO', score_kind: 'similarity', score_family: 'synthetic_star' }));
+    const data = graph(nodes, [...chain, ...star]);
+    const scene = articleScene(data);
+    expect(scene.components).toBe(2);
+    expect(scene.isolated).toBe(5);
+    expect(scene.edges).toHaveLength(9);
+    expect(scene.nodes).toHaveLength(11);
+    const box = (ids: string[]) => {
+      const points = scene.nodes.filter(n => ids.includes(n.id));
+      return { left: Math.min(...points.map(n => n.x - n.radius)), right: Math.max(...points.map(n => n.x + n.radius)), top: Math.min(...points.map(n => n.y - n.radius)), bottom: Math.max(...points.map(n => n.y + n.radius)) };
+    };
+    const a = box(['0', '1', '2', '3', '4']), b = box(['5', '6', '7', '8', '9', '10']);
+    expect(a.right < b.left || b.right < a.left || a.bottom < b.top || b.bottom < a.top).toBe(true);
+    expect(articleScene({ ...data, nodes: [...nodes].reverse(), edges: [...data.edges].reverse() })).toEqual(scene);
+  });
 });
