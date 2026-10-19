@@ -19,6 +19,7 @@ export default function ArticleAtlas() {
   const [page, setPage] = useState(0), [progress, setProgress] = useState([0, 0]), [exploring, setExploring] = useState(false);
   const [showRecorded, setRecorded] = useState(params.get('recorded') === '1'), [streets, setStreets] = useState<'auto' | 'all' | 'off'>(params.get('streets') === 'all' ? 'all' : params.get('streets') === 'off' ? 'off' : 'auto'), [uniform, setUniform] = useState(params.get('size') === 'uniform');
   const [pinnedRelease, pinRelease] = useState<string | null>(params.get('release')), [screenError, setScreenError] = useState('');
+  const [figureUrl, setFigureUrl] = useState<string | null>(null);
   const root = useRef<HTMLElement>(null), canvas = useRef<CityCanvasHandle>(null), queryClient = useQueryClient();
   const request = useQuery({ queryKey: ['complete-article-map', pinnedRelease], queryFn: ({ signal }) => loadArticleMap(signal, (n, total) => setProgress([n, total]), pinnedRelease), staleTime: 300000, retry: false });
   const summary = request.data?.summary, records = request.data?.articles, release = request.data?.run_id;
@@ -56,6 +57,7 @@ export default function ArticleAtlas() {
   if (view) backParams.set('view', [view.x.toFixed(3), view.y.toFixed(3), view.zoom.toFixed(4)].join(','));
   const back = `#/dashboard/atlas${backParams.size ? '?' + backParams : ''}`;
   useEffect(() => { if (window.location.hash.split('?')[0] === '#/dashboard/atlas') window.history.replaceState(null, '', back); }, [back]);
+  useEffect(() => () => { if (figureUrl) URL.revokeObjectURL(figureUrl); }, [figureUrl]);
   useEffect(() => { if (selected || selectedEdge) root.current?.querySelector<HTMLElement>('.city-inspector')?.focus(); }, [selected, selectedEdge, request.data?.available, network.data?.available]);
   useEffect(() => { const handler = () => { setView(null); requestAnimationFrame(() => canvas.current?.fit()); }; document.addEventListener('fullscreenchange', handler); return () => document.removeEventListener('fullscreenchange', handler); }, []);
   useEffect(() => { const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') { select(null); selectEdge(null); setExploring(false); } }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
@@ -86,20 +88,21 @@ export default function ArticleAtlas() {
   const downloadFigure = () => {
     const surface = root.current?.querySelector('canvas'); if (!surface) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2), output = document.createElement('canvas');
-    output.width = surface.width; output.height = surface.height + 142 * dpr;
+    output.width = surface.width; output.height = surface.height + 162 * dpr;
     const ctx = output.getContext('2d'); if (!ctx) return;
-    ctx.drawImage(surface, 0, 0); ctx.fillStyle = '#1a0608'; ctx.fillRect(0, surface.height, output.width, 142 * dpr);
+    ctx.fillStyle = '#1a0608'; ctx.fillRect(0, 0, output.width, output.height); ctx.drawImage(surface, 0, 0);
     ctx.fillStyle = '#fff7f2'; ctx.font = `${10 * dpr}px "Courier Prime", monospace`;
     const lines = [
       `GMEE collection city · ${filtered.length.toLocaleString()} of ${records?.length.toLocaleString()} articles in view`,
       'Circles: articles · squares: topics · larger hubs: themes · wider routes: aggregate support',
       'Article size: retained neighbors · hub size: articles · area is log-compressed and capped',
+      `Street mode: ${streets} · dashed recorded layer: ${showRecorded ? 'on' : 'off'} · arrows do not show observed spread`,
       `Release ${release}`,
       `Similarity is exploratory, not verified spread · ${network.data?.summary ? 'minimum cosine ' + network.data.summary.min_similarity : 'no semantic streets published'}`,
       `Filters: ${topic || 'all topics'} · ${query || 'all titles'} · at most 3,000 visible routes drawn`,
     ];
     lines.forEach((line, i) => ctx.fillText(line, 16 * dpr, surface.height + (22 + i * 20) * dpr, output.width - 32 * dpr));
-    const link = document.createElement('a'); link.download = `gmee-city-${release}.png`; link.href = output.toDataURL('image/png'); link.click();
+    output.toBlob(blob => { if (blob) setFigureUrl(URL.createObjectURL(blob)); else setScreenError('The map image could not be prepared. Please try again.'); }, 'image/png');
   };
 
   return <section ref={root} className="city-workspace" aria-label="Complete collection map">
@@ -131,8 +134,8 @@ export default function ArticleAtlas() {
         </div>
       </div>
       <div className="city-legend" aria-label="Map legend"><span><i className="city-symbol-article" />Article · connections</span><span><i className="city-symbol-topic" />Topic hub · articles</span><span><i className="city-symbol-theme" />Theme hub · articles</span><span><i className="city-line-street" />Street · similarity</span><span><i className="city-line-highway" />Highway · pair support</span><span><i className="city-line-superway" />Superway · aggregate support</span></div>
-      <div className="city-view-status"><p aria-live="polite">Showing {filtered.length.toLocaleString()} articles. {scene.unsupported.length} without a semantic projection remain in a separate inset; inset spacing has no meaning.</p><button className="city-subtle-button" onClick={downloadFigure}>Save map image</button></div>
-      {network.isError && <p className="city-notice" role="status">Semantic streets could not be verified. Article positions remain available. <button className="underline" onClick={() => void network.refetch()}>Retry road loading</button></p>}
+      <div className="city-view-status"><p aria-live="polite">Showing {filtered.length.toLocaleString()} articles. {scene.unsupported.length} without a semantic projection remain in a separate inset; inset spacing has no meaning.</p><button className="city-subtle-button" onClick={downloadFigure}>Prepare map image</button></div>
+      {figureUrl && <p className="city-notice" role="status">Image ready with legend and release footer. <a className="city-button" href={figureUrl} download={`gmee-city-${release}.png`}>Download map image</a></p>}{network.isError && <p className="city-notice" role="status">Semantic streets could not be verified. Article positions remain available. <button className="underline" onClick={() => void network.refetch()}>Retry road loading</button></p>}
       {network.data && !network.data.available && <p className="city-notice">{network.data.reason} You can enable the recorded-relationship layer.</p>}
       {showRecorded && <p className="city-notice" role="status">{links.isFetching ? 'Loading recorded relationships…' : links.isError ? 'Recorded relationships unavailable.' : links.data?.run_id !== release ? 'Recorded release differs from this map; links are hidden.' : `${scene.edges.filter(e => e.kind === 'recorded').length} recorded article groups in this view, from a bounded projection.`}</p>}
       <details className="city-methods"><summary>Data, methods & how to read this map</summary><div><p>Input coverage: {summary.coverage.stored_text || 0} stored-text records · {summary.coverage.title_only || 0} title-only · {summary.coverage.unsupported_language || 0} unsupported language. Stored text may be a snippet. Titles alone cannot establish shared claims or misinformation.</p><p>Positions are an approximate UMAP projection. Topics are machine-generated. Streets use original document embeddings, not screen distance. Hubs are synthetic navigation objects. Larger never means more trustworthy.</p><p>Semantic roads are exploratory and not human-validated. {network.data?.summary && <>Mutual top-{network.data.summary.neighbor_k} neighbors · minimum cosine {network.data.summary.min_similarity}. Highways require at least {network.data.summary.min_highway_support} distinct pairs and {network.data.summary.min_highway_endpoints} endpoints on each side.</>}</p><p>Sizes use release-wide scales; filtering does not change them. Area is log-compressed and capped at the 95th percentile; exact values appear in inspectors. Overview symbols simplify sizes. At most 3,000 visible routes are drawn at once; selected routes are prioritized. Loading, filters and zoom can hide additional links.</p><p className="break-all">Release {release} · map completed {new Date(summary.completed_at).toLocaleString()} · {summary.embedding_model} at {summary.embedding_revision}</p><p>Saved map links keep this exact release. Refresh complete map selects the latest publication. A line crossing is not a junction; a graph path is not observed information spread.</p></div></details>
