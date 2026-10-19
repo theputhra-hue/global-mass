@@ -7,7 +7,7 @@ import { Dialog } from '../../../shared/ui/Dialog';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { publicationsApi } from '../../../shared/api/publications';
 
-export function AccountPanel({ signInLabel = 'Sign in' }: { signInLabel?: string }) {
+export function AccountPanel({ signInLabel = 'Sign in', compact = false }: { signInLabel?: string; compact?: boolean }) {
   const { user, revision } = useSession();
   const developerAccess = useQuery({ queryKey: ['publication-access', user?.id, revision], queryFn: publicationsApi.access, enabled: user?.role === 'admin', retry: false });
   const queryClient = useQueryClient();
@@ -46,12 +46,12 @@ export function AccountPanel({ signInLabel = 'Sign in' }: { signInLabel?: string
     }
   };
 
-  if (!user && !open) return <a href="#/signin" className="btn-brutal"><UserRound className="w-3.5 h-3.5" />{signInLabel}</a>;
+  if (!user && !open) return <a href="#/signin" className={`btn-brutal ${compact ? '!px-3 min-h-11' : ''}`} aria-label={compact ? signInLabel : undefined} title={compact ? signInLabel : undefined}><UserRound className="w-3.5 h-3.5" />{!compact && signInLabel}</a>;
 
   return (
     <>
-      <button type="button" onClick={() => { setError(null); setNotice(''); setOpen(true); }} className="btn-brutal">
-        <UserRound className="w-3.5 h-3.5" /> {user ? 'Account' : signInLabel}
+      <button type="button" onClick={() => { setError(null); setNotice(''); setOpen(true); }} className={`btn-brutal ${compact ? '!px-3 min-h-11' : ''}`} aria-label={compact ? (user ? 'Account' : signInLabel) : undefined} title={compact ? (user ? 'Account' : signInLabel) : undefined}>
+        <UserRound className="w-3.5 h-3.5" /> {!compact && (user ? 'Account' : signInLabel)}
       </button>
       {open && (
         <Dialog labelledBy={`${id}-title`} onClose={() => { if (!pending) { setOpen(false); } }}>

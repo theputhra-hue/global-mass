@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { LocateFixed, Minus, Plus } from 'lucide-react';
-import { fitScene } from '../lib/graphScene';
+import { cityBoxesOverlap, cityRotation, cityWheelFactor, fitCity, placeCityLabels, rotateCity, type CityBox } from '../lib/cityViewport';
 import { percentile95, prioritizeCityEdges, sizeRadius, visibleCityEdges, type CityEdge, type CityNode, type CityScene, type CityView } from '../lib/cityScene';
 
 export interface CityCanvasHandle { fit: () => void; focus: (id: string) => void }
@@ -11,21 +11,30 @@ const btn = 'city-icon-button';
 export const CityNetworkCanvas = forwardRef<CityCanvasHandle, Props>(function CityNetworkCanvas({ scene, scaleScene, selected, selectedEdge, streets, uniform, onSelect, onRoute, initialView, onView }, ref) {
   const wrapper = useRef<HTMLDivElement>(null), surface = useRef<HTMLCanvasElement>(null);
   const currentScene = useRef(scene); currentScene.current = scene;
+  const completeScene = useRef(scaleScene); completeScene.current = scaleScene;
+  const rotation = useRef(0), fitted = useRef(true);
   const camera = useRef({ ox: 0, oy: 0, scale: 1 }), base = useRef(1), frame = useRef<number>();
   const draw = useRef<() => void>(() => {}), drag = useRef<{ x: number; y: number; startX: number; startY: number; moved: boolean }>();
   const hits = useRef<Array<{ node: CityNode; x: number; y: number; r: number }>>([]), routeHits = useRef<Array<{ edge: CityEdge; points: Point[] }>>([]);
   const mini = useRef<{ x: number; y: number; w: number; h: number; minX: number; minY: number; sx: number; sy: number }>();
   const [zoom, setZoom] = useState(100), [hover, setHover] = useState<string | null>(null), [drawn, setDrawn] = useState(0);
-  const emitView = useCallback(() => onView?.({ x: -camera.current.ox / camera.current.scale, y: -camera.current.oy / camera.current.scale, zoom: camera.current.scale / base.current }), [onView]);
+  const sourceCenter = useCallback(() => rotateCity({ x: -camera.current.ox / camera.current.scale, y: -camera.current.oy / camera.current.scale }, -rotation.current), []);
+  const emitView = useCallback(() => onView?.({ ...sourceCenter(), zoom: camera.current.scale / base.current }), [onView, sourceCenter]);
   const scales = useMemo(() => ({ article: percentile95(scaleScene.nodes.filter(n => n.kind === 'article').map(n => n.value)), topic: percentile95(scaleScene.nodes.filter(n => n.kind === 'topic').map(n => n.value)), theme: percentile95(scaleScene.nodes.filter(n => n.kind === 'theme').map(n => n.value)), highway: percentile95(scaleScene.edges.filter(e => e.kind === 'highway').map(e => e.value)), superway: percentile95(scaleScene.edges.filter(e => e.kind === 'superway').map(e => e.value)) }), [scaleScene]);
   const redraw = useCallback(() => { if (frame.current) cancelAnimationFrame(frame.current); frame.current = requestAnimationFrame(() => draw.current()); }, []);
-  const fit = useCallback(() => {
+  const reframe = useCallback((restore?: CityView | null) => {
     const wrap = wrapper.current; if (!wrap) return;
-    camera.current = fitScene(currentScene.current.nodes.map(n => ({ ...n, title: n.label, domain: null, radius: 10 })), wrap.clientWidth, wrap.clientHeight);
-    base.current = camera.current.scale; setZoom(100); redraw();
+    rotation.current = cityRotation(completeScene.current.nodes, wrap.clientWidth, wrap.clientHeight);
+    const fit = fitCity(currentScene.current.nodes, wrap.clientWidth, wrap.clientHeight, rotation.current);
+    base.current = fit.scale;
+    if (restore) { const point = rotateCity(restore, rotation.current), scale = fit.scale * restore.zoom; camera.current = { ox: -point.x * scale, oy: -point.y * scale, scale }; }
+    else camera.current = fit;
+    setZoom(Math.round((restore?.zoom || 1) * 100)); redraw();
   }, [redraw]);
+  const fit = useCallback(() => { fitted.current = true; reframe(); }, [reframe]);
   const zoomAt = useCallback((factor: number, x?: number, y?: number) => {
     const wrap = wrapper.current; if (!wrap) return;
+    fitted.current = false;
     const view = camera.current, next = Math.max(base.current * .35, Math.min(base.current * 20, view.scale * factor));
     const px = (x ?? wrap.clientWidth / 2) - wrap.clientWidth / 2, py = (y ?? wrap.clientHeight / 2) - wrap.clientHeight / 2;
     view.ox = px - (px - view.ox) * next / view.scale; view.oy = py - (py - view.oy) * next / view.scale; view.scale = next;
@@ -35,15 +44,27 @@ export const CityNetworkCanvas = forwardRef<CityCanvasHandle, Props>(function Ci
     const n = scaleScene.nodes.find(n => n.id === id), wrap = wrapper.current; if (!n || !wrap) return;
     const ids = new Set(n.members || scaleScene.edges.filter(e => e.kind === 'street' && (e.a === id || e.b === id)).flatMap(e => [e.a, e.b]));
     ids.add(id); const group = scaleScene.nodes.filter(p => ids.has(p.id));
-    const minX = Math.min(...group.map(p => p.x)), maxX = Math.max(...group.map(p => p.x)), minY = Math.min(...group.map(p => p.y)), maxY = Math.max(...group.map(p => p.y));
+    fitted.current = false;
+    const points = group.map(p => rotateCity(p, rotation.current));
+    const minX = Math.min(...points.map(p => p.x)), maxX = Math.max(...points.map(p => p.x)), minY = Math.min(...points.map(p => p.y)), maxY = Math.max(...points.map(p => p.y));
     const scale = Math.min(base.current * 20, Math.max(base.current * 1.8, Math.min(wrap.clientWidth * .72 / (maxX - minX + 50), wrap.clientHeight * .72 / (maxY - minY + 50))));
     camera.current = { ox: -(minX + maxX) / 2 * scale, oy: -(minY + maxY) / 2 * scale, scale }; setZoom(Math.round(scale / base.current * 100)); redraw(); emitView();
   } }), [fit, scaleScene, redraw, emitView]);
-  useEffect(() => { fit(); if (initialView) { const scale = base.current * initialView.zoom; camera.current = { ox: -initialView.x * scale, oy: -initialView.y * scale, scale }; setZoom(Math.round(initialView.zoom * 100)); redraw(); } const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(redraw) : null; if (wrapper.current) observer?.observe(wrapper.current); return () => { observer?.disconnect(); if (frame.current) cancelAnimationFrame(frame.current); }; }, [fit, redraw, initialView]);
   useEffect(() => {
-    const wrap = wrapper.current; if (!wrap) return;
-    const wheel = (event: WheelEvent) => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); const rect = wrap.getBoundingClientRect(); zoomAt(Math.exp(-event.deltaY * .002), event.clientX - rect.left, event.clientY - rect.top); };
-    wrap.addEventListener('wheel', wheel, { passive: false }); return () => wrap.removeEventListener('wheel', wheel);
+    fitted.current = !initialView; reframe(initialView);
+    let width = wrapper.current?.clientWidth, height = wrapper.current?.clientHeight;
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => {
+      const wrap = wrapper.current; if (!wrap || (width === wrap.clientWidth && height === wrap.clientHeight)) return;
+      width = wrap.clientWidth; height = wrap.clientHeight;
+      reframe(fitted.current ? null : { ...sourceCenter(), zoom: camera.current.scale / base.current });
+    }) : null;
+    if (wrapper.current) observer?.observe(wrapper.current);
+    return () => { observer?.disconnect(); if (frame.current) cancelAnimationFrame(frame.current); };
+  }, [reframe, sourceCenter, initialView]);
+  useEffect(() => {
+    const canvas = surface.current; if (!canvas) return;
+    const wheel = (event: WheelEvent) => { event.preventDefault(); const rect = canvas.getBoundingClientRect(); zoomAt(cityWheelFactor(event.deltaY, event.deltaMode, rect.height), event.clientX - rect.left, event.clientY - rect.top); };
+    canvas.addEventListener('wheel', wheel, { passive: false }); return () => canvas.removeEventListener('wheel', wheel);
   }, [zoomAt]);
   const level = zoom < 180 && scene.nodes.length === scaleScene.nodes.length ? 'city' : zoom < 350 ? 'district' : 'article';
   const edges = useMemo(() => visibleCityEdges(scene, level, streets, selected), [scene, level, streets, selected]);
@@ -54,7 +75,7 @@ export const CityNetworkCanvas = forwardRef<CityCanvasHandle, Props>(function Ci
       if (canvas.width !== width * dpr || canvas.height !== height * dpr) { canvas.width = width * dpr; canvas.height = height * dpr; }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
       const { ox, oy, scale } = camera.current;
-      const screen = (n: Point) => ({ x: width / 2 + ox + n.x * scale, y: height / 2 + oy + n.y * scale });
+      const screen = (n: Point) => { const p = rotateCity(n, rotation.current); return { x: width / 2 + ox + p.x * scale, y: height / 2 + oy + p.y * scale }; };
       const nodes = new Map(scene.nodes.map(n => [n.id, n])), focus = hover || selected, adjacent = new Set<string>(focus ? [focus] : []);
       for (const edge of scene.edges) if (edge.a === focus || edge.b === focus || edge.id === selectedEdge) { adjacent.add(edge.a); adjacent.add(edge.b); }
       // Sparse context grid is presentation only, not geography or distance units.
@@ -89,31 +110,49 @@ export const CityNetworkCanvas = forwardRef<CityCanvasHandle, Props>(function Ci
         ctx.fillStyle = node.kind === 'article' ? node.color : '#240c10'; ctx.strokeStyle = node.color; ctx.lineWidth = node.kind === 'theme' ? 2 : 1.2;
         ctx.beginPath(); if (node.kind === 'article') ctx.arc(p.x, p.y, r, 0, Math.PI * 2); else ctx.roundRect(p.x - r, p.y - r, r * 2, r * 2, node.kind === 'topic' ? 4 : 9); ctx.fill(); if (node.kind !== 'article') ctx.stroke();
         if (node.kind === 'theme') { ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(p.x - r + 3, p.y - r + 3, r * 2 - 6, r * 2 - 6, 6); ctx.stroke(); }
-        if (node.kind !== 'article' && (node.kind === 'theme' || level !== 'city')) { ctx.fillStyle = '#fff7f2'; ctx.font = '11px "Courier Prime", monospace'; ctx.textAlign = 'center'; ctx.fillText(node.value.toLocaleString(), p.x, p.y + 4); ctx.textAlign = 'start'; }
         if (active || node.id === selected) { ctx.globalAlpha = 1; ctx.strokeStyle = '#fff7f2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2); ctx.stroke(); }
         hits.current.push({ node, ...p, r });
         if (node.kind !== 'article' || active) labels.push({ node, ...p, r });
       }
-      const occupied: Array<{ x: number; y: number; w: number; h: number }> = [];
-      for (const label of labels.sort((a, b) => Number(b.node.id === focus) - Number(a.node.id === focus) || Number(b.node.kind === 'theme') - Number(a.node.kind === 'theme') || b.node.value - a.node.value)) {
-        if (occupied.length >= (level === 'city' ? 12 : 18) && label.node.id !== focus) continue;
-        const text = label.node.label.length > 36 ? label.node.label.slice(0, 34) + '…' : label.node.label;
-        ctx.font = '12px "Courier Prime", monospace'; const w = Math.min(290, ctx.measureText(text).width + 16), x = Math.max(6, Math.min(width - w - 6, label.x - w / 2)), y = label.y + label.r + 8;
-        const box = { x, y, w, h: 22 };
-        if (occupied.some(b => x < b.x + b.w + 4 && x + w + 4 > b.x && y < b.y + b.h + 4 && y + box.h + 4 > b.y) && label.node.id !== focus) continue;
-        occupied.push(box); ctx.globalAlpha = 1; ctx.fillStyle = '#1a0608e8'; ctx.fillRect(x, y, w, 22); ctx.fillStyle = '#fff7f2'; ctx.fillText(text, x + 8, y + 15);
-      }
       // Viewport minimap uses the same coordinates; clicking only moves the camera.
       if (width > 620 && scaleScene.nodes.length) {
-        const xs = scaleScene.nodes.map(n => n.x), ys = scaleScene.nodes.map(n => n.y), minX = Math.min(...xs) - 30, minY = Math.min(...ys) - 30;
+        const projected = scaleScene.nodes.map(n => ({ ...n, ...rotateCity(n, rotation.current) }));
+        const xs = projected.map(n => n.x), ys = projected.map(n => n.y), minX = Math.min(...xs) - 30, minY = Math.min(...ys) - 30;
         const m = { x: 20, y: height - 110, w: 130, h: 80, minX, minY, sx: 130 / (Math.max(...xs) - minX + 30), sy: 80 / (Math.max(...ys) - minY + 30) }; mini.current = m;
         ctx.globalAlpha = .95; ctx.fillStyle = '#240c10'; ctx.fillRect(m.x, m.y, m.w, m.h); ctx.strokeStyle = '#fff7f24d'; ctx.lineWidth = 1; ctx.strokeRect(m.x, m.y, m.w, m.h); ctx.fillStyle = '#cb8790';
-        for (const n of scaleScene.nodes) if (n.kind === 'article') ctx.fillRect(m.x + (n.x - minX) * m.sx, m.y + (n.y - minY) * m.sy, 1, 1);
+        for (const n of projected) if (n.kind === 'article') ctx.fillRect(m.x + (n.x - minX) * m.sx, m.y + (n.y - minY) * m.sy, 1, 1);
         ctx.save(); ctx.beginPath(); ctx.rect(m.x, m.y, m.w, m.h); ctx.clip(); ctx.strokeStyle = '#fff7f2'; ctx.strokeRect(m.x + ((-width / 2 - ox) / scale - minX) * m.sx, m.y + ((-height / 2 - oy) / scale - minY) * m.sy, width / scale * m.sx, height / scale * m.sy); ctx.restore();
       } else mini.current = undefined;
       if (scene.unsupported.length) {
         const x = Math.max(12, width - 155), y = 70; ctx.globalAlpha = .92; ctx.fillStyle = '#240c10'; ctx.fillRect(x, y, 140, 70); ctx.strokeStyle = '#fff7f250'; ctx.strokeRect(x, y, 140, 70); ctx.font = '10px "Courier Prime", monospace'; ctx.fillStyle = '#fff7f2'; ctx.fillText(`${scene.unsupported.length} without projection`, x + 8, y + 15);
         scene.unsupported.slice(0, 100).forEach((a, i) => { const px = x + 10 + i % 20 * 6, py = y + 29 + Math.floor(i / 20) * 7; ctx.beginPath(); ctx.arc(px, py, 1.5, 0, Math.PI * 2); ctx.stroke(); hits.current.push({ node: { id: a.id, label: a.title, x: 0, y: 0, kind: 'article', value: 0, color: '#897d79', topic: null }, x: px, y: py, r: 2 }); });
+      }
+      // Labels and counts share collision exclusions, including controls and hubs.
+      const origin = wrap.getBoundingClientRect(), reserved: CityBox[] = [];
+      wrap.parentElement?.querySelectorAll('.city-level-badge, .city-zoom-controls, .city-gesture-hint, .city-hover-preview, .city-inspector').forEach(element => {
+        const rect = element.getBoundingClientRect(); if (rect.width && rect.height) reserved.push({ x: rect.left - origin.left, y: rect.top - origin.top, w: rect.width, h: rect.height });
+      });
+      if (mini.current) reserved.push(mini.current);
+      if (scene.unsupported.length) reserved.push({ x: Math.max(12, width - 155), y: 70, w: 140, h: 70 });
+      const ordered = labels.sort((a, b) => Number(b.node.id === focus) - Number(a.node.id === focus) || Number(b.node.kind === 'theme') - Number(a.node.kind === 'theme') || b.node.value - a.node.value);
+      const counts: CityBox[] = [];
+      for (const label of ordered) {
+        if (label.node.kind === 'article' || (label.node.kind !== 'theme' && level === 'city')) continue;
+        ctx.font = '11px "Courier Prime", monospace'; const text = label.node.value.toLocaleString(), w = ctx.measureText(text).width + 4;
+        const box = { x: label.x - w / 2, y: label.y - 7, w, h: 14 };
+        if (box.x < 0 || box.y < 0 || box.x + w > width || box.y + box.h > height || [...reserved, ...counts].some(b => cityBoxesOverlap(box, b))) continue;
+        counts.push(box); ctx.globalAlpha = 1; ctx.fillStyle = '#fff7f2'; ctx.textAlign = 'center'; ctx.fillText(text, label.x, label.y + 4); ctx.textAlign = 'start';
+      }
+      const hubs = labels.filter(l => l.node.kind !== 'article').map(l => ({ x: l.x - l.r - 3, y: l.y - l.r - 3, w: l.r * 2 + 6, h: l.r * 2 + 6 }));
+      ctx.font = '12px "Courier Prime", monospace';
+      const candidates = ordered.map(l => {
+        let text = l.node.label;
+        const max = Math.max(40, Math.min(280, width - 32));
+        if (ctx.measureText(text).width > max) { while (text.length && ctx.measureText(text + '…').width > max) text = text.slice(0, -1); text += '…'; }
+        return { ...l, id: l.node.id, text, width: ctx.measureText(text).width + 16 };
+      });
+      for (const label of placeCityLabels(candidates, width, height, [...reserved, ...hubs], level === 'city' ? 12 : 18)) {
+        ctx.globalAlpha = 1; ctx.fillStyle = '#1a0608f5'; ctx.fillRect(label.x, label.y, label.w, label.h); ctx.fillStyle = '#fff7f2'; ctx.fillText(label.text, label.x + 8, label.y + 15);
       }
       ctx.globalAlpha = 1;
     };
@@ -121,11 +160,11 @@ export const CityNetworkCanvas = forwardRef<CityCanvasHandle, Props>(function Ci
   }, [scene, scaleScene, edges, selected, selectedEdge, hover, uniform, scales, level, redraw]);
   const pick = (x: number, y: number) => [...hits.current].reverse().find(n => Math.hypot(x - n.x, y - n.y) < Math.max(n.r + 4, n.node.kind === 'article' ? 5 : 12));
   const pickRoute = (x: number, y: number) => routeHits.current.find(route => route.points.some((p, i) => { const q = route.points[i + 1]; if (!q) return false; const dx = q.x - p.x, dy = q.y - p.y, t = Math.max(0, Math.min(1, ((x - p.x) * dx + (y - p.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(x - p.x - t * dx, y - p.y - t * dy) < 5; }));
-  return <div ref={wrapper} tabIndex={0} role="group" className="city-canvas" aria-label="City relationship map">
-    <canvas ref={surface} aria-hidden="true" className="city-map-surface" onPointerDown={e => { if (e.button !== 0) return; const rect = e.currentTarget.getBoundingClientRect(); drag.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, startX: e.clientX - rect.left, startY: e.clientY - rect.top, moved: false }; e.currentTarget.setPointerCapture(e.pointerId); }} onPointerMove={e => { const rect = e.currentTarget.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top, d = drag.current; if (d) { if (Math.hypot(x - d.startX, y - d.startY) > 4) d.moved = true; if (d.moved) { camera.current.ox += x - d.x; camera.current.oy += y - d.y; d.x = x; d.y = y; redraw(); } } else { const next = pick(x, y)?.node.id || null; setHover(old => old === next ? old : next); } }} onPointerUp={e => { const d = drag.current; drag.current = undefined; if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); if (!d) return; if (d.moved) { emitView(); return; } const m = mini.current; if (m && d.x >= m.x && d.x <= m.x + m.w && d.y >= m.y && d.y <= m.y + m.h) { camera.current.ox = -(m.minX + (d.x - m.x) / m.sx) * camera.current.scale; camera.current.oy = -(m.minY + (d.y - m.y) / m.sy) * camera.current.scale; redraw(); emitView(); return; } const node = pick(d.x, d.y); if (node) onSelect(node.node.id); else { const route = pickRoute(d.x, d.y); if (route) onRoute(route.edge.id); else onSelect(null); } }} onPointerCancel={() => { drag.current = undefined; }} onLostPointerCapture={() => { drag.current = undefined; }} onPointerLeave={() => setHover(null)} />
+  return <div ref={wrapper} tabIndex={0} role="group" className="city-canvas" aria-label="City relationship map" onKeyDown={e => { if (e.target !== e.currentTarget) return; if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomAt(1.4); } else if (e.key === '-') { e.preventDefault(); zoomAt(1 / 1.4); } else if (e.key === '0') { e.preventDefault(); fit(); emitView(); } }}>
+    <canvas ref={surface} aria-hidden="true" className="city-map-surface" onPointerDown={e => { if (e.button !== 0) return; const rect = e.currentTarget.getBoundingClientRect(); drag.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, startX: e.clientX - rect.left, startY: e.clientY - rect.top, moved: false }; e.currentTarget.setPointerCapture(e.pointerId); }} onPointerMove={e => { const rect = e.currentTarget.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top, d = drag.current; if (d) { if (Math.hypot(x - d.startX, y - d.startY) > 4) d.moved = true; if (d.moved) { fitted.current = false; camera.current.ox += x - d.x; camera.current.oy += y - d.y; d.x = x; d.y = y; redraw(); } } else { const next = pick(x, y)?.node.id || null; setHover(old => old === next ? old : next); } }} onPointerUp={e => { const d = drag.current; drag.current = undefined; if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); if (!d) return; if (d.moved) { emitView(); return; } const m = mini.current; if (m && d.x >= m.x && d.x <= m.x + m.w && d.y >= m.y && d.y <= m.y + m.h) { fitted.current = false; camera.current.ox = -(m.minX + (d.x - m.x) / m.sx) * camera.current.scale; camera.current.oy = -(m.minY + (d.y - m.y) / m.sy) * camera.current.scale; redraw(); emitView(); return; } const node = pick(d.x, d.y); if (node) onSelect(node.node.id); else { const route = pickRoute(d.x, d.y); if (route) onRoute(route.edge.id); else onSelect(null); } }} onPointerCancel={() => { drag.current = undefined; }} onLostPointerCapture={() => { drag.current = undefined; }} onPointerLeave={() => setHover(null)} />
     <div className="city-level-badge"><span className="city-status-dot" />{level === 'article' ? 'Neighborhood detail' : level === 'district' ? 'District view' : 'City overview'}<small>{drawn.toLocaleString()} routes drawn · {scene.edges.length.toLocaleString()} loaded</small></div>
     {hover && <div className="city-hover-preview">{scene.nodes.find(n => n.id === hover)?.label || scene.unsupported.find(n => n.id === hover)?.title}</div>}
     <div className="city-zoom-controls"><button className={btn} aria-label="Zoom out" onClick={() => zoomAt(1 / 1.4)}><Minus size={17} /></button><span>{zoom}%</span><button className={btn} aria-label="Zoom in" onClick={() => zoomAt(1.4)}><Plus size={17} /></button><button className={btn} aria-label="Fit complete city" onClick={() => { fit(); emitView(); }}><LocateFixed size={17} /></button></div>
-    <p className="city-gesture-hint">Drag to pan · Ctrl / ⌘ + scroll to zoom · select a dot or route</p>
+    <p className="city-gesture-hint">Scroll to zoom · drag to pan · + / − to zoom · 0 to fit</p>
   </div>;
 });

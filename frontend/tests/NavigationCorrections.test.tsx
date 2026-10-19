@@ -31,6 +31,19 @@ function fixture(mode: 'local' | 'published' = 'local', calls: string[] = [], al
 function visit(hash: string) { act(() => navigateHash(hash)); }
 
 describe('Navigation review regressions', () => {
+  it('collapses the desktop sidebar to an accessible rail and remembers the preference', () => {
+    window.history.replaceState(null, '', '/#/dashboard');
+    fixture('published');
+    const sidebar = screen.getByRole('complementary', { name: 'Workspace navigation' });
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Collapse navigation sidebar' }));
+    expect(sidebar.getAttribute('data-collapsed')).toBe('true');
+    expect(localStorage.getItem('gmee:sidebar-collapsed')).toBe('true');
+    expect(within(sidebar).getByRole('link', { name: 'Collection map' }).getAttribute('href')).toBe('#/dashboard/atlas');
+    expect(within(sidebar).getByRole('button', { name: 'Account' })).toBeTruthy();
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Expand navigation sidebar' }));
+    expect(sidebar.getAttribute('data-collapsed')).toBe('false');
+    expect(localStorage.getItem('gmee:sidebar-collapsed')).toBe('false');
+  });
   it('collapses Explore data without redirecting and reopens it on article navigation', async () => {
     window.history.replaceState(null, '', '/#/dashboard');
     fixture('published');
