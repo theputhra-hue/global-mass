@@ -4,7 +4,7 @@ import { ArrowRight, Search, ExternalLink } from 'lucide-react';
 import { fetchDashboard } from '../api/dashboard';
 import { corpusApi } from '../api/corpus';
 import { QueryError } from '../components/QueryError';
-import { MutationComparator } from '../components/MutationComparator';
+import { ComparisonWorkspace } from '../components/ComparisonWorkspace';
 import { FactCheck } from '../components/FactCheck';
 import { safeHttpUrl } from '../lib/urls';
 import { articleHref, navigateHash } from '../lib/articleRoutes';
@@ -64,7 +64,7 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
           <details className="border-t border-hermes-bone/15 pt-4"><summary className="text-xs cursor-pointer">How do I use these results?</summary><ol className="list-decimal pl-5 mt-4 space-y-3 text-xs leading-relaxed text-hermes-bone/65"><li>Choose a headline and open its details.</li><li>Read the source and publication date, then inspect the extracted claims.</li><li>Follow the original source for full context. Claims and model assessments are not verified facts.</li></ol></details>
         <aside className="border-t border-hermes-bone/15 pt-6 space-y-4"><h2 className="font-display text-2xl">Have a statement instead of a headline?</h2><div className="flex flex-wrap gap-5 text-xs"><a href="#/dashboard/check" className="underline underline-offset-4">{cloud ? 'Search saved claims' : 'Check a claim'}</a><a href="#/dashboard/compare" className="underline underline-offset-4">Compare two versions</a><a href="#/dashboard/tools" className="underline underline-offset-4">Explore all tools &amp; guides</a></div></aside>
       </>}
-      {view === 'compare' && <MutationComparator />}
+      {view === 'compare' && <ComparisonWorkspace />}
       {view === 'check' && (cloud ? <PublishedClaimSearch /> : <FactCheck />)}
       {!browsing && <a href="#/dashboard" className="inline-flex items-center gap-2 text-xs underline underline-offset-4">Return to article search <ArrowRight className="w-3 h-3" /></a>}
     </main>

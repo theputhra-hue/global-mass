@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, ExternalLink, FileText, Clock, Search } from 'lu
 import { articlesApi, type ArticleClaim, type ArticleConnections, type ArticleNode, type ConnectionEdge } from '../api/articles';
 import { QueryError } from '../components/QueryError';
 import { ClaimCheck } from '../components/ClaimCheck';
-import { MutationComparator } from '../components/MutationComparator';
+import { openComparison } from '../lib/comparisonNavigation';
 import { articleHref, detailTabs, isUuid, navigateHash, parseArticleRoute, type DetailTab } from '../lib/articleRoutes';
 import { safeHttpUrl } from '../lib/urls';
 import { setSelectedArticle } from '../lib/useSelectedArticle';
@@ -34,7 +34,7 @@ function ClaimCard({ claim, href }: { claim: ArticleClaim; href: (tab: DetailTab
     <p className="text-base leading-relaxed whitespace-pre-wrap break-words">{claim.text}</p>
     <p className="mt-3 text-xs text-hermes-bone/55">Extracted {date(claim.extracted_at)} · {claim.confidence == null ? 'Extraction confidence unknown' : `Extraction confidence ${claim.confidence.toFixed(2)} · heuristic`}</p>
     {claim.entities.length > 0 && <div className="flex flex-wrap gap-2 mt-4">{claim.entities.map((entity, i) => <span key={i} className="chip-brutal break-words max-w-full">{entity.text} · {entity.type}</span>)}</div>}
-    <div className="flex flex-wrap gap-4 mt-5 text-xs"><a className={linkStyle} href={href('evidence', claim.id)}>Inspect evidence</a><a className={linkStyle} href={href('changes', claim.id)}>Compare wording</a></div>
+    <div className="flex flex-wrap gap-4 mt-5 text-xs"><a className={linkStyle} href={href('evidence', claim.id)}>Inspect evidence</a><a className={linkStyle} href={href('changes', claim.id)}>Inspect changes</a></div>
   </article>;
 }
 
@@ -65,7 +65,7 @@ function FocusedGraph({ data, href }: { data: ArticleConnections; href: (id: str
   </div>;
 }
 
-function Changes({ edges, selected, articleId }: { edges: ConnectionEdge[]; selected?: ArticleClaim; articleId: string }) {
+function Changes({ edges, selected, returnTo }: { edges: ConnectionEdge[]; selected?: ArticleClaim; returnTo: string }) {
   const [choice, setChoice] = useState('');
   const candidates = edges.filter(e => e.relationship_type === 'EVOLVED_FROM' && (!selected || e.from_claim_id === selected.id || e.to_claim_id === selected.id));
   const edge = candidates.find(e => e.id === choice) || candidates[0];
@@ -73,7 +73,7 @@ function Changes({ edges, selected, articleId }: { edges: ConnectionEdge[]; sele
     {candidates.length ? <div className={panel}><label htmlFor="version-pair" className="block text-xs mb-3">Recorded candidate version pair</label><select id="version-pair" className="field-brutal w-full" value={edge?.id || ''} onChange={event => setChoice(event.target.value)}>{candidates.map((e, i) => <option key={e.id} value={e.id}>Pair {i + 1}: {e.to_text.slice(0, 65)}</option>)}</select>
       {edge?.mutation_evidence && <details className="mt-4 text-xs"><summary className="cursor-pointer">Stored mutation evidence</summary><pre className="mt-3 whitespace-pre-wrap break-words">{JSON.stringify(edge.mutation_evidence, null, 2)}</pre></details>}
     </div> : <Empty>No candidate evolution links recorded for {selected ? 'this claim' : 'this article'}. You can still supply two texts for comparison.</Empty>}
-    <MutationComparator key={`${articleId}:${selected?.id || ''}:${edge?.id || ''}`} initialOlder={edge?.to_text || ''} initialNewer={edge?.from_text || selected?.text || ''} />
+    <button type="button" className="btn-brutal" onClick={() => openComparison({ older: edge?.to_text || '', newer: edge?.from_text || selected?.text || '', returnTo })}>Open in Compare wording <ArrowRight className="w-4 h-4" /></button>
   </div>;
 }
 
@@ -149,8 +149,8 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
               {neighborhood?.truncated && <p role="status" className="text-xs text-amber-300">Showing the strongest {neighborhood.edges.length} of {neighborhood.total_edges} direct claim links. Related coverage, map and timeline are limited to these returned links.</p>}
             </>}
             {tab === 'related' && neighborhood && (related.length ? <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">{related.map(a => <article key={a.id} className={panel}><p className="text-xs text-hermes-bone/55 mb-3">{a.domain || 'Source unknown'} · {date(a.published_at)}</p><h3 className="text-2xl mb-4">{a.title}</h3><p className="text-xs mb-5">{[...new Set(neighborhood.edges.filter(e => e.from_article_id === a.id || e.to_article_id === a.id).map(e => e.relationship_type))].join(' · ')}</p><a className="btn-outline-dark" href={relatedHref(a.id)}>Open details <ArrowRight className="w-3 h-3" /></a></article>)}</div> : <Empty>No cross-article coverage links are recorded for this item. This does not mean no other reporting exists.</Empty>)}
-            {tab === 'changes' && !claims.isError && claims.data && neighborhood && <Changes key={`${id}:${claim}`} edges={neighborhood.edges} selected={selected || undefined} articleId={id} />}
-            {tab === 'changes' && connections.isError && selected && <MutationComparator initialNewer={selected.text} />}
+            {tab === 'changes' && !claims.isError && claims.data && neighborhood && <Changes key={`${id}:${claim}`} edges={neighborhood.edges} selected={selected || undefined} returnTo={href('changes')} />}
+            {tab === 'changes' && connections.isError && selected && <button type="button" className="btn-outline-dark" onClick={() => openComparison({ older: '', newer: selected.text, returnTo: href('changes') })}>Open in Compare wording <ArrowRight className="w-4 h-4" /></button>}
             {tab === 'timeline' && neighborhood && <ol className="border-l border-hermes-red-bright/50 ml-2 space-y-4">{timeline.map(a => <li key={a.id} className={`${panel} ml-5`}><p className="text-xs text-hermes-bone/55 flex flex-wrap gap-2"><Clock className="w-4 h-4" />{date(a.published_at)} · {a.domain || 'Source unknown'}{a.id === id ? ' · Selected article' : ''}</p><h3 className="text-2xl mt-3 mb-4">{a.title}</h3><a className={`${linkStyle} text-xs`} href={relatedHref(a.id)}>Open article details</a></li>)}</ol>}
             {tab === 'graph' && neighborhood && <><FocusedGraph data={neighborhood} href={relatedHref} />{neighborhood.edges.length === 0 && <Empty>No stored claim links are available for this article.</Empty>}<div className="space-y-3" aria-label="Exact claim relationships">{neighborhood.edges.map(edge => <article key={edge.id} className={panel}><p className="text-xs text-hermes-red-bright mb-3">{edge.relationship_type} · matching signal {edge.score.toFixed(3)}{edge.from_article_id === edge.to_article_id ? ' · Within one article' : ''}</p><div className="grid md:grid-cols-2 gap-4 text-sm leading-relaxed"><a className={linkStyle} href={articleHref(edge.from_article_id, 'claims', { claim: edge.from_claim_id, back })}>{edge.from_text}</a><a className={linkStyle} href={articleHref(edge.to_article_id, 'claims', { claim: edge.to_claim_id, back })}>{edge.to_text}</a></div></article>)}</div></>}
             {tab === 'methods' && <><dl className={`${panel} grid sm:grid-cols-2 gap-5 text-xs`}>{[['Article ID', article.id], ['Text field', article.body_source], ['Text completeness', article.content_completeness], ['Collected at', date(article.collected_at)], ['Processed at', date(article.processed_at)], ['Relationship basis', neighborhood?.basis || 'Unavailable'], ['Model/run revision', 'Not recorded in this article response'], ['Public release provenance', runtime.mode === 'published' ? runtime.publication?.run_id || 'Publication details unavailable' : 'Not available; this response is from the current database']].map(([label, value]) => <div key={label}><dt className="text-hermes-bone/50 uppercase tracking-wider mb-2">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl><p className="text-sm text-hermes-bone/65">An article is a source document, and a claim is extracted text. Similarity, publication order and inferred evolution are research signals. They do not establish truth, independence or observed propagation.</p></>}

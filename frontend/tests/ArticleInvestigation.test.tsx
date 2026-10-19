@@ -1,6 +1,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ArticleInvestigation } from '../src/pages/ArticleInvestigation';
+import { ReaderDashboard } from '../src/pages/ReaderDashboard';
+import { StrictMode } from 'react';
 import { articleHref, navigateHash, parseArticleRoute, safeReturn } from '../src/lib/articleRoutes';
 import { getAccessToken } from '../src/lib/session';
 import { jsonResponse, mockApi, renderWithClient, signInFixture } from './helpers';
@@ -57,10 +59,36 @@ describe('article investigation', () => {
     expect(window.location.hash).toContain(`claim=${claimId}`);
     expect(fetch.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
   });
-  it('prefills recorded parent/child texts in the correct comparison order', async () => {
-    signInFixture(); mockApi(fixture);
-    renderWithClient(<ArticleInvestigation route={route('changes', `?claim=${claimId}`)} />);
-    expect((await screen.findByLabelText('Older text') as HTMLTextAreaElement).value).toBe('Earlier river level report');
+  it('opens the single comparison workspace with the selected pair and article return context', async () => {
+    signInFixture(); const fetch = mockApi(fixture);
+    const back = '#/dashboard/browse?q=river&offset=6';
+    const selectedRoute = route('changes', `?claim=${claimId}&back=${encodeURIComponent(back)}`);
+    const page = renderWithClient(<ArticleInvestigation route={selectedRoute} />);
+    const launch = await screen.findByRole('button', { name: 'Open in Compare wording' });
+    expect(screen.queryByLabelText('Older text')).toBeNull();
+    fireEvent.click(launch);
+    expect(window.location.hash).toBe('#/dashboard/compare');
+    page.unmount();
+    const compare = renderWithClient(<StrictMode><ReaderDashboard view="compare" /></StrictMode>);
+    expect((screen.getByLabelText('Older text') as HTMLTextAreaElement).value).toBe('Earlier river level report');
+    expect((screen.getByLabelText('Newer text') as HTMLTextAreaElement).value).toBe(claim.text);
+    expect(screen.getByRole('link', { name: 'Back to article changes' }).getAttribute('href')).toBe(articleHref(id, 'changes', { claim: claimId, back }));
+    expect(fetch.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
+    expect(window.sessionStorage.length).toBe(0);
+    expect(window.localStorage.length).toBe(0);
+    compare.unmount();
+    renderWithClient(<ReaderDashboard view="compare" />);
+    expect((screen.getByLabelText('Older text') as HTMLTextAreaElement).value).toBe('');
+    expect(screen.queryByRole('link', { name: 'Back to article changes' })).toBeNull();
+  });
+  it('can carry the selected claim to Compare wording during a relationship outage', async () => {
+    signInFixture();
+    mockApi(endpoint => endpoint.includes('/connections?') ? jsonResponse({ detail: 'Relationship store unavailable' }, 503) : fixture(endpoint));
+    const page = renderWithClient(<ArticleInvestigation route={route('changes', `?claim=${claimId}`)} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Open in Compare wording' }));
+    page.unmount();
+    renderWithClient(<ReaderDashboard view="compare" />);
+    expect((screen.getByLabelText('Older text') as HTMLTextAreaElement).value).toBe('');
     expect((screen.getByLabelText('Newer text') as HTMLTextAreaElement).value).toBe(claim.text);
   });
   it('reports a relationship outage independently instead of saying there are no links', async () => {

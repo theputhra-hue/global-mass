@@ -57,7 +57,10 @@ describe('real readiness, independent tabs and shared polling', () => {
     expect(screen.queryByText(/Demo Telemetry — simulated data stream/)).toBeNull();
     if (tab === 'cache') expect(screen.getByText(/Redis Cache & Token Blocklist Telemetry/)).toBeTruthy();
     if (tab === 'eval') expect(screen.getByText(/Sign in to use Eval Lab/)).toBeTruthy();
-    if (tab === 'masala') expect(screen.getByRole('heading', { name: 'Mutation Comparator' })).toBeTruthy();
+    if (tab === 'masala') {
+      expect(screen.queryByRole('heading', { name: 'Mutation Comparator' })).toBeNull();
+      expect(screen.getByRole('link', { name: 'Compare wording' }).getAttribute('href')).toBe('#/dashboard/compare');
+    }
   });
 
   it('syncs tabs with hash changes and actual browser Back navigation', async () => {

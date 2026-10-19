@@ -15,7 +15,6 @@ import { apiClient, ApiError } from '../api/client';
 import { usePollingPolicy } from '../lib/polling';
 import { useAnimationActivity } from '../lib/useAnimationActivity';
 import { safeHttpUrl } from '../lib/urls';
-import { MutationComparator } from './MutationComparator';
 import { QueryError } from './QueryError';
 import { sound } from '../lib/sound';
 
@@ -475,7 +474,7 @@ const Arcade: React.FC = () => {
 
 const MasalaLab: React.FC = () => (
   <div className="space-y-8">
-    <MutationComparator />
+    <p className="text-sm text-hermes-bone/65">To compare two supplied statements, open <a href="#/dashboard/compare" className="underline underline-offset-4">Compare wording</a>.</p>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <ScoopRaces />
       <MutationDNA />

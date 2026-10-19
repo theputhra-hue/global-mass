@@ -50,7 +50,11 @@ source links. Article investigations preserve every tab and URL parameter, with
 three primary sections and expandable analysis. Claim checking leads with the form;
 stored assessments and outlet statistics remain available in an expandable panel.
 The dedicated directory replaces
-repeated all-tool catalogues. Annotation pairs precede optional notes/context/span
+repeated all-tool catalogues. The full wording comparator lives only at
+`#/dashboard/compare`; the analysis lab links there, and article Changes transfers
+the selected parent/child texts with a return link. This one-use handoff stays in
+memory, is bound to the current session and never starts analysis automatically.
+Annotation pairs precede optional notes/context/span
 metadata; vote validation, blinding and payloads are unchanged.
 
 Shared tokens preserve the original burgundy surfaces, crimson accents and cream
@@ -77,8 +81,8 @@ Validated on 18 October 2026 against the local production build and real stores.
 
 - ESLint: passed with zero warnings.
 - TypeScript compilation and Vite production build: passed in the Node 24 Docker build.
-- Vitest: 206 tests passed, zero failed or skipped. Coverage: 89.17% lines,
-  85.11% statements, 76.24% branches and 76.94% functions; above the CI gates.
+- Vitest: 209 tests passed, zero failed or skipped. Coverage: 89.25% lines,
+  85.22% statements, 76.58% branches and 77.21% functions; above the CI gates.
 - Navigation tests cover the existing deep links, active sections, desktop collapse,
   mobile dialog Escape/focus restoration, skip link and published capability labels.
 - Regression tests cover article tabs and return context, authentication and role
