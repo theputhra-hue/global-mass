@@ -36,7 +36,7 @@ def mapped_payload(count: int = 1) -> dict[str, Any]:
 
 def test_v1_digest_excludes_new_fields_exactly():
     snapshot = PublicationSnapshot.model_validate(snapshot_payload())
-    old_envelope = snapshot.model_dump(mode="json", exclude={"topic_map"})
+    old_envelope = snapshot.model_dump(mode="json", exclude={"topic_map", "city_network"})
     original = json.dumps(old_envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()
     assert snapshot.sha256() == hashlib.sha256(original).hexdigest()
     assert b'topic_map' not in snapshot.canonical_bytes()

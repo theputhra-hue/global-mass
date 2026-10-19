@@ -61,7 +61,7 @@ export function DeveloperUpload() {
       const response = await publicationsApi.publish(review);
       setPublished(true);
       setPublishedRevision(response.revision);
-      await queryClient.invalidateQueries();
+      await queryClient.invalidateQueries({ predicate: query => query.queryKey[0] !== 'capabilities' });
     } catch (failure) {
       setError(failure);
     } finally {
@@ -185,7 +185,7 @@ export function DeveloperUpload() {
               }}
             />
             <p className="text-xs text-hermes-bone/60">
-              Publication format v1 or v2 · maximum 10 MiB · JSON only · complete replacement release
+              Publication format v1, v2 or v3 · maximum 10 MiB · JSON only · complete replacement release
             </p>
             {file && <p className="text-sm break-all font-mono text-xs">Selected: {file.name} ({(file.size / 1024).toFixed(1)} KB)</p>}
             <button
@@ -239,6 +239,7 @@ export function DeveloperUpload() {
               <div className="border-l-2 border-amber-300/60 pl-3 py-1 text-sm space-y-1">
                 <p className="font-bold">Staged release summary:</p>
                 {review.article_map && <p>Complete article map: {review.article_map.articles} articles · {review.article_map.topics} machine-generated topic groups. Review input coverage and topic method in the complete export; topic membership is not a verified claim relationship.</p>}
+                {review.city_network && <p>Exploratory semantic city: {review.city_network.roads} streets · {review.city_network.highways} highways · {review.city_network.themes} machine themes · {review.city_network.superways} superways. Review the full audit and supporting pairs; these are not human-validated or observed transmission.</p>}
                 <p>
                   {review.articles} articles · {review.claims} claims · {review.relationships} relationships
                 </p>
