@@ -83,6 +83,92 @@ Free-service cold starts and transient networking are distinct from renderer spe
 
 ## Delivery
 
-Pending final source-pinned export, browser sign-off, CI and normal deployment/
-reviewed publication. Live release remains the previous validated publication
-until those steps complete. Final identifiers and evidence are appended below.
+Completed: source-pinned export, browser checks, all CI checks, normal merge,
+both deployments, reviewed publication and complete public API comparison.
+Final identifiers and evidence follow.
+
+## Final candidate and browser evidence
+
+The final source-pinned export is
+`publication-outbox/gmee-city-network-source-pinned-20261020.json`:
+
+- Run: `315d6109-57bf-4cb1-9395-261825f633da`.
+- Canonical SHA-256:
+  `40447bbc111fe0a8df3d924b0c2d67f158f4710fba207c253f349a9fd7f29766`.
+- Producer commit: `b8580c9`; subsequent feature commits change the UI only.
+- Size: 7,325,604 bytes; local computation: 6.47 seconds from cached vectors.
+- Final isolated HTTP rehearsal compared all street pages, hierarchy metadata,
+  article assignments and unchanged base arrays against the export.
+
+Browser checks exercised all 7,421 articles, a 256-article topic filter, recorded
+relationship overlay, exact 2000% camera restoration after opening/back from an
+article, and the superway inspector's five supporting pairs. The 1707 × 1067
+fullscreen view has no horizontal overflow; the 771-pixel-wide view also has no
+horizontal overflow. Controls collapse into an exploration drawer at that width.
+These checks do not substitute for measured handheld-device performance.
+
+The prepared-image flow was downloaded through its visible browser link. The
+1047 × 1203 PNG has an opaque brand background (corner alpha 255), a legend,
+size interpretation, active layers, immutable release, filtering scope, route
+budget and exploratory-method footer. Evidence files are in the ignored local
+`output/article-map-20261020/` folder:
+
+- `city-local-fullscreen.png`
+- `city-export-with-footer.png`
+- `city-rehearsal-proof.json`
+
+PR #10 final feature head is `5b4fca0dbcd6b547a1604a86f3f6d6d2cd611e38`.
+Its frontend CI passed 304 tests in 42 files, plus three architecture tests.
+Coverage: 77.08% statements, 72.38% branches, 75.90% functions, 87.52% lines.
+Both push and PR deployment contracts and the cloud minimal-runtime check pass.
+Backend CI and deployment/publication evidence follow.
+
+## Final CI and code deployment
+
+All checks on `5b4fca0` passed before normal PR #10 merge. Backend CI ran
+681 unit/API tests (83.21% coverage), three real pretrained model checks and
+14 real PostgreSQL/pgvector integration tests with zero required-suite skips.
+Lint, mypy, dependency boundaries, minimal-runtime isolation and both copies of
+deployment contracts passed. The 17 tests deselected from the first pytest stage
+were run by the dedicated model/integration stages.
+
+Merged commit: `43b63ea98b51a22f8239e5db9222290d14361c98`.
+Render backend deployment `dep-dbba11m7bikc73afru30` succeeded in 42.4 seconds;
+logs confirm `gmee08 -> gmee09` migration and readiness HTTP 200.
+Frontend deployment `dep-dbba1cs9v7es73ef0i5g` succeeded in 30.9 seconds,
+manually pinned to the same merge commit. Both `/` and `/index.html` served
+`/assets/index-CwKS6Nh7.js` with the existing revalidation headers. The previously
+published v2 release remained available during rollout; its new roads endpoint
+correctly returned `available: false` rather than fabricating roads.
+
+## Live publication and final verification
+
+The existing authorized developer account uploaded the exact final candidate,
+reviewed its immutable digest and counts, then published it once through the UI.
+The UI reported revision **4**. No automatic write retry or direct database edit
+was used. Public `published_at`: `2026-10-19T23:01:33.724335Z` (20 October local).
+The publication review is technical/data-integrity approval; it is not a claim
+that every semantic pair was human annotated or that article claims are true.
+
+The read-only verifier fetched all **15 article pages** and **six road pages**:
+7,421 unique articles and all 10,442 street triples match the local candidate
+exactly. Coordinates, topic assignments, network metadata, degree array,
+23 highways, 76 themes and one superway also match. There are 5,113 articles
+with retained semantic neighbors; isolated records remain represented honestly.
+The recorded graph separately retains 213 article groups from 300 saved claim
+relationships, and the claim graph returns all 300 links. The old v2 release is
+retained and its roads endpoint correctly reports no city roads for that release.
+Evidence: `output/article-map-20261020/city-live-proof.json`.
+
+Live browser checks loaded the whole collection, filtered the 256-article Iran/
+Hormuz topic (514 displayed/loaded routes), and opened the theme superway's
+five supporting source pairs with their cosine scores. Fullscreen fits within
+1707 × 1067 with no horizontal overflow. Captured console warning/error list
+was empty. The clean overview was restored and left open for the user.
+Screenshot: `output/article-map-20261020/city-live-fullscreen.png`.
+
+Live entry: https://global-mass.onrender.com/#/dashboard/atlas
+
+All original data arrays and publication history are preserved. The completed
+release is an exploratory navigation tool; labelled accuracy evaluation, paper
+figures and measured mobile-device performance remain the next research phase.
