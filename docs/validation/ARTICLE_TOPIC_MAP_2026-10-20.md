@@ -53,6 +53,9 @@ Fresh verification:
   branches 75.81%, functions 76.75%, lines 89.58%.
 - 54 backend map/publication/graph/cloud regression tests, followed by 13 map
   tests after adding two further coordinate-basis rejection cases.
+- Full backend unit suite after the contract update: **668 passed, 17 deliberately
+  deselected model/integration tests**. Twelve pre-existing SQLite datetime-adapter
+  deprecation warnings were reported on the Python 3.13 host.
 - Frontend lint, architecture guard and its three tests, TypeScript production
   build passed. Existing main-bundle >500 kB advisory remains unsuppressed.
 - Backend changed-module Ruff/mypy and dependency-direction checks passed.
@@ -78,6 +81,9 @@ in the rehearsal. All **7,421 unique articles** loaded across pinned pages.
 The browser showed complete counts, source coverage and all article dots; checked
 the 256-record Iran/Hormuz topic and its bounded 20-group relationship overlay.
 Article drill-down returned to the selected topic correctly. Zoom/reset worked.
+Filter/selection state is synchronized to the shareable URL; clearing filters
+cannot restore an old topic on reload. A Restore projected positions control
+returns dragged dots to their published coordinates without altering source data.
 At 390px viewport, document width was 382px with no horizontal overflow. No
 warning/error entries were returned by the browser log API during these checks.
 
