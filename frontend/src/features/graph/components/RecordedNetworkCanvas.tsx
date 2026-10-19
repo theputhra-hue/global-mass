@@ -6,10 +6,10 @@ import { outletColor, outletName } from '../lib/corpusGraph';
 
 export interface CanvasSnapshot { positions: GraphPoint[]; pins: string[]; camera: { ox: number; oy: number; scale: number } }
 export interface NetworkCanvasHandle { snapshot: () => CanvasSnapshot; pin: (id: string) => void; unpin: () => void }
-interface Props { scene: GraphScene; selected: string | null; onSelect: (id: string | null) => void; showConnections: boolean }
+interface Props { scene: GraphScene; selected: string | null; onSelect: (id: string | null) => void; showConnections: boolean; minimumRadius?: number; colorForNode?: (node: GraphPoint) => string }
 const button = 'px-3 py-2 text-xs hover:bg-hermes-panel focus-visible:outline focus-visible:outline-hermes-red-bright disabled:opacity-40';
 
-export const RecordedNetworkCanvas = forwardRef<NetworkCanvasHandle, Props>(function RecordedNetworkCanvas({ scene, selected, onSelect, showConnections }, ref) {
+export const RecordedNetworkCanvas = forwardRef<NetworkCanvasHandle, Props>(function RecordedNetworkCanvas({ scene, selected, onSelect, showConnections, minimumRadius = 2.5, colorForNode }, ref) {
   const canvas = useRef<HTMLCanvasElement>(null), wrapper = useRef<HTMLDivElement>(null);
   const points = useRef(new Map(scene.nodes.map(n => [n.id, { ...n }])));
   const pins = useRef(new Set<string>());
@@ -48,9 +48,9 @@ export const RecordedNetworkCanvas = forwardRef<NetworkCanvasHandle, Props>(func
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); ctx.setLineDash([]);
       if (edge.directed) { const angle = Math.atan2(q.y - p.y, q.x - p.x), r = Math.max(4, b.radius * Math.min(scale, 2)) + 2; const x = q.x - Math.cos(angle) * r, y = q.y - Math.sin(angle) * r; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 7 * Math.cos(angle - .45), y - 7 * Math.sin(angle - .45)); ctx.lineTo(x - 7 * Math.cos(angle + .45), y - 7 * Math.sin(angle + .45)); ctx.closePath(); ctx.fillStyle = ctx.strokeStyle; ctx.fill(); }
     }
-    for (const node of points.current.values()) { const p = screen(node); if (p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20) continue; ctx.globalAlpha = focus && !neighbors.has(node.id) ? .2 : .95; const radius = Math.max(2.5, node.radius * Math.min(scale, 2)); ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2); ctx.fillStyle = outletColor(node.domain); ctx.fill(); if (node.id === focus || pins.current.has(node.id)) { ctx.globalAlpha = 1; ctx.strokeStyle = '#f4ece1'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, radius + 3, 0, Math.PI * 2); ctx.stroke(); } }
+    for (const node of points.current.values()) { const p = screen(node); if (p.x < -20 || p.x > width + 20 || p.y < -20 || p.y > height + 20) continue; ctx.globalAlpha = focus && !neighbors.has(node.id) ? .2 : .95; const radius = Math.max(minimumRadius, node.radius * Math.min(scale, 2)); ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2); ctx.fillStyle = colorForNode?.(node) || outletColor(node.domain); ctx.fill(); if (node.id === focus || pins.current.has(node.id)) { ctx.globalAlpha = 1; ctx.strokeStyle = '#f4ece1'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, radius + 3, 0, Math.PI * 2); ctx.stroke(); } }
     ctx.globalAlpha = 1;
-  }, [scene, selected, hover, showConnections, version]);
+  }, [scene, selected, hover, showConnections, version, minimumRadius, colorForNode]);
   const pick = (x: number, y: number) => { const wrap = wrapper.current; if (!wrap) return; const view = camera.current; let id: string | undefined, closest = Infinity; for (const p of points.current.values()) { const distance = Math.hypot(x - wrap.clientWidth / 2 - view.ox - p.x * view.scale, y - wrap.clientHeight / 2 - view.oy - p.y * view.scale); if (distance < Math.max(10, p.radius * Math.min(view.scale, 2) + 4) && distance < closest) { closest = distance; id = p.id; } } return id; };
   const hovered = hover ? points.current.get(hover) : null;
   return <div ref={wrapper} className="relative h-[420px] sm:h-[560px] overflow-hidden border-y border-hermes-bone/15 bg-hermes-ink" aria-label="Recorded relationship map">

@@ -14,6 +14,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.schemas.article_map import ArticleMap
+
 
 class PublicationRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
@@ -71,13 +73,14 @@ class PublicationProvenance(PublicationRecord):
 
 
 class PublicationSnapshot(PublicationRecord):
-    schema_version: Literal["1"] = "1"
+    schema_version: Literal["1", "2"] = "1"
     run_id: UUID
     generated_at: AwareDatetime
     provenance: PublicationProvenance
     articles: list[PublishedArticle] = Field(max_length=20000)
     claims: list[PublishedClaim] = Field(max_length=50000)
     relationships: list[PublishedRelationship] = Field(max_length=100000)
+    topic_map: ArticleMap | None = None
 
     @model_validator(mode="after")
     def validate_references(self) -> "PublicationSnapshot":
@@ -87,6 +90,15 @@ class PublicationSnapshot(PublicationRecord):
             if len({record.id for record in records}) != len(records):
                 raise ValueError("Duplicate record IDs")
         article_ids = {article.id for article in self.articles}
+        if self.schema_version == "1" and self.topic_map is not None:
+            raise ValueError("Article map requires publication version 2")
+        if self.schema_version == "2":
+            if self.topic_map is None:
+                raise ValueError("Version 2 requires a complete article map")
+            if {a.article_id for a in self.topic_map.assignments} != article_ids:
+                raise ValueError("Article map must cover exactly this release's articles")
+            if self.generated_at < self.topic_map.completed_at:
+                raise ValueError("Snapshot generated before map completed")
         claim_ids = {claim.id for claim in self.claims}
         if any(claim.article_id not in article_ids for claim in self.claims):
             raise ValueError("Claim references missing article")
@@ -109,7 +121,9 @@ class PublicationSnapshot(PublicationRecord):
 
     def canonical_bytes(self) -> bytes:
         """Stable envelope serialization for replay/conflict detection."""
-        return json.dumps(self.model_dump(mode="json"), sort_keys=True,
+        # A v1 upload must retain its existing fingerprint after the v2 upgrade.
+        data = self.model_dump(mode="json", exclude={"topic_map"} if self.schema_version == "1" else None)
+        return json.dumps(data, sort_keys=True,
                           separators=(",", ":"), ensure_ascii=False,
                           allow_nan=False).encode("utf-8")
 

@@ -1,6 +1,7 @@
 import type { TabType } from '../../../shared/navigation/tabs';
 
 const guides: Record<TabType, { name: string; purpose: string; use: string; meaning: string }> = {
+  atlas: { name: 'Collection map', purpose: 'Explore all articles in a published topic map.', use: 'Select a topic, search titles or open an article.', meaning: 'Machine-generated topic membership and projected distance do not establish truth or transmission.' },
   project: {
     name: 'Project Lab',
     purpose: 'A guided investigation workflow and twelve authored engineering controls for the text change analyzer.',

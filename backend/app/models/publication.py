@@ -56,3 +56,11 @@ class PublishedRelationshipRow(Base):
     from_claim_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     to_claim_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class PublishedArticleMapRow(Base):
+    __tablename__ = "published_article_maps"
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("publication_uploads.run_id"), primary_key=True)
+    # Bounded method/topic summary. Per-article assignments are materialized into
+    # published_articles.payload so node pages need not load the complete map.
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)

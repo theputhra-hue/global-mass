@@ -30,6 +30,7 @@
     "GET /api/v1/evolution/clusters",
     "GET /api/v1/evolution/clusters/{topic_id}/mutation-summary",
     "GET /api/v1/evolution/status",
+    "GET /api/v1/graph/atlas",
     "GET /api/v1/graph/claims",
     "GET /api/v1/graph/full",
     "GET /api/v1/graph/lineage/{claim_id}",

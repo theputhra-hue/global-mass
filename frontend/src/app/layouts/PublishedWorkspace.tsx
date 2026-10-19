@@ -3,6 +3,7 @@ import type { MutationComparisonInput } from '../../shared/api/features';
 import { ProjectLab } from '../../features/research/components/ProjectLab';
 import { Casebook } from '../../features/investigations/components/Casebook';
 import FullCorpusGraph from '../../features/graph/components/FullCorpusGraph';
+import ArticleAtlas from '../../features/graph/components/ArticleAtlas';
 import { ReaderDashboard } from '../../features/articles/pages/ReaderDashboard';
 import { PublishedClaimSearch } from '../../features/claims/components/PublishedClaimSearch';
 import { ToolAvailabilityNotice } from '../../features/navigation/components/ToolAvailabilityNotice';
@@ -12,6 +13,7 @@ export function PublishedWorkspace({ tab }: { tab: string }) {
   const [investigating, setInvestigating] = useState(false);
 
   if (tab === 'corpus') return <ReaderDashboard view="browse" />;
+  if (tab === 'atlas') return <ArticleAtlas />;
 
   return (
     <div className="space-y-6">

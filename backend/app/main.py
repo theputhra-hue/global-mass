@@ -94,6 +94,8 @@ def create_app() -> FastAPI:
     api_router.include_router(corpus.router, prefix="/corpus", tags=["Corpus"])
     api_router.include_router(article_insights.router, prefix="/corpus", tags=["Article investigations"])
     api_router.include_router(verdicts.router, prefix="/verdicts", tags=["Verdicts"])
+    from app.api.v1 import article_map
+    api_router.include_router(article_map.router, prefix="/graph", tags=["Article map"])
     api_router.include_router(graph.router, prefix="/graph", tags=["Graph"])
     api_router.include_router(lineage.router, prefix="/graph", tags=["Graph"])
     api_router.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])

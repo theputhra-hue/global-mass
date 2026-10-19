@@ -11,6 +11,7 @@ export interface PublicationStatus {
   sha256: string | null; counts: { articles: number; claims: number; relationships: number };
 }
 export interface PublicationReview extends UploadReceipt {
+  schema_version?: string; article_map?: { topics: number; articles: number } | null;
   generated_at: string; provenance: Record<string, unknown>;
   sample_articles: Array<{ id: string; title: string; domain: string; url: string }>;
   sample_claims: Array<{ id: string; text: string }>;

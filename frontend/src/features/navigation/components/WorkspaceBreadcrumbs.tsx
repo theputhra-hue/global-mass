@@ -65,6 +65,9 @@ export function WorkspaceBreadcrumbs({ route, articleTitle, articleTab }: Breadc
   } else if (route.kind === 'advanced') {
     if (route.tab === 'casebook') {
       items.push({ label: 'My investigations' });
+    } else if (route.tab === 'atlas') {
+      items.push({ label: 'Explore data', href: '#/dashboard/browse' });
+      items.push({ label: 'Collection map' });
     } else if (route.tab === 'fullgraph') {
       items.push({ label: 'Explore data', href: '#/dashboard/browse' });
       items.push({ label: 'Recorded connections' });
