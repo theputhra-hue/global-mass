@@ -16,14 +16,14 @@ from app.core import redis_helpers, security
 from app.core.config import get_settings
 from app.db.redis_client import redis_client as shared_redis_client
 from app.main import create_app
-from app.models.article import Article, NLPStatusEnum, ProcessingStatusEnum
-from app.models.source import Source, SourceTypeEnum
-from app.services.nlp.llm_client import (
+from app.ml.llm_client import (
     AnthropicLLMClient,
     _NoOpLLMClient,
     get_llm_client,
 )
-from app.services.nlp_orchestrator import NLPOrchestrator
+from app.models.article import Article, NLPStatusEnum, ProcessingStatusEnum
+from app.models.source import Source, SourceTypeEnum
+from app.services.analysis.orchestrator import NLPOrchestrator
 from app.services.preprocessing.near_duplicate_detector import NearDuplicateDetector
 
 
@@ -127,7 +127,7 @@ async def test_disabled_llm_skips_without_loading_embedding_models(db_session, m
     db_session.add(article)
     await db_session.commit()
     embed = MagicMock(side_effect=AssertionError("disabled backend loaded a model"))
-    monkeypatch.setattr("app.services.nlp.embedding_service.EmbeddingService.generate_document_embedding", embed)
+    monkeypatch.setattr("app.ml.embedding_service.EmbeddingService.generate_document_embedding", embed)
     summary = await NLPOrchestrator(llm_client=_NoOpLLMClient()).run_nlp_cycle(
         db_session, chain_evolution=False)
     assert summary.status_counts["skipped"] == 1

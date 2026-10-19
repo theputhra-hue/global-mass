@@ -1,282 +1,186 @@
-# GMEE target project structure and module contracts
+# GMEE project structure
 
-Status: proposed, 2026-10-14. Scope and budget: [production plan](PRODUCTION_PLAN.md).
-All paths in target trees are design destinations, not claims that files exist.
+Updated 2026-10-16. This map describes the implemented foundation, based on
+`main` at `1754bf9`. Planned work is labelled separately. Start with
+[contributor rules](../CONTRIBUTING.md) and the [documentation index](README.md).
 
-## 1. Structural rules
+## Runtime model
 
-Keep `backend/`, `frontend/`, `infra/` and `evaluation/` as top-level roots.
-This preserves current Docker contexts, imports, CI filters and contributor
-familiarity. Create directories when real code moves into them; do not generate
-empty scaffolding. Structural moves and behavior changes use separate commits.
-
-Use feature modules with thin HTTP adapters and explicit storage/model
-dependencies. Do not create interfaces or repository wrappers for every
-function. Introduce boundaries where they enable isolation, testing or reuse.
-One business rule has one implementation shared by API, CLI and worker.
-
-## 2. Repository layout
+GMEE is one repository with two backend compositions and one frontend.
+Keep this modular monolith while the two-person team develops the pilot.
 
 ```text
-GMEE/
-  README.md                      # setup and links to current entrypoints
-  ARCHITECTURE.md                 # current implemented architecture only
-  CHANGELOG.md                   # released behavior changes
-  LICENSE
-  .github/workflows/             # quality, integration, artifact/release checks
-  backend/
-    pyproject.toml               # package/tool definitions
-    requirements.lock            # proposed resolved runtime dependencies
-    requirements-dev.lock        # proposed resolved test/tool dependencies
-    Dockerfile                   # API/worker/test targets as justified
-    alembic.ini
-    alembic/versions/            # preserve all published migration history
-    app/                        # module tree below
-    scripts/                    # thin compatible CLI wrappers
-    tests/
-      unit/                     # pure logic; no network or stores
-      api/                      # route validation, authorization, response shape
-      integration/              # real pgvector/Redis/Neo4j where relevant
-      contracts/                # OpenAPI, job results and model metadata
-      fixtures/                 # small, non-sensitive, explicitly synthetic
-    benchmarks/                 # bounded latency/memory workloads and manifests
-  frontend/
-    package.json
-    package-lock.json
-    src/                        # feature tree below
-    public/                     # public assets; no private corpus exports
-    tests/
-      unit/
-      integration/
-      fixtures/
-    e2e/                        # real-browser journeys on disposable stack
-  evaluation/
-    README.md                   # reproducible research entrypoint
-    protocols/                  # versioned hypotheses and evaluation plans
-    configs/                    # datasets, baselines, seeds, thresholds
-    annotation/                 # rubric, assignments, adjudication schema
-    manifests/                  # data/model/source hashes and release metadata
-    scripts/                    # experiment CLIs, using shared backend logic
-    results/                    # selected immutable reports with manifests
-    legacy/                     # historical artifacts, moved only with references
-  infra/
-    docker-compose.yml          # retain current paths during sprint
-    docker-compose.dev.yml
-    docker-compose.test.yml
-    docker-compose.smoke.yml
-    runtime.env.example         # descriptions and placeholders, no credentials
-    scripts/                    # validate, migrate, backup, restore and smoke
-    tests/                      # infrastructure policy and helper tests
-  docs/
-    PRODUCTION_PLAN.md
-    PROJECT_STRUCTURE.md
-    IMPLEMENTATION_BACKLOG.md
-    decisions/                  # concise architecture decisions with tradeoffs
-    runbooks/                   # startup, migration, recovery, incident handling
-    releases/                   # redacted evidence tied to commit/image hashes
-    research/                   # manuscript outline and submission checklist
-    openapi.json                # generated and checked for drift
+Analysis PC: app.main:app
+  collect -> preprocess -> extract/embed -> inspect -> export publication JSON
+                                                             |
+                                              developer reviews and uploads
+                                                             v
+Cloud: app.cloud:app -> managed PostgreSQL + Redis -> published reader website
 ```
 
-Lockfile names are proposed, not a selected new tool requirement. Choose one
-resolver and verify Windows development and Linux image installs before
-committing its lock format. Record direct research dependencies explicitly;
-do not rely on accidental transitive installation of numerical libraries.
+Cloud serves completed publications while the PC is off. It does not load the
+local AI stack, run collection or expose local execution routes. The frontend
+reads capabilities to choose the available experience. API version prefixes,
+hash URLs, CLI names and both ASGI entrypoints are preserved by this refactor.
 
-Large/private corpora, model weights, full backups and credentials belong in
-configured external artifact locations, not Git. Git contains release manifests
-and small permitted fixtures. Inventory rights and checksums before moving any
-existing CSV, JSON or report; preserve historical artifacts and links.
+## Repository roots
 
-## 3. Backend layout
+| Path | Responsibility |
+| --- | --- |
+| `frontend/` | React/TypeScript client, feature tests and import-boundary checks |
+| `backend/` | Local/cloud FastAPI compositions, services, ORM, migrations and Python tests |
+| `contracts/` | Reviewed local/cloud route inventories and publication-v1 JSON schema |
+| `infra/` | Compose, deployment checks, smoke fixtures, operating scripts and safety tests |
+| `evaluation/` | Reproducible research instructions, scripts and retained artifacts |
+| `docs/` | Current architecture, runbooks, plans and verification evidence |
+| `scripts/` | Stable developer launchers and read-only preview entrypoints |
+| `output/`, `publication-outbox/` | Ignored generated evidence and local exports; not deployable source |
+| `1/` | Untracked historical comparison copy; preserved pending a code-level archive review |
 
-```text
-backend/app/
-  main.py                       # app factory, composition and lifecycle
-  api/
-    deps.py                     # request-scoped dependencies and role gates
-    errors.py                   # stable, sanitized error translation
-    v1/                         # HTTP adapters; retain public route prefixes
-  core/
-    config.py                   # validated runtime configuration
-    security.py                 # cryptographic primitives
-    ops_security.py             # rate limits and audit policy
-    observability.py            # structured logs and request/job IDs
-  modules/
-    identity/                   # users, sessions, atomic token rotation
-    collection/                 # source adapters and ingestion use cases
-    preprocessing/              # cleaning, language, deduplication
-    claims/                     # claim extraction and entity use cases
-    evolution/                  # candidate retrieval, typed changes, clustering
-    evidence/                   # corpus retrieval, stance and abstention
-    corpus/                     # read queries and pagination
-    graph/                      # projection reads, freshness, rebuild operations
-    annotations/                # blinded tasks, label revisions and consensus
-    operations/                 # admin job inspection and recovery use cases
-  models/                       # shared ORM registry, retained during migration
-  db/                           # store clients, sessions and transaction helpers
-  ml/
-    registry.py                 # model IDs/revisions/artifact metadata
-    lifecycle.py                # preparation, readiness and bounded loading
-    embeddings.py               # explicit model-space contract
-    extraction.py               # structured extraction adapter
-    stance.py                   # versioned NLI adapter
-  jobs/
-    service.py                  # submission, idempotency and result visibility
-    repository.py               # atomic claims, leases, terminal transitions
-    handlers.py                 # job type -> application use case
-    worker.py                   # worker process lifecycle
-    scheduler.py                # enqueue scheduled work only
-  research/                     # pure reusable evaluation/export logic
-  cli/                          # operator and research commands
-```
+No new service, package manager, database migration or dataset transformation is
+required for this organization. Existing startup wrappers remain supported.
 
-Typical feature module contains `service.py`, `schemas.py` and, only when
-needed, `queries.py` or `repository.py`. Add files because responsibilities
-require them, not to satisfy a template. Retain the ORM registry and migration
-imports until an isolated migration proves a later change safe.
-
-Dependency direction: HTTP/CLI/job adapters -> application use cases -> storage
-and ML adapters. Pure mutation/metric functions must not import FastAPI, fetch
-URLs, read secrets or open a database. Research runners may call production
-algorithms with frozen inputs; production modules must not import experiment
-scripts or read evaluation labels.
-
-## 4. Frontend layout
+## Frontend ownership
 
 ```text
-frontend/src/
-  app/                          # routing, providers, app shell
-  pages/                        # landing and dashboard composition
+src/
+  main.tsx
+  app/
+    App.tsx                     # compose destination and runtime-specific page
+    routing/                    # pure route resolver and URL/session transitions
+    providers/                  # query and publication context composition
+    layouts/                    # published workspace composition
   features/
-    account/                    # sign in/out, account and session UI
-    corpus/                     # article list, filters and search
-    claim-check/                # submit, queued/running/result/error states
-    mutation/                   # comparison and supporting spans
-    graph/                      # graph views, dossier and timeline
-    evaluation/                 # blinded annotation workflows
-    operations/                 # health, jobs and admin controls
+    account/                    # sign-in page and account experience
+    articles/                   # reader, search and per-article investigation
+    claims/                     # saved claims / local claim checking
+    comparison/                 # wording comparison
+    investigations/             # private saved investigations
+    graph/                      # graph, timeline and source/claim views
+    research/                   # evaluation and Project Lab
+    publishing/                 # upload, review, publication history
+    developer/                  # approved developer controls
+    operations/                 # local health/administrative workspace
+    navigation/                 # shared workspace header and tool directory
+    experiments/                # explicit demonstration controls
+    landing/                    # first visit and project explanation
   shared/
-    api/
-      transport.ts              # real HTTP, auth, timeout, cancellation
-      generated.ts              # checked types generated from backend schema
-      errors.ts                 # normalized error contract
-    ui/                         # dialogs, buttons, empty/error/loading states
-    hooks/                      # visibility/polling and animation lifecycle
-    lib/                        # URL validation, downloads and small utilities
-    session/                    # session state and refresh coordination
-  demo/                         # explicit deterministic demonstration adapter
-  styles/
+    api/                        # transport and typed API clients
+    session/                    # memory-only authentication/session state
+    runtime/                    # capability detection
+    navigation/                 # safe return links, article routes, tab identifiers
+    providers/                  # shared polling configuration
+    hooks/                      # visibility/polling and other reusable hooks
+    lib/                        # reusable formatting, URL/download helpers
+    ui/                         # reusable visual elements
+  styles/                       # existing theme and typography
 ```
 
-Move one feature at a time. Existing imports may use temporary re-export shims
-with a removal issue. Features consume shared transport; no global transport
-branch returns random claims or silently falls back to public JSON. Production
-requests and demonstrations have different cache keys and visible mode labels.
+Dependencies flow from `app` to `features` to `shared`. Shared code cannot import
+feature pages or the application. Features cannot import `app`. Features may
+compose another feature through an explicit import where already necessary;
+do not invent a second shared layer to hide coupling. Type-only imports do not
+create runtime dependencies. Direct `fetch` stays in `shared/api/client.ts`.
 
-Generate types after response models cover the relevant API. Type assertions
-do not validate server JSON: validate critical job/evidence responses at the
-boundary and test representative error bodies. Avoid hand-maintained duplicate
-schemas without a drift check.
+`npm run check:architecture` rejects incorrect directions, unresolved source
+imports, runtime cycles and bypasses of the shared transport. Its failure
+fixtures run with `npm run test:architecture`. Both checks run in CI.
 
-## 5. Runtime and persistence contracts
+The resolver is deliberately small and pure; URL/session side effects live in
+`useAppRoute`. Tests preserve landing, sign-in returns, reader/search, article
+tabs, developer/upload routes and existing advanced aliases. No router-library
+migration is needed merely to organize files.
 
-| Boundary | Contract |
-|---|---|
-| API | Short requests; validate, authorize, read or enqueue; no scheduler and no startup data imports |
-| Worker | Concurrency one initially; explicitly prepared models; bounded work; renew leases; shutdown cleanly |
-| Scheduler | Optional; creates uniquely keyed scheduled jobs; can be disabled without losing manual execution |
-| PostgreSQL | Authoritative content, labels, jobs, model provenance and projection checkpoints |
-| Neo4j | Derived graph; lag reported; retry/rebuild without changing scientific labels |
-| Redis | Rate limiting and revocation; sensitive operations fail closed on outage |
-| Experiment process | Frozen export inputs; no writes to live annotations or production results |
+## Backend ownership
 
-### Job state machine
+```text
+app/
+  main.py                       # full local application and lifespan
+  cloud.py                      # published-data application and lifespan
+  api/
+    deps.py                     # request authentication and datastore injection
+    v1/                         # existing HTTP adapters and public route prefixes
+  core/                         # settings, crypto, security and observability
+  runtime/scheduler.py          # local process scheduling and lifecycle
+  db/                           # client/engine construction
+  models/                       # shared SQLAlchemy registry; unchanged schema
+  schemas/                      # request/response and publication validation
+  repositories/                 # existing persistence helpers
+  ml/                           # extraction, embedding and entity adapters
+  services/
+    identity/                   # authenticated account/session use cases
+    collection/                 # orchestration, source adapters and seeding
+    preprocessing/              # orchestration, cleaning/language/deduplication
+    analysis/                   # NLP orchestration using model adapters
+    evolution/                  # clustering, typed changes and graph projection
+    verdict/                    # evidence retrieval, stance and saved assessments
+    publications/               # export, staging, validation and active release
+    research/
+      controls.py               # fixed Project Lab controls
+      evaluation/               # annotation, dataset, metrics and experiment logic
+    pipeline/                   # durable stage ownership and job records
+    operations/                 # alert use cases
+    experiments/                # explicit simulation support
+```
 
-Proposed states: `queued -> running -> succeeded | failed | cancelled`.
-Expired attempts become `abandoned`; an explicit retry creates a new attempt
-linked to the original logical job. Preserve attempt history and bounded retries.
+HTTP/CLI/runtime code composes services. Services and lower layers cannot import
+HTTP adapters or ASGI entrypoints. Models/storage/schemas cannot acquire service
+or ML dependencies. Deterministic quantity/text/diff modules accept values and
+remain free of database, network and model imports.
 
-Add fields only through new migrations: logical job ID/idempotency key,
-validated payload and schema version, attempt ID/count, owner/fencing token,
-lease and heartbeat times, requested-by identity, result reference, safe error
-code, cancellation request and processing-version metadata.
+Run `python infra/scripts/check_backend_architecture.py` without credentials to
+check these rules. This is a static import guard, not a security sandbox or
+proof of every dynamic dependency. The separate minimal-environment cloud
+check verifies the actual cloud import graph and excludes heavy ML libraries.
 
-- Atomically claim queued jobs with PostgreSQL locking/conditional updates.
-- Preserve the existing one-running-per-type constraint until a deliberate,
-  tested concurrency policy replaces it. Restrict duplicate active logical jobs.
-- Define idempotency by principal, operation and key; reject key reuse with a
-  different payload. Scheduled keys include stage and scheduled interval.
-- Renew leases independently of a slow model call, using short-lived sessions.
-- Check fencing at each durable mutation; job-record fencing alone is insufficient.
-- Commit output and success together where they share a transaction. For graph
-  projection use a durable retry/checkpoint record and idempotent upserts.
-- Thread cancellation does not stop CPU inference. Stop accepting new work,
-  fence late results, and use process isolation if hard termination is required.
-- A browser disconnect never determines whether durable work succeeded.
+Two existing `HuggingFaceLLMClient` compatibility methods call pure text analysis
+and the stance engine. These exact helper modules are documented exceptions in
+the guard, restricted to that adapter. Extracting the stance adapter from the
+large verdict engine remains a follow-up, with cache/model tests preserved.
 
-Proposed API: `POST /api/v1/jobs` returns 202 and a status location;
-`GET /api/v1/jobs/{id}` returns authorized status/result;
-`POST /api/v1/jobs/{id}/cancel` requests best-effort cancellation.
-Users can inspect their own claim-check jobs. Admins can trigger pipeline
-jobs and inspect operational metadata. Server-side authorization applies to
-every job type and result; arbitrary handler names or filesystem paths are rejected.
-Migrate existing `/trigger` clients using additive endpoints and contract tests.
+## Stable interfaces and scientific provenance
 
-### Models and scientific records
+`contracts/` records HTTP method/path inventories and the complete publication
+JSON schema. The snapshots were captured before moving modules. Route
+inventories do not prove response compatibility by themselves; existing API,
+authorization, publication/concurrency and frontend contract tests remain required.
+Intentionally changing an interface requires review of the contract diff.
 
-Each model artifact records identifier, immutable revision/hash, tokenizer,
-dimensions, preprocessing version, license, local path and preparation status.
-Query embeddings must match stored embedding-space identity, not just size.
-Prepare models explicitly before worker launch; no request-triggered downloads.
-Record inference provider and disclose remote text transfer when configured.
-External claim checking is a separate capability with tested source attribution;
-disable it if that evidence contract cannot be met within the sprint.
+Research source manifests now use the new evaluation package paths and hash all
+14 required sources. Missing sources fail rather than silently disappearing
+from the report. Existing frozen reports are retained unchanged; new source
+hashes must not be retroactively attached to an old experiment.
 
-Retain article/claim IDs and existing embeddings during migration. Add
-versioned derived results; do not overwrite old outputs as if they were produced
-by the new method. Legacy probability fields remain compatibility fields with
-explicit uncalibrated-score semantics until an API migration removes ambiguity.
+Migration scripts, recorded corpus exports and the original local database are
+preserved. Structural movement is not authorization to rerun inference, publish
+a replacement collection or migrate a live database.
 
-### Health, observability and security
+## Move records and safe integration
 
-Liveness reports process survival. Readiness reports the declared deployment's
-required dependencies. Feature capability status separately reports worker,
-models and graph availability/freshness. Missing optional capability produces
-an explicit unavailable state; missing required auth dependency blocks the
-protected action. Missing clients must be handled before readiness dependency
-resolution can escape as an unstructured 500.
+The complete file mappings are [frontend moves](architecture/frontend-move-map.json)
+and [backend moves](architecture/backend-move-map.json). Use these when integrating
+another developer's branch: apply their logic to the new destination, resolve
+imports and run the relevant checks. Do not restore the old folder tree as a
+second implementation. Shared branches must not be force-pushed.
 
-Log request/job IDs, route templates, durations, error codes and attempt state.
-Exclude passwords, tokens, query claim text and raw provider errors. Persist
-audits for admin triggers/recovery with principal, action, time and outcome.
-Track queue age, lease loss, failures, worker heartbeat, model readiness,
-projection lag and backup age. Avoid claim/user IDs as metric labels.
+Keep tests near their existing test roots during this migration; renaming every
+test directory adds conflict risk without changing its coverage. Keep existing
+Docker contexts and script names. Generated logs remain ignored. The original
+[structure proposal](architecture/original-structure-proposal.md) is historical
+design context, not a list of implemented folders.
 
-Keep existing memory-only browser tokens initially; test reload/sign-out
-behavior explicitly. Refresh rotation must use an atomic database transaction.
-Revocation loss on Redis restart needs a tested policy (for example session
-version invalidation); Redis persistence alone is not an authentication proof.
-Provision the two users and admin deliberately; disable open registration in
-the private pilot or enforce an invitation policy. Include provider prompt
-injection, untrusted links/text, admin recovery abuse and secret leakage in tests.
+## Remaining production work
 
-## 6. Migration map
+The structure supports extension; it does not guarantee capacity or publication
+acceptance. Follow the [master task sheet](../TASK_SHEET.md) for acceptance gates.
 
-| Current | Target | Sprint decision |
-|---|---|---|
-| `services/pipeline/*`, `core/scheduler.py` | `jobs/*` | First meaningful extraction; implement lifecycle tests |
-| `services/auth_service.py`, auth repositories | `modules/identity/*` | Fix atomicity first; move only if checks stay green |
-| `services/nlp/*` | `ml/*` and `modules/claims/*` | Separate lifecycle and use cases; preserve adapters |
-| `services/evolution/*` | `modules/evolution/*` | Preserve algorithm behavior and fixture results |
-| `services/verdict/*` | `modules/evidence/*` | Preserve scientific semantics; no silent re-score |
-| `services/eval/*` | `research/*` plus `modules/annotations/*` | Pure evaluation and live annotation kept distinct |
-| `frontend/src/api/*` | shared transport plus feature APIs | Remove fabricated transport first |
-| flat React components | feature folders and shared UI | Move touched features only this sprint |
-| research/backup scripts | documented thin wrappers | Identify canonical entrypoint; preserve old commands temporarily |
-| historical exports/results | manifests and legacy classification | No automatic deletion or relabeling |
+1. Optimize reader route bundles and remaining query payloads against measured budgets.
+2. Rehearse full-release backup/restore and rollback with a retained export.
+3. Complete publication download/review ergonomics and bounded large-release tests.
+4. Separate bounded worker execution from HTTP lifecycles, with lease/fencing tests.
+5. Complete prepared model lifecycle/version metadata and stance-adapter extraction.
+6. Complete licensed data inventory, independent human annotation, frozen splits,
+   baselines, uncertainty analysis and the manuscript's actual results.
 
-For each move: inventory callers -> add targeted contract fixture -> move and
-update imports -> run relevant checks -> update CI/Docker/docs paths -> review
-diff -> remove temporary shim only after caller search is empty. Never combine
-folder migration, schema rewrite and algorithm replacement in a single change.
+Each behavior change belongs in a separately reviewable commit with targeted
+tests and deployment evidence. Do not lower existing thresholds to finish a plan.

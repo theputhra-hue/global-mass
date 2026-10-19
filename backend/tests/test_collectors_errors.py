@@ -5,10 +5,10 @@ import httpx
 import pytest
 
 from app.models.source import Source, SourceTypeEnum
-from app.services.collectors.base import MissingCredentialsError
-from app.services.collectors.news_api import NewsAPICollector
-from app.services.collectors.reddit import RedditCollector
-from app.services.collectors.rss import RSSCollector
+from app.services.collection.collectors.base import MissingCredentialsError
+from app.services.collection.collectors.news_api import NewsAPICollector
+from app.services.collection.collectors.reddit import RedditCollector
+from app.services.collection.collectors.rss import RSSCollector
 
 
 def _source(t: SourceTypeEnum, ident: str = "feed") -> Source:

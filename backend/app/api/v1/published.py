@@ -20,7 +20,7 @@ from app.models.publication import (
 from app.models.publication import (
     PublishedRelationshipRow as Edge,
 )
-from app.services.publication_store import status
+from app.services.publications.store import status
 
 router = APIRouter()
 
@@ -100,7 +100,12 @@ async def stats(run: uuid.UUID = Depends(active), db: AsyncSession = Depends(get
 async def detail(article_id: uuid.UUID, run: uuid.UUID = Depends(active), db: AsyncSession = Depends(get_db_session)) -> dict[str, Any]:
     row = await article_row(db, run, article_id)
     count = await db.scalar(select(func.count()).select_from(Claim).where(Claim.run_id == run, Claim.article_id == article_id))
-    return {**article_json(row), "body": "", "body_source": "not_published", "content_completeness": "not_published", "claims_total": count or 0}
+    label = func.coalesce(func.nullif(func.upper(func.trim(Claim.payload["verdict"].as_string())), ""), "UNASSESSED")
+    assessment_counts = dict((await db.execute(
+        select(label, func.count()).where(Claim.run_id == run, Claim.article_id == article_id).group_by(label)
+    )).all())
+    return {**article_json(row), "body": "", "body_source": "not_published", "content_completeness": "not_published",
+            "claims_total": count or 0, "assessment_counts": assessment_counts}
 
 
 @router.get("/corpus/articles/{article_id}/claims")
@@ -142,29 +147,14 @@ async def connections(article_id: uuid.UUID, limit: int = Query(100, ge=1, le=20
 
 @router.get("/graph/full")
 async def graph(run: uuid.UUID = Depends(active), db: AsyncSession = Depends(get_db_session)) -> dict[str, Any]:
-    # A bounded article projection derived from stored claim links, independent of Neo4j.
-    nodes = (await db.scalars(select(Article).where(Article.run_id == run).order_by(Article.id).limit(1000))).all()
-    selected = {node.id for node in nodes}
-    mapping_rows = (await db.execute(select(Claim.id, Claim.article_id).where(Claim.run_id == run, Claim.article_id.in_(selected)))).all()
-    mappings = {claim_id: article_id for claim_id, article_id in mapping_rows}
-    edges = (await db.scalars(select(Edge).where(Edge.run_id == run, Edge.from_claim_id.in_(mappings), Edge.to_claim_id.in_(mappings)).order_by(Edge.id).limit(2000))).all()
-    links = [{"src": str(mappings[e.from_claim_id]), "dst": str(mappings[e.to_claim_id]), "score": e.payload["score"]} for e in edges]
-    return {"nodes": [article_json(node) for node in nodes], "edges": links,
-            "counts": {"nodes": len(nodes), "edges": len(links)}, "basis": "published_article_relationship_projection", "bounded": True}
+    from app.services.publications.graph_projection import published_graph
+    return await published_graph(db, run, claims=False)
 
 
 @router.get("/graph/claims")
 async def claim_graph(run: uuid.UUID = Depends(active), db: AsyncSession = Depends(get_db_session)) -> dict[str, Any]:
-    rows = (await db.execute(select(Claim, Article).join(Article, (Article.run_id == Claim.run_id) & (Article.id == Claim.article_id))
-                            .where(Claim.run_id == run).order_by(Claim.id).limit(1000))).all()
-    ids = {claim.id for claim, article in rows}
-    links = (await db.scalars(select(Edge).where(Edge.run_id == run, Edge.from_claim_id.in_(ids), Edge.to_claim_id.in_(ids)).order_by(Edge.id).limit(2000))).all()
-    return {"nodes": [{"id": str(c.id), "article_id": str(c.article_id), "title": c.text,
-                        "domain": a.domain, "url": a.payload["url"], "verdict": c.payload.get("verdict"),
-                        "prob": c.payload.get("verdict_probability")} for c, a in rows],
-            "edges": [{"src": str(e.from_claim_id), "dst": str(e.to_claim_id), "score": e.payload["score"],
-                       "relationship_type": e.payload["relationship_type"]} for e in links],
-            "counts": {"nodes": len(rows), "edges": len(links)}, "bounded": True}
+    from app.services.publications.graph_projection import published_graph
+    return await published_graph(db, run, claims=True)
 
 
 @router.get("/corpus/search")

@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 from app.models.article import NLPStatusEnum, ProcessingStatusEnum
 from app.schemas.publication import PublicationProvenance
-from app.services.publication_export import export_snapshot
+from app.services.publications.export import export_snapshot
 from tests.test_article_insights import dataset
 from tests.test_publication_contract import snapshot_payload
 

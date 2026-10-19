@@ -1,6 +1,6 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ProjectLab } from '../src/components/ProjectLab';
+import { ProjectLab } from '../src/features/research/components/ProjectLab';
 import { jsonResponse, mockApi, renderWithClient } from './helpers';
 
 describe('Project Lab',()=>{

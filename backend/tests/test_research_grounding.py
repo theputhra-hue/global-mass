@@ -5,10 +5,13 @@ from typing import Any
 
 import pytest
 
-from app.services.eval.annotation import RUBRIC_VERSION
-from app.services.eval.dataset import DatasetError, validate_dataset
-from app.services.eval.grounding import grounding_evaluation, grounding_prediction
-from app.services.eval.research import ExperimentConfig, run_experiment
+from app.services.research.evaluation.annotation import RUBRIC_VERSION
+from app.services.research.evaluation.dataset import DatasetError, validate_dataset
+from app.services.research.evaluation.grounding import (
+    grounding_evaluation,
+    grounding_prediction,
+)
+from app.services.research.evaluation.research import ExperimentConfig, run_experiment
 from tests.test_research_support import research_records
 
 

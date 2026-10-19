@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
-import { clearSession } from '../src/lib/session';
-import { clearSelectedArticle } from '../src/lib/useSelectedArticle';
+import { clearSession } from '../src/shared/session/session';
+import { clearSelectedArticle } from '../src/shared/navigation/useSelectedArticle';
 
 beforeEach(() => {
   // Canvas rendering is a browser concern; jsdom's unimplemented context

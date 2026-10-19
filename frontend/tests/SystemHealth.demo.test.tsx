@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { SystemHealth } from '../src/pages/SystemHealth';
+import { SystemHealth } from '../src/features/operations/pages/SystemHealth';
 import { emptyDashboardApi, mockApi, renderWithClient } from './helpers';
 
 describe('explicit optional infrastructure simulator', () => {

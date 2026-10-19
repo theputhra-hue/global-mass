@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from app.services.eval.metrics import (
+from app.services.research.evaluation.metrics import (
     auroc,
     average_precision,
     best_f1_threshold,

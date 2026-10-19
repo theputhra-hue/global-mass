@@ -1,8 +1,8 @@
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import FullCorpusGraph from '../src/components/FullCorpusGraph';
-import { GraphVisualizer } from '../src/components/GraphVisualizer';
-import { clearSelectedArticle, useSelectedArticle } from '../src/lib/useSelectedArticle';
+import FullCorpusGraph from '../src/features/graph/components/FullCorpusGraph';
+import { GraphVisualizer } from '../src/features/graph/components/GraphVisualizer';
+import { clearSelectedArticle, useSelectedArticle } from '../src/shared/navigation/useSelectedArticle';
 import { jsonResponse, mockApi, renderWithClient } from './helpers';
 
 const articleId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -17,7 +17,7 @@ describe('graph article identity drill-down', () => {
     renderWithClient(<FullCorpusGraph />);
     await screen.findByRole('option', { name: 'Actual corpus article' });
     fireEvent.change(screen.getByLabelText('Inspect a node (keyboard alternative)'), { target: { value: articleId } });
-    expect(screen.getByRole('link', { name: /View in Timeline/ }).getAttribute('href')).toBe(`#/dashboard/articles/${articleId}/timeline`);
+    expect(screen.getByRole('link', { name: /View in Timeline/ }).getAttribute('href')).toContain(`#/dashboard/articles/${articleId}/timeline`);
   });
   it('renders shared articles once and preserves links between cluster hubs', async () => {
     const navigate = vi.fn();
@@ -47,7 +47,7 @@ describe('graph article identity drill-down', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Claims' }));
     await screen.findByRole('option', { name: 'Actual extracted claim' });
     fireEvent.change(screen.getByLabelText('Inspect a node (keyboard alternative)'), { target: { value: claimId } });
-    expect(screen.getByRole('link', { name: /Open article details/ }).getAttribute('href')).toContain(`/articles/${articleId}/overview`);
+    expect(within(screen.getByRole('region', { name: 'Selected graph record' })).getByRole('link', { name: /Open article details/ }).getAttribute('href')).toContain(`/articles/${articleId}/claims?claim=${claimId}`);
     fireEvent.click(screen.getByRole('button', { name: /View in Timeline/ }));
     expect(navigate).toHaveBeenCalledWith('timeline');
   });
@@ -74,15 +74,15 @@ describe('graph article identity drill-down', () => {
     mockApi(() => jsonResponse(articleGraph));
     renderWithClient(<FullCorpusGraph />);
     await screen.findByRole('option', { name: 'Actual corpus article' });
-    expect(screen.getByText('The connected corpus')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Whole-Corpus Graph' })).toBeTruthy();
     expect((screen.getByRole('checkbox', { name: 'Show all connections' }) as HTMLInputElement).checked).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /source.example/ }));
-    expect(screen.getByRole('button', { name: 'Back to full network' })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Graph outlet filter'), { target: { value: 'source.example' } });
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Graph title search'), { target: { value: 'no matching title' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search graph titles' }));
     expect(screen.getByText('No articles match these filters.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(screen.getByText('The connected corpus')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Whole-Corpus Graph' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Actual corpus article' })).toBeTruthy();
   });
 
@@ -94,9 +94,9 @@ describe('graph article identity drill-down', () => {
     }));
     renderWithClient(<FullCorpusGraph />);
     await screen.findByRole('option', { name: 'Connected coverage' });
-    expect(screen.getByText('2 articles · 1 similarity link')).toBeTruthy();
+    expect(screen.getByText(/In this view: 2 articles · 1 relationship groups/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Inspect a node (keyboard alternative)'), { target: { value: articleId } });
-    expect(screen.getByText('The connected corpus')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Whole-Corpus Graph' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Connected coverage' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Back to full network' })).toBeNull();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show all connections' }));

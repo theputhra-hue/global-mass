@@ -15,7 +15,17 @@ role_fixture_router = APIRouter()
 @role_fixture_router.get("/admin-only")
 async def admin_only_route(user: User = Depends(require_role("admin"))) -> dict[str, str]:
     return {"status": "ok"}
-app.include_router(role_fixture_router, prefix="/api/v1/test")
+
+@pytest.fixture(scope="module", autouse=True)
+def role_fixture_routes():
+    """Install test-only routes during this module, not during test collection."""
+    original_routes = list(app.router.routes)
+    original_schema = app.openapi_schema
+    app.include_router(role_fixture_router, prefix="/api/v1/test")
+    app.openapi_schema = None
+    yield
+    app.router.routes[:] = original_routes
+    app.openapi_schema = original_schema
 
 @pytest.mark.asyncio
 async def test_register_success(async_client: AsyncClient, db_session: AsyncSession) -> None:

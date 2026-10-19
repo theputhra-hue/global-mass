@@ -63,6 +63,12 @@ dataaa/
 # including frontend/src/lib — which silently kept `src/lib/sound.ts` out of
 # the repository and left clones unable to build the dashboard. Re-include it.
 !frontend/src/lib/
+!frontend/src/shared/lib/
+!frontend/src/features/graph/lib/
+
+# Historical collaborator checkout: preserved on disk, never a second source root.
+# Review differences using the foundation inventory before deliberate archiving.
+/1/
 
 # Test coverage output
 coverage/

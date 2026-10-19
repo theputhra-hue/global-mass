@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.source import Source
-from app.services import seeder
+from app.services.collection import seeding as seeder
 
 
 class _FakeSessionMaker:
@@ -26,7 +26,7 @@ class _FakeSessionMaker:
 
 async def test_seed_sources_populates_empty_db(db_session, monkeypatch, caplog):
     monkeypatch.setattr(seeder, "async_session_maker", _FakeSessionMaker(db_session))
-    with caplog.at_level(logging.INFO, logger="app.services.seeder"):
+    with caplog.at_level(logging.INFO, logger="app.services.collection.seeding"):
         await seeder.seed_sources()
 
     assert "Initial sources seeded successfully" in caplog.text

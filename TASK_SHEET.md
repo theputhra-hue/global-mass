@@ -1,10 +1,44 @@
 # GMEE master development task sheet
 
-Updated: **2026-10-15 (Asia/Calcutta)**. Baseline: **`19802e1`**.
+Updated: **2026-10-16 (Asia/Calcutta)**. Historical baseline: **`19802e1`**;
+current structure work starts from merged reader clarity **`1754bf9`**.
 
 This is the working checklist for the next development phase. Update it as work
 is verified; a design, implemented function, passing unit test, and validated
 release are different milestones.
+
+## Current batch: project foundation
+
+Next UI assignment: [navigation and data experience architecture](docs/NAVIGATION_AND_DATA_EXPERIENCE_PLAN.md).
+The [1,000-word Antigravity prompt](docs/prompts/ANTIGRAVITY_NAVIGATION_HANDOFF.md)
+is prepared for the owner to hand off. Status: **DESIGN READY; IMPLEMENTATION NOT
+STARTED**. Codex coordinates integration; one isolated Antigravity checkout owns
+the shared shell/routing work. Work packages N0-N6 and acceptance evidence are
+defined in the plan. No navigation code was changed while preparing this handoff.
+
+Owner ENG; branch `codex/project-foundation`. Scope is repository/module
+organization, stable interfaces, automated boundaries and contributor clarity.
+Review [the current source map](docs/PROJECT_STRUCTURE.md) and
+[verification evidence](docs/architecture/FOUNDATION_VERIFICATION.md).
+
+| Item | State | Acceptance/evidence |
+| --- | --- | --- |
+| F01 Capture baseline and legacy inventory | DONE | Baseline 196 frontend tests, 643 backend tests; tracked file hashes and ignored local inventory retained |
+| F02 Preserve API and publication interfaces | DONE | Local/cloud route snapshots and publication schema captured before moves; drift checks in CI |
+| F03 Organize frontend by responsibility | DONE | 73 file moves; feature/shared/app boundaries; tests and imports updated |
+| F04 Separate routing, providers and composition | DONE | Pure resolver plus route/session hook and provider composition; 213 frontend tests pass |
+| F05 Enforce frontend architecture | DONE | Dependency/cycle/transport guard plus 3 failure-fixture tests; CI required checks |
+| F06 Group backend use cases and model adapters | DONE | Identity, collection, analysis, publications, research, operations; stable ASGI/CLI entrypoints |
+| F07 Preserve research source provenance after moves | DONE | All 14 required sources hashed at current paths; missing files fail; frozen reports preserved |
+| F08 Enforce backend boundaries | DONE | Static layer/pure-function guard and failure fixtures; minimal cloud import check retained |
+| F09 Reconcile documentation and integration guide | DONE | Current map, original proposal retained as history, docs index, launch modes and contributor checks |
+| F10 Verify moved code and prepare review | DONE | 649 backend, 213 frontend, 30 infrastructure, 14 PostgreSQL and 3 real-model tests; browser, contracts and container evidence recorded; remote review/deployment remain release gates |
+| F11 Improve release review/download and payload efficiency | PARTIAL | Status and ten-item history return SQL metadata only; complete download, review ergonomics and large-release fixtures remain open |
+| F12 Worker/model lifecycle and publication research gates | OPEN | Existing roadmap below remains authoritative; organization alone does not meet these gates |
+
+Folder `1/`, original data, private credentials and migration history are
+preserved. Matching file names in the legacy inventory do not prove matching
+logic. No automatic deletion or replacement import is authorized by this batch.
 
 The [major-project integration record](docs/INTEGRATION_REVIEW.md) tracks the
 new research/Casebook/Project Lab work merged onto upstream `8d8ff3c`, including

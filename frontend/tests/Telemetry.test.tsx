@@ -6,10 +6,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { CacheTelemetry } from '../src/components/CacheTelemetry';
-import { VectorTelemetry } from '../src/components/VectorTelemetry';
-import { LiveAuditFeed } from '../src/components/LiveAuditFeed';
-import { corpusApi } from '../src/api/corpus';
+import { CacheTelemetry } from '../src/features/operations/components/CacheTelemetry';
+import { VectorTelemetry } from '../src/features/operations/components/VectorTelemetry';
+import { LiveAuditFeed } from '../src/features/articles/components/LiveAuditFeed';
+import { corpusApi } from '../src/shared/api/corpus';
 
 const recentItem = {
   id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
@@ -22,7 +22,7 @@ const recentItem = {
   word_count: 512,
 };
 
-vi.mock('../src/api/corpus', () => ({
+vi.mock('../src/shared/api/corpus', () => ({
   corpusApi: {
     recent: vi.fn(),
     stats: vi.fn(),

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.eval.dataset import (
+from app.services.research.evaluation.dataset import (
     DatasetError,
     build_export,
     connected_components,

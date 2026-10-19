@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { FactCheck } from '../src/components/FactCheck';
+import { FactCheck } from '../src/features/claims/components/FactCheck';
 import { jsonResponse, mockApi, renderWithClient } from './helpers';
 
 const row = {

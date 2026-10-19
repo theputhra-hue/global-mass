@@ -10,11 +10,11 @@ from app.api.deps import get_current_user
 from app.models.article import Article
 from app.models.source import Source, SourceTypeEnum
 from app.models.user import RoleEnum, User
-from app.services.collection_orchestrator import CollectionOrchestrator
-from app.services.collectors.base import MissingCredentialsError
-from app.services.collectors.news_api import NewsAPICollector
-from app.services.collectors.reddit import RedditCollector
-from app.services.collectors.rss import RSSCollector
+from app.services.collection.collectors.base import MissingCredentialsError
+from app.services.collection.collectors.news_api import NewsAPICollector
+from app.services.collection.collectors.reddit import RedditCollector
+from app.services.collection.collectors.rss import RSSCollector
+from app.services.collection.orchestrator import CollectionOrchestrator
 
 
 class MockResponse:
@@ -242,7 +242,7 @@ def isolated_graph_projection(monkeypatch: pytest.MonkeyPatch):
 
     from app.services.evolution.neo4j_writer import Neo4jWriter
     monkeypatch.setattr(Neo4jWriter, "sync_persisted_graph", AsyncMock(return_value={"success": True}))
-    from app.services.nlp_orchestrator import NLPOrchestrator, NLPSummary
+    from app.services.analysis.orchestrator import NLPOrchestrator, NLPSummary
 
     # The chained NLP stage has its own model/integration tests. These unit
     # fixtures must not download weights or turn collection tests into inference.

@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
-from app.services.project_lab import challenge_report
+from app.services.research.controls import challenge_report
 
 
 def handler_for(directory: Path) -> type[BaseHTTPRequestHandler]:

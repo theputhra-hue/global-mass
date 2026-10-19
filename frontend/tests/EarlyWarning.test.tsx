@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { EarlyWarning } from '../src/components/EarlyWarning';
+import { EarlyWarning } from '../src/features/operations/components/EarlyWarning';
 
 const feedPayload = {
   generated_at: '2026-09-20T10:00:00+00:00',
@@ -54,7 +54,7 @@ const snapshotPayload = {
   },
 };
 
-vi.mock('../src/api/client', () => ({
+vi.mock('../src/shared/api/client', () => ({
   apiClient: {
     get: vi.fn(async (endpoint: string) => {
       if (endpoint.startsWith('/alerts/feed')) return feedPayload;
@@ -97,7 +97,7 @@ describe('<EarlyWarning/> — persisted alerts + 24h snapshot', () => {
   });
 
   it('shows the quiet state when no alerts are open', async () => {
-    const { apiClient } = await import('../src/api/client');
+    const { apiClient } = await import('../src/shared/api/client');
     (apiClient.get as ReturnType<typeof vi.fn>).mockImplementation(async (endpoint: string) => {
       if (endpoint.startsWith('/alerts/feed')) {
         return {
@@ -123,7 +123,7 @@ describe('<EarlyWarning/> — persisted alerts + 24h snapshot', () => {
   });
 
   it('never fabricates rows when the backend is unreachable', async () => {
-    const { apiClient } = await import('../src/api/client');
+    const { apiClient } = await import('../src/shared/api/client');
     (apiClient.get as ReturnType<typeof vi.fn>).mockImplementation(async () => {
       throw new TypeError('Failed to fetch');
     });

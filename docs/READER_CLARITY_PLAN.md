@@ -111,7 +111,7 @@ compact freshness notice and cloud graph-to-article timeline navigation. Existin
 article tabs, specialist routes and developer access checks are retained. No
 source database, publication data or account permissions were changed.
 
-See [verification](validation/READER_CLARITY_2026-10-16.md). The redesign remains
-a branch preview until its PR is merged and deployment is verified. U05 and the
-remaining U06–U09 work stay open; this is not a claim of complete product or
-scientific validation.
+See [verification](validation/READER_CLARITY_2026-10-16.md). PR #5 was merged at
+`1754bf9`; this is now the baseline for the structural foundation migration.
+U05 and the remaining U06–U09 work stay open; this is not a claim of complete
+product or scientific validation.

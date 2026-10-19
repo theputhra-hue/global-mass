@@ -12,10 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session
 from app.db.neo4j_client import neo4j_client
+from app.ml.embedding_service import EmbeddingService
 from app.models.article import Article, ProcessingStatusEnum
 from app.models.claim import Claim
 from app.models.source import Source
-from app.services.nlp.embedding_service import EmbeddingService
 
 logger = logging.getLogger(__name__)
 

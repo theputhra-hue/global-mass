@@ -69,7 +69,7 @@ async def test_concurrent_refresh_issues_only_one_successor() -> None:
     from app.models.session import Session
     from app.models.user import User
     from app.schemas.auth import RefreshRequest, TokenResponse
-    from app.services.auth_service import rotate_refresh_token
+    from app.services.identity.service import rotate_refresh_token
 
     user_id = uuid.uuid4()
     token = uuid.uuid4().hex
@@ -275,10 +275,10 @@ async def test_corpus_stats_and_search_use_claim_embeddings(monkeypatch: pytest.
     """Keep legacy claim-vector search without duplicating document-backed articles."""
     from app.api.v1 import corpus
     from app.db.postgres import async_session_maker
+    from app.ml.embedding_service import EmbeddingService
     from app.models.article import Article, ProcessingStatusEnum
     from app.models.claim import Claim
     from app.models.source import Source, SourceTypeEnum
-    from app.services.nlp.embedding_service import EmbeddingService
 
     async with async_session_maker() as db:
         before = await corpus.corpus_stats(db=db)

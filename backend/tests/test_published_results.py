@@ -81,6 +81,31 @@ async def test_retries_conflicts_replacement_and_rollback(cloud_client):
     assert (await client.get("/api/v1/corpus/articles")).json()["items"][0]["title"] == "Example"
 
 
+async def test_article_assessment_totals_are_scoped_to_active_release_and_article(cloud_client):
+    client, _ = cloud_client
+    first = snapshot_payload()
+    first["claims"][0]["verdict"] = "SUPPORTED"
+    receipt = await upload(client, first)
+    assert (await client.post(f"/api/v1/publications/{first['run_id']}/publish", json=publish_body(receipt))).status_code == 200
+    article_id = first["articles"][0]["id"]
+    detail = (await client.get(f"/api/v1/corpus/articles/{article_id}")).json()
+    assert detail["assessment_counts"] == {"SUPPORTED": 1, "UNASSESSED": 1}
+    second = copy.deepcopy(first)
+    second["run_id"] = str(uuid.uuid4())
+    second["claims"][0]["verdict"] = "UNSUPPORTED"
+    other = copy.deepcopy(second["articles"][0])
+    other["id"] = str(uuid.uuid4())
+    other["url"] = "https://example.org/another"
+    second["articles"].append(other)
+    extra = copy.deepcopy(second["claims"][0])
+    extra.update(id=str(uuid.uuid4()), article_id=other["id"], verdict="MIXED")
+    second["claims"].append(extra)
+    receipt = await upload(client, second)
+    assert (await client.post(f"/api/v1/publications/{second['run_id']}/publish", json=publish_body(receipt, 1))).status_code == 200
+    detail = (await client.get(f"/api/v1/corpus/articles/{article_id}")).json()
+    assert detail["assessment_counts"] == {"UNSUPPORTED": 1, "UNASSESSED": 1}
+
+
 @pytest.mark.parametrize("fault", ["fingerprint", "not_reviewed", "disabled", "unapproved", "inactive", "reader"])
 async def test_publication_gates_cannot_be_bypassed(cloud_client, monkeypatch, fault):
     client, user = cloud_client
@@ -118,3 +143,36 @@ async def test_cloud_has_no_pipeline_routes_and_public_controls_need_no_models(c
     response = await client.post("/api/v1/graph/mutation/compare", json={"older_text": "10 survivors", "newer_text": "12 survivors"})
     assert response.status_code == 200
     assert (await client.post("/api/v1/graph/mutation/compare", json={"older_text": "10 survivors", "newer_text": "12 survivors", "include_summary": True})).status_code == 409
+
+
+async def test_graph_prioritizes_connected_nodes_preserves_types_and_aggregates_claim_references(cloud_client, monkeypatch):
+    from app.services.publications import graph_projection
+    monkeypatch.setattr(graph_projection, "NODE_LIMIT", 2)
+    client, _ = cloud_client
+    payload = snapshot_payload()
+    a, b, isolated = [str(uuid.UUID(f"aaaaaaaa-aaaa-4aaa-8aaa-{i:012x}")) for i in (101, 102, 1)]
+    base = payload["articles"][0]
+    payload["articles"] = [{**base, "id": key, "url": f"https://example.org/{key}"} for key in (a, b, isolated)]
+    claims = [str(uuid.UUID(f"aaaaaaaa-aaaa-4aaa-8aaa-{i:012x}")) for i in range(201, 205)]
+    payload["claims"] = [{**payload["claims"][0], "id": key, "article_id": a if i < 2 else b} for i, key in enumerate(claims)]
+    stamp = payload["generated_at"]
+    payload["relationships"] = [{"id": str(uuid.UUID(f"bbbbbbbb-bbbb-4bbb-8bbb-{i+301:012x}")), "from_claim_id": claims[first], "to_claim_id": claims[second],
+        "relationship_type": kind, "score": score, "created_at": stamp} for i, (first, second, kind, score) in enumerate([
+            (0, 2, "SIMILAR_TO", .9), (1, 3, "SIMILAR_TO", .8), (2, 0, "EVOLVED_FROM", .7), (0, 1, "SIMILAR_TO", .95)])]
+    receipt = await upload(client, payload)
+    assert (await client.post(f"/api/v1/publications/{payload['run_id']}/publish", json=publish_body(receipt))).status_code == 200
+    graph = (await client.get("/api/v1/graph/full")).json()
+    assert {n["id"] for n in graph["nodes"]} == {a, b}  # Isolated lower UUID cannot crowd out links.
+    assert graph["scope"]["total_nodes"] == 3
+    assert graph["scope"]["total_relationships"] == 4
+    assert graph["scope"]["within_node_relationships"] == 1
+    assert graph["scope"]["truncated"] is True
+    assert len(graph["edges"]) == 2
+    similar = next(edge for edge in graph["edges"] if edge["relationship_type"] == "SIMILAR_TO")
+    assert similar["support_count"] == 2
+    assert similar["score_min"] == .8 and similar["score_max"] == .9
+    assert len(similar["references"]) == 2
+    assert similar["references"][0]["from_article_id"] == a
+    evolved = next(edge for edge in graph["edges"] if edge["relationship_type"] == "EVOLVED_FROM")
+    assert evolved["directed"] and evolved["src"] == b and evolved["dst"] == a
+    assert graph["run_id"] == payload["run_id"]

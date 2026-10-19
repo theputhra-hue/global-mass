@@ -1,7 +1,7 @@
 """HuggingFaceLLMClient: sentence filtering, claim scoring, batched extract."""
 from typing import Any
 
-from app.services.nlp.llm_client import (
+from app.ml.llm_client import (
     HuggingFaceLLMClient,
     _NoOpLLMClient,
     get_llm_client,
@@ -117,7 +117,7 @@ async def test_noop_client_returns_empty_and_factory_respects_backend(monkeypatc
     # with a lightweight namespace (Settings has no LLM_BACKEND field).
     from types import SimpleNamespace
 
-    from app.services.nlp import llm_client as lc
+    from app.ml import llm_client as lc
 
     monkeypatch.setattr(
         lc,

@@ -14,8 +14,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import select, update
 
 from app.db.postgres import async_session_maker
+from app.ml.embedding_service import EmbeddingService
 from app.models.article import Article, ProcessingStatusEnum
-from app.services.nlp.embedding_service import EmbeddingService
 
 
 async def backfill(limit: int = 100) -> int:

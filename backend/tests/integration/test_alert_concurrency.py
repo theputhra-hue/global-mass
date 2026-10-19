@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 from app.api.v1.alerts import acknowledge_alert
 from app.db.postgres import async_session_maker, engine
 from app.models.evolution import Alert
-from app.services.alerts import _upsert_alert
+from app.services.operations.alerts import _upsert_alert
 
 pytestmark = pytest.mark.integration
 

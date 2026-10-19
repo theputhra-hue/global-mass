@@ -22,7 +22,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db_session, require_role
 from app.models.user import RoleEnum
-from app.services.alerts import build_alerts, collect_alert_inputs, evaluate_alerts
+from app.services.operations.alerts import (
+    build_alerts,
+    collect_alert_inputs,
+    evaluate_alerts,
+)
 
 router = APIRouter()
 

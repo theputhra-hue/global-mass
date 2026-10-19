@@ -11,7 +11,7 @@ from app.models.article import Article, ProcessingStatusEnum
 from app.models.pipeline import JobTypeEnum
 from app.models.user import RoleEnum, User
 from app.services.pipeline.jobs import JobAlreadyRunning, run_job
-from app.services.preprocessing_orchestrator import PreprocessingOrchestrator
+from app.services.preprocessing.orchestrator import PreprocessingOrchestrator
 
 logger = logging.getLogger(__name__)
 

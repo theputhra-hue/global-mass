@@ -1,15 +1,15 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import TimelineTunnel from '../src/components/TimelineTunnel';
-import { timelineApi, TimelineCluster } from '../src/api/timeline';
-import { useSelectedArticle, clearSelectedArticle } from '../src/lib/useSelectedArticle';
+import TimelineTunnel from '../src/features/graph/components/TimelineTunnel';
+import { timelineApi, TimelineCluster } from '../src/shared/api/timeline';
+import { useSelectedArticle, clearSelectedArticle } from '../src/shared/navigation/useSelectedArticle';
 
-vi.mock('../src/api/timeline', () => ({
+vi.mock('../src/shared/api/timeline', () => ({
   timelineApi: { clusters: vi.fn() },
 }));
 
-vi.mock('../src/lib/useSelectedArticle', () => ({
+vi.mock('../src/shared/navigation/useSelectedArticle', () => ({
   useSelectedArticle: vi.fn(),
   clearSelectedArticle: vi.fn(),
 }));

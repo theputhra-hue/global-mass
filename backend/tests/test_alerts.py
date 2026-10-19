@@ -8,8 +8,12 @@ import pytest
 
 from app.models.claim import Claim
 from app.models.evolution import Alert, ClaimRelationship, RelationshipTypeEnum
-from app.services.alerts import build_alerts, collect_alert_inputs, evaluate_alerts
 from app.services.evolution.text_changes import analyze_text_change
+from app.services.operations.alerts import (
+    build_alerts,
+    collect_alert_inputs,
+    evaluate_alerts,
+)
 
 NOW = datetime(2026, 9, 16, 12, 0, tzinfo=UTC)
 PARENT_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1")
@@ -203,7 +207,7 @@ def _persistent_db(parent_text, child_text, *, stored=False, existing_alert=None
 async def test_persistent_mutation_alerts_are_parent_to_child_not_reversed(parent_text, child_text, direction, stored, monkeypatch):
     db, parent, child = _persistent_db(parent_text, child_text, stored=stored)
     persist = AsyncMock(return_value=True)
-    monkeypatch.setattr("app.services.alerts._upsert_alert", persist)
+    monkeypatch.setattr("app.services.operations.alerts._upsert_alert", persist)
     summary = await evaluate_alerts(db)
     assert summary["alerts_inserted"] == 1
     alert = Alert(**persist.call_args.args[1])
@@ -237,12 +241,12 @@ async def test_existing_reversed_alert_is_refreshed_without_losing_acknowledgeme
     db_session.add(existing)
     await db_session.commit()
     db, parent, child = _persistent_db("Officials reportedly found 10 people.", "Officials found 12 people.")
-    from app.services.alerts import _upsert_alert
+    from app.services.operations.alerts import _upsert_alert
 
     async def persist(_db, item, now):
         return await _upsert_alert(db_session, item, now)
 
-    monkeypatch.setattr("app.services.alerts._upsert_alert", persist)
+    monkeypatch.setattr("app.services.operations.alerts._upsert_alert", persist)
     summary = await evaluate_alerts(db)
     await db_session.commit()
     await db_session.refresh(existing)

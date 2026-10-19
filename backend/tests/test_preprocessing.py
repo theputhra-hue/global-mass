@@ -16,7 +16,7 @@ from app.services.preprocessing.metadata_extractor import (
     extract_or_repair_published_at,
 )
 from app.services.preprocessing.near_duplicate_detector import NearDuplicateDetector
-from app.services.preprocessing_orchestrator import PreprocessingOrchestrator
+from app.services.preprocessing.orchestrator import PreprocessingOrchestrator
 
 
 def test_cleaner():
@@ -156,8 +156,8 @@ async def test_orchestrator_resilience(db_session: AsyncSession, monkeypatch):
             raise ValueError("Simulated crash")
         return original_clean(text)
         
-    import app.services.preprocessing_orchestrator
-    monkeypatch.setattr(app.services.preprocessing_orchestrator, "clean_text", mock_clean)
+    import app.services.preprocessing.orchestrator
+    monkeypatch.setattr(app.services.preprocessing.orchestrator, "clean_text", mock_clean)
     
     orchestrator = PreprocessingOrchestrator()
     summary = await orchestrator.run_preprocessing_cycle(db_session)
@@ -242,7 +242,7 @@ def isolated_graph_projection(monkeypatch: pytest.MonkeyPatch):
 
     from app.services.evolution.neo4j_writer import Neo4jWriter
     monkeypatch.setattr(Neo4jWriter, "sync_persisted_graph", AsyncMock(return_value={"success": True}))
-    from app.services.nlp_orchestrator import NLPOrchestrator, NLPSummary
+    from app.services.analysis.orchestrator import NLPOrchestrator, NLPSummary
 
     # The chained NLP stage has its own model/integration tests. These unit
     # fixtures must not download weights or turn collection tests into inference.

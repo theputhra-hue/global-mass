@@ -27,8 +27,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 
 from app.db.postgres import async_session_maker
-from app.services.eval.metrics import mcnemar_test
-from app.services.eval.report import (
+from app.services.research.evaluation.metrics import mcnemar_test
+from app.services.research.evaluation.report import (
     ENGINE_OPERATING_POINT,
     build_report,
     consensus,
