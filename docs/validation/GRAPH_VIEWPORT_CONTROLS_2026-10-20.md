@@ -52,4 +52,34 @@ Local evidence in ignored `output/article-map-20261020/`:
 
 The current published dataset remains revision 4, run
 `315d6109-57bf-4cb1-9395-261825f633da`; no data upload or republishing is needed.
-CI and production deployment evidence follows after release.
+CI and production deployment evidence follows.
+
+## Release checks
+
+PR #11 feature head `caf1524` passed both frontend CI runs (310 tests/43 files,
+plus three architecture guard tests) and all static, PowerShell and HTTP smoke
+deployment contracts before normal merge. Backend files and publication data
+were not changed. CI coverage was 76.91% statements, 72.49% branches, 75.91%
+functions and 87.15% lines.
+
+Merged commit: `bbe220b8b0776f891b36b9ca240e4dab79050baa`.
+Render manual frontend deployment was requested for that exact tested commit.
+
+Frontend deployment `dep-dbbae267bikc73fqisag` succeeded in 25.5 seconds.
+Both `/` and `/index.html` serve `/assets/index-Dozm09bU.js` with the existing
+revalidation headers. The public API still returns revision 4 and canonical SHA
+`40447bbc111fe0a8df3d924b0c2d67f158f4710fba207c253f349a9fd7f29766`:
+7,421 articles, 5,157 claims and 300 original recorded relationships. This release
+did not re-upload or republish any data.
+
+Live browser sign-off loaded all 7,421 articles and 10,442 streets from the public
+API. At 1440 × 900, the sidebar collapsed to 72 px and the canvas measured
+1294.67 px; graph controls opened and closed normally. Zoom buttons produced
+100% → 140% → 100%, and the screenshot confirms separated labels/counts.
+No captured warning/error console entries or horizontal overflow. The final
+1707 × 1067 fullscreen view also had no horizontal overflow. Temporary responsive
+viewport overrides were reset, and the live map was left open for the user.
+
+Final screenshots: `output/article-map-20261020/viewport-live-desktop.png` and
+`output/article-map-20261020/viewport-live-fullscreen.png`.
+Live route: https://global-mass.onrender.com/#/dashboard/atlas
