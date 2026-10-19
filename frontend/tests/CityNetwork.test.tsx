@@ -92,6 +92,7 @@ describe('spacious city investigation', () => {
     expect(await screen.findByText(/3 semantic streets/)).toBeTruthy();
     fireEvent.change(screen.getByRole('combobox', { name: 'Select mapped article' }), { target: { value: 'article-0' } });
     const inspector = screen.getByRole('region', { name: 'Selected mapped article' });
+    expect(document.activeElement).toBe(inspector);
     expect(within(inspector).getByRole('link', { name: 'Open article details' }).getAttribute('href')).toContain('release-a');
     fireEvent.click(within(inspector).getByRole('button', { name: /Second report/ }));
     expect(screen.getByRole('region', { name: 'Selected map connection' }).textContent).toContain('Cosine similarity 0.900');
@@ -99,6 +100,7 @@ describe('spacious city investigation', () => {
     expect(screen.getByRole('region', { name: 'Selected map connection' }).textContent).toContain('2 matching pairs');
     fireEvent.click(screen.getByRole('button', { name: 'Close map inspector' }));
     expect(screen.queryByRole('region', { name: 'Selected map connection' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('group', { name: 'City relationship map' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Uniform article sizes' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Article street visibility' }), { target: { value: 'all' } });
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
