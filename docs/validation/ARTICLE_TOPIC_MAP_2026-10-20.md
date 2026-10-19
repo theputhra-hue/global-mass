@@ -103,6 +103,58 @@ evaluation and completing source-text collection remain separate research work.
 ## Delivery
 
 PR: https://github.com/theputhra-hue/global-mass/pull/9.
-This report initially records local completion and the reviewed candidate;
-live deployment/activation evidence will be appended after delivery checks pass.
-The existing public revision 2 is retained until that separate activation.
+PR #9 merged as `1fe5ada763758d1944cffc284ee33afe0deb3e5e` after every required
+check passed on `c7a3cdef0d3431d7a63e08873cc5c4928af17e08`. Final CI totals:
+284 frontend tests / 40 files, 668 backend unit tests, 3 real pretrained model
+smoke tests and 14 real PostgreSQL/pgvector integration tests. Architecture,
+types, lint, cloud import isolation and all deployment contract checks passed.
+Frontend coverage: 82.66% statements, 75.84% branches, 76.74% functions,
+89.57% lines. Full backend mypy checked all 219 source files successfully after
+adding the missing annotation to the test fixture reported by the first CI run.
+
+Render backend deployment `dep-dbb8pi1srm7s739hrasg` auto-deployed this merge;
+logs confirm transactional `gmee07 -> gmee08` and healthy readiness responses.
+Frontend deployment `dep-dbb8pt67bikc73fe1tug` manually deployed the same merge.
+Its production JS asset is `index-XNLp-uNe.js` (612.82 kB / 171.79 kB gzip).
+During propagation, `/index.html` served the new build while `/` still served
+cached older HTML; the root is checked separately before declaring completion.
+
+The reviewed candidate was uploaded through the live developer UI under the
+existing developer account; the server receipt matches the exact run and digest
+above. Activation and final public completeness checks are recorded below.
+
+### Live activation and browser result
+
+The normal developer review/publish UI activated run
+`099b879d-ecb0-44e0-bf77-bc0689afab55` as **revision 3**, published at
+`2026-10-19T21:40:38.558264Z`. Its public fingerprint matches the local candidate
+exactly. A read-only verifier loaded all **15 pinned pages**, confirmed **7,421
+unique article IDs**, compared every assignment/coordinate to the exported JSON,
+and confirmed all 98 topics, 2,334 unclassified records and coverage totals.
+The old revision-2 release remains readable and explicitly reports that it
+predates topic maps. The source arrays and original database remain unchanged.
+
+The normal root URL subsequently served `index-XNLp-uNe.js`, matching Render's
+new build. Existing HTML cache headers were preserved. Publication took tens of
+seconds; the developer page briefly showed a data-service connection fallback.
+No write was repeated. Read-only status confirmed successful activation, and a
+fresh navigation restored the normal app. Free-service transient connection
+handling remains an operational limitation; no claim of continuous availability
+or zero interruptions is made.
+
+Browser checks against the normal live site confirmed:
+
+- Complete 7,421-record map before drawing; immutable release in the URL.
+- Iran/Hormuz topic filter: 256 records, with 20 real bounded overlay groups.
+- Search for `earthquake`: 44 records; filters clear back to the full collection.
+- Article details open and Back to results retains release, topic and selection.
+- Collection map is discoverable in the navigation menu.
+- Recorded article graph retains 213 grouped links from 300 underlying records;
+  recorded claim graph retains all 300 links, both on the new release.
+- Restore positions, pan/zoom controls, and no horizontal overflow at the current
+  763px live browser width. The separate 390px local rehearsal also passed.
+- The browser log API returned no captured warnings/errors at final inspection.
+
+Evidence: `output/article-map-20261020/live-proof.json` and `live-atlas.png`.
+Live route: https://global-mass.onrender.com/#/dashboard/atlas.
+Publication processing, checkpoints and future reruns remain **local only**.
