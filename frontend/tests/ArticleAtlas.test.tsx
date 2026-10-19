@@ -10,6 +10,11 @@ const summary = { total_articles: 1, unclassified: 0, topics: [{ id: 'topic-0', 
 const first = { available: true, run_id: 'release-a', offset: 0, total: 1, next_offset: null, summary, items: [article] };
 
 describe('complete collection loading', () => {
+  it('uses a requested immutable release on the first page', async () => {
+    const fetch = mockApi(() => jsonResponse(first));
+    await loadArticleMap(undefined, undefined, 'release-a');
+    expect(String(fetch.mock.calls[0][0])).toContain('release=release-a');
+  });
   it('pins later pages to the first release and retains records beyond a bounded graph', async () => {
     const fetch = mockApi(path => path.includes('offset=') ? jsonResponse({ ...first, offset: 1, total: 2, summary: null, items: [{ ...article, id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' }] }) : jsonResponse({ ...first, total: 2, summary: { ...summary, total_articles: 2 }, next_offset: 1 }));
     const result = await loadArticleMap();
@@ -17,6 +22,8 @@ describe('complete collection loading', () => {
     expect(String(fetch.mock.calls[1][0])).toContain('release=release-a');
   });
   it('rejects changed releases, duplicate records and incomplete pages', async () => {
+    mockApi(() => jsonResponse({ unexpected: true }));
+    await expect(loadArticleMap()).rejects.toThrow(/Invalid collection/);
     mockApi(path => path.includes('offset=') ? jsonResponse({ ...first, run_id: 'release-b', offset: 1, total: 2 }) : jsonResponse({ ...first, total: 2, summary: { ...summary, total_articles: 2 }, next_offset: 1 }));
     await expect(loadArticleMap()).rejects.toThrow(/changed/);
     mockApi(() => jsonResponse({ ...first, total: 2, summary: { ...summary, total_articles: 2 }, items: [article, article] }));
@@ -51,7 +58,7 @@ describe('article atlas interface', () => {
     expect(screen.getByText('No articles match these map filters.')).toBeTruthy();
     expect(window.location.hash).toContain('topic=__unclassified');
     fireEvent.click(screen.getByRole('button', { name: 'Clear map filters' }));
-    expect(window.location.hash).toBe('#/dashboard/atlas');
+    expect(window.location.hash).toBe('#/dashboard/atlas?release=release-a');
     fireEvent.change(screen.getByRole('textbox', { name: 'Search all mapped articles' }), { target: { value: 'missing topic' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search map' }));
     expect(screen.getByText('No articles match these map filters.')).toBeTruthy();

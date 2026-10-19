@@ -77,6 +77,10 @@ and a detail link. Unclassified semantic inputs are gray; inputs without a
 projection use a separately explained non-semantic tray. Colors repeat and do not
 replace exact labels. Lists/picker provide alternatives to dense canvas picking.
 Topic and search state survive article drill-down through the back URL.
+Saved map links include the immutable release ID because topic IDs are not stable
+across daily reclustering. Refresh complete map explicitly selects the latest
+release and clears old topic filters. Dragged dots are view-only; Restore
+projected positions returns them to the published coordinates.
 
 Review coverage, source references, topic method and complete export before using
 the existing developer upload/review/publish flow. V2 remains subject to the 10

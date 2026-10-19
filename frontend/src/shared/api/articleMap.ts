@@ -18,11 +18,12 @@ interface AtlasPage {
 }
 export interface CompleteAtlas { available: boolean; run_id: string | null; reason?: string; summary: AtlasSummary | null; articles: AtlasArticle[] }
 
-export async function loadArticleMap(signal?: AbortSignal, progress?: (loaded: number, total: number) => void): Promise<CompleteAtlas> {
-  let page = await apiClient.get<AtlasPage>('/graph/atlas?limit=500', { signal });
+export async function loadArticleMap(signal?: AbortSignal, progress?: (loaded: number, total: number) => void, release?: string | null): Promise<CompleteAtlas> {
+  let page = await apiClient.get<AtlasPage>(`/graph/atlas?limit=500${release ? '&release=' + encodeURIComponent(release) : ''}`, { signal });
+  if (typeof page?.available !== 'boolean') throw new Error('Invalid collection map response.');
   if (!page.available) return { available: false, run_id: page.run_id, reason: page.reason, summary: null, articles: [] };
   const run = page.run_id, total = page.total, summary = page.summary;
-  if (!run || !Number.isInteger(total) || total < 0 || total > 20000 || !summary || summary.total_articles !== total) throw new Error('Invalid collection map summary.');
+  if (!run || !Number.isInteger(total) || total < 0 || total > 20000 || !summary || summary.total_articles !== total || !Array.isArray(summary.topics) || !summary.coverage) throw new Error('Invalid collection map summary.');
   const articles: AtlasArticle[] = [], ids = new Set<string>();
   let expectedOffset = 0;
   for (;;) {

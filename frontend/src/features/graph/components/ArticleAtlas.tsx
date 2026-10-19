@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { loadArticleMap } from '../../../shared/api/articleMap';
 import { graphApi } from '../../../shared/api/graph';
 import { articleHref } from '../../../shared/navigation/articleRoutes';
@@ -14,8 +14,10 @@ export default function ArticleAtlas() {
   const [search, setSearch] = useState(query), [selected, select] = useState<string | null>(params.get('node'));
   const [page, setPage] = useState(0), [progress, setProgress] = useState([0, 0]);
   const [showLinks, setShowLinks] = useState(false);
+  const [pinnedRelease, pinRelease] = useState<string | null>(params.get('release'));
+  const queryClient = useQueryClient();
   const canvas = useRef<NetworkCanvasHandle>(null);
-  const request = useQuery({ queryKey: ['complete-article-map'], queryFn: ({ signal }) => loadArticleMap(signal, (n, total) => setProgress([n, total])), staleTime: 300000, retry: false });
+  const request = useQuery({ queryKey: ['complete-article-map', pinnedRelease], queryFn: ({ signal }) => loadArticleMap(signal, (n, total) => setProgress([n, total]), pinnedRelease), staleTime: 300000, retry: false });
   const summary = request.data?.summary, records = request.data?.articles;
   const filtered = useMemo(() => (records || []).filter(a => (!topic || (topic === '__unclassified' ? !a.topic_id : a.topic_id === topic)) && (!query || a.title.toLowerCase().includes(query.toLowerCase()))), [records, topic, query]);
   const links = useQuery({ queryKey: ['atlas-recorded-links', request.data?.run_id], queryFn: ({ signal }) => graphApi.full({ signal }), enabled: showLinks && request.data?.available === true, retry: false, staleTime: 300000 });
@@ -30,11 +32,13 @@ export default function ArticleAtlas() {
   const chosen = filtered.find(a => a.id === selected);
   const currentPage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 12) - 1));
   const backParams = new URLSearchParams();
+  if (request.data?.run_id || pinnedRelease) backParams.set('release', request.data?.run_id || pinnedRelease!);
   if (topic) backParams.set('topic', topic); if (query) backParams.set('q', query); if (selected) backParams.set('node', selected);
   const back = `#/dashboard/atlas${backParams.size ? '?' + backParams : ''}`;
   useEffect(() => { if (window.location.hash.split('?')[0] === '#/dashboard/atlas') window.history.replaceState(null, '', back); }, [back]);
   useEffect(() => { if (request.isSuccess && selected && !filtered.some(a => a.id === selected)) select(null); }, [request.isSuccess, selected, filtered]);
   const reset = () => { setTopic(''); setQuery(''); setSearch(''); setPage(0); select(null); };
+  const latest = () => { reset(); pinRelease(null); void queryClient.invalidateQueries({ queryKey: ['complete-article-map', null] }); };
   return <section className="card-brutal-dark p-5 md:p-6 space-y-6 min-w-0" aria-label="Complete collection map">
     <header className="space-y-3"><p className="text-xs uppercase tracking-widest text-hermes-red-bright">The whole collection</p><h1 className="font-display text-4xl">Articles, grouped into topics.</h1><p className="text-sm text-hermes-bone/70 leading-relaxed">Explore every article in this published collection. Colors identify machine-generated topic groups. Nearby dots reflect an approximate projection of article text, not truth, copying or observed transmission.</p><a href="#/dashboard/fullgraph" className="btn-outline-dark inline-block !text-xs">Inspect recorded relationship links →</a></header>
     {request.isPending && <p role="status">Loading the complete map… {progress[0].toLocaleString()} of {progress[1] ? progress[1].toLocaleString() : 'unknown'} records. The map appears only when every page is verified.</p>}
@@ -43,7 +47,8 @@ export default function ArticleAtlas() {
     {request.data?.available && summary && <>
       <div className="border-y border-hermes-bone/20 py-4 space-y-2 text-xs leading-relaxed"><p className="font-bold">Complete collection loaded: {records?.length.toLocaleString()} of {summary.total_articles.toLocaleString()} articles · {summary.topics.length} topic groups · {summary.unclassified.toLocaleString()} unclassified.</p><p className="break-all text-hermes-bone/60">Release {request.data.run_id} · Analysis completed {new Date(summary.completed_at).toLocaleString()}</p><p>Input coverage: {summary.coverage.stored_text || 0} stored-text records · {summary.coverage.title_only || 0} title-only · {summary.coverage.unsupported_language || 0} unsupported language · {summary.coverage.unavailable || 0} unavailable. Stored text may be a snippet; it is not a guarantee of full publisher text.</p></div>
       <form onSubmit={event => { event.preventDefault(); setQuery(search.trim()); setPage(0); select(null); }} className="flex flex-wrap gap-3"><label className="text-xs flex-1 min-w-[180px]">Search every article title<input className="field-brutal w-full mt-2" aria-label="Search all mapped articles" value={search} onChange={e => setSearch(e.target.value)} /></label><button className="btn-outline-dark self-end" type="submit">Search map</button></form>
-      <div className="flex flex-wrap gap-4 items-end"><label className="text-xs flex-1 min-w-[180px]">Topic group<select className="field-brutal w-full mt-2" aria-label="Topic group" value={topic} onChange={e => { setTopic(e.target.value); setPage(0); select(null); }}><option value="">All topic groups</option><option value="__unclassified">Unclassified ({summary.unclassified})</option>{summary.topics.map(t => <option value={t.id} key={t.id}>{t.label} ({t.article_count})</option>)}</select></label><button className="btn-outline-dark !text-xs" onClick={reset}>Clear map filters</button><button className="btn-outline-dark !text-xs" onClick={() => request.refetch()}>Refresh complete map</button></div>
+      <div className="flex flex-wrap gap-4 items-end"><label className="text-xs flex-1 min-w-[180px]">Topic group<select className="field-brutal w-full mt-2" aria-label="Topic group" value={topic} onChange={e => { setTopic(e.target.value); setPage(0); select(null); }}><option value="">All topic groups</option><option value="__unclassified">Unclassified ({summary.unclassified})</option>{summary.topics.map(t => <option value={t.id} key={t.id}>{t.label} ({t.article_count})</option>)}</select></label><button className="btn-outline-dark !text-xs" onClick={reset}>Clear map filters</button><button className="btn-outline-dark !text-xs" disabled={request.isFetching} onClick={latest}>Refresh complete map</button></div>
+      <p className="text-xs text-hermes-bone/60">Map links retain this exact release so topic identities do not change underneath a saved investigation. Refresh complete map loads the latest published release and clears topic filters.</p>
       <label className="text-xs flex items-center gap-3"><input type="checkbox" checked={showLinks} onChange={e => setShowLinks(e.target.checked)} /> Overlay recorded article relationships (bounded)</label>
       {showLinks && <p className="text-xs" role="status">{links.isPending ? 'Loading saved relationship overlay…' : links.isError ? 'Relationship overlay unavailable; article topics remain visible.' : links.data?.run_id !== request.data.run_id ? 'Relationship release differs from this map. Refresh the complete map; links are hidden.' : `${scene.edges.length} saved relationship groups in this view from a bounded projection. Missing lines do not establish that articles are unrelated. Arrows point from child to candidate parent; they do not show observed transmission.`}</p>}
       <p className="text-xs" aria-live="polite">Showing {filtered.length.toLocaleString()} articles. Each dot is one article; unclassified records are gray. {filtered.filter(a => a.x === null).length} records without a semantic projection use a separate tray to the right; tray spacing has no meaning.</p>
