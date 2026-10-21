@@ -38,27 +38,27 @@ describe('Navigation review regressions', () => {
     fireEvent.click(within(sidebar).getByRole('button', { name: 'Collapse navigation sidebar' }));
     expect(sidebar.getAttribute('data-collapsed')).toBe('true');
     expect(localStorage.getItem('gmee:sidebar-collapsed')).toBe('true');
-    expect(within(sidebar).getByRole('link', { name: 'Collection map' }).getAttribute('href')).toBe('#/dashboard/atlas');
+    expect(within(sidebar).getByRole('link', { name: 'Story map' }).getAttribute('href')).toBe('#/dashboard/atlas');
     expect(within(sidebar).getByRole('button', { name: 'Account' })).toBeTruthy();
     fireEvent.click(within(sidebar).getByRole('button', { name: 'Expand navigation sidebar' }));
     expect(sidebar.getAttribute('data-collapsed')).toBe('false');
     expect(localStorage.getItem('gmee:sidebar-collapsed')).toBe('false');
   });
-  it('collapses Explore data without redirecting and reopens it on article navigation', async () => {
+  it('keeps core destinations visible and specialist routes inside Research tools', async () => {
     window.history.replaceState(null, '', '/#/dashboard');
     fixture('published');
     const nav = screen.getByRole('navigation', { name: 'Primary destinations' });
-    const toggle = within(nav).getByRole('button', { name: 'Explore data' });
-    fireEvent.click(toggle);
+    const toggle = within(nav).getByRole('button', { name: 'Research tools' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(within(nav).queryByRole('link', { name: 'Articles' })).toBeNull();
-    expect(window.location.hash).toBe('#/dashboard');
+    expect(within(nav).getByRole('link', { name: 'Find articles' })).toBeTruthy();
+    expect(within(nav).getByRole('link', { name: 'Story map' })).toBeTruthy();
+    expect(within(nav).queryByRole('link', { name: 'Extracted statements' })).toBeNull();
     fireEvent.click(toggle);
-    expect(within(nav).getByRole('link', { name: 'Articles' })).toBeTruthy();
+    expect(within(nav).getByRole('link', { name: 'Extracted statements' })).toBeTruthy();
     fireEvent.click(toggle);
-    visit('#/dashboard/browse');
+    visit('#/dashboard/claims');
     await waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('true'));
-    expect(within(nav).getByRole('link', { name: 'Articles' }).getAttribute('aria-current')).toBe('page');
+    expect(within(nav).getByRole('link', { name: 'Extracted statements' }).getAttribute('aria-current')).toBe('page');
   });
   it('resolves every canonical ID and href before considering synonyms', () => {
     for (const tool of TOOL_REGISTRY) {
@@ -75,16 +75,16 @@ describe('Navigation review regressions', () => {
     expect(document.querySelectorAll('#main-content')).toHaveLength(1);
     expect(screen.queryByRole('navigation', { name: 'Workspace' })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Dashboard sections' })).toBeNull();
-    await waitFor(() => expect(screen.queryByRole('link', { name: /Developer workspace Admin/ })).toBeNull());
+    await waitFor(() => expect(within(screen.getByRole('navigation', { name: 'Primary destinations' })).queryByRole('link', { name: 'Manage data' })).toBeNull());
   });
 
-  it('keeps Home focused on orientation and explicit next actions', async () => {
+  it('makes search the first authenticated destination without an extra dashboard', async () => {
     window.history.replaceState(null, '', '/#/dashboard');
     const calls: string[] = [];
     fixture('published', calls);
-    expect(screen.getByRole('link', { name: 'Browse articles' })).toBeTruthy();
-    expect(screen.queryByRole('textbox', { name: 'Search article titles or authors' })).toBeNull();
-    expect(calls.some(path => path.startsWith('/corpus/articles?'))).toBe(false);
+    expect(screen.getByRole('textbox', { name: 'Search article titles or authors' })).toBeTruthy();
+    await waitFor(() => expect(window.location.hash).toBe('#/dashboard/browse'));
+    expect(calls.some(path => path.startsWith('/corpus/articles?'))).toBe(true);
   });
 
   it('preserves the bookmarked source filter through pagination, detail and return', async () => {
@@ -131,7 +131,7 @@ describe('Navigation review regressions', () => {
     const expected = `#/dashboard/claims?article=${articleId}&articleQuery=river+basin&offset=20`;
     expect(new URLSearchParams(detail.split('?')[1]).get('back')).toBe(expected);
     visit(detail);
-    expect(screen.getByRole('link', { name: 'Back to results' }).getAttribute('href')).toBe(expected);
+    expect(screen.getByRole('link', { name: 'Back to investigation' }).getAttribute('href')).toBe(expected);
     visit(expected);
     await screen.findByText('Recorded statement at offset 20');
     expect((screen.getByLabelText(/Select an article/) as HTMLSelectElement).value).toBe(articleId);
@@ -186,7 +186,7 @@ describe('Navigation review regressions', () => {
     const close = within(dialog).getByRole('button', { name: 'Close navigation menu' });
     expect(document.activeElement).toBe(close);
     fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
-    const last = within(dialog).getByRole('link', { name: 'Advanced tools' });
+    const last = within(dialog).getByRole('link', { name: 'Help & methods' });
     expect(document.activeElement).toBe(last);
     fireEvent.keyDown(last, { key: 'Tab' });
     expect(document.activeElement).toBe(close);

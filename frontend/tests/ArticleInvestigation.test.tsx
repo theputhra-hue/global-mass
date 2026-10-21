@@ -58,11 +58,11 @@ describe('article investigation', () => {
     expect(window.location.hash).toBe('#/dashboard/browse?q=river&offset=6');
     expect(getAccessToken()).toBe('test-access');
   });
-  it('opens a real detail page with all nine tabs and preserves the source and result query', async () => {
+  it('opens a real detail page with five main sections and preserves the source and result query', async () => {
     const fetch = mockApi(fixture);
     renderWithClient(<ArticleInvestigation route={route('overview', `?back=${encodeURIComponent('#/dashboard/browse?q=river&offset=6')}`)} />);
     await screen.findByRole('heading', { name: 'River levels rise' });
-    expect(within(screen.getByRole('navigation', { name: 'Article details' })).getAllByRole('link')).toHaveLength(9);
+    expect(within(screen.getByRole('navigation', { name: 'Article details' })).getAllByRole('link')).toHaveLength(5);
     expect(screen.getByRole('link', { name: /Read original source/ }).getAttribute('href')).toBe(detail.url);
     expect(screen.getByRole('link', { name: /Back to results/ }).getAttribute('href')).toBe('#/dashboard/browse?q=river&offset=6');
     expect(fetch.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
@@ -136,7 +136,7 @@ describe('article investigation', () => {
     const nav = screen.getByRole('navigation', { name: 'Article details' });
     const links = within(nav).getAllByRole('link'); links[0].focus();
     fireEvent.keyDown(nav, { key: 'ArrowRight' }); expect(document.activeElement).toBe(links[1]);
-    fireEvent.keyDown(nav, { key: 'End' }); expect(document.activeElement).toBe(links[8]);
+    fireEvent.keyDown(nav, { key: 'End' }); expect(document.activeElement).toBe(links[4]);
   });
   it('round-trips deep link state and blocks external return URLs', () => {
     const href = articleHref(id, 'claims', { claim: claimId, offset: 20, back: '#/dashboard/browse?q=river&offset=6' });

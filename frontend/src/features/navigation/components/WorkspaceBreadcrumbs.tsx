@@ -1,3 +1,4 @@
+import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { ChevronRight } from 'lucide-react';
 import type { ResolvedAppRoute } from '../../../shared/navigation/registry';
 import { findTool } from '../../../shared/navigation/registry';
@@ -12,38 +13,36 @@ interface BreadcrumbsProps {
 }
 
 export function WorkspaceBreadcrumbs({ route, articleTitle, articleTab }: BreadcrumbsProps) {
+  const runtime = usePublicationRuntime();
   const detail = route.kind === 'article' ? route.detail : null;
+  const release = detail?.release || (runtime.mode === 'published' ? runtime.publication?.run_id || undefined : undefined);
   // Share the investigation query and cache; do not fetch a second title resource.
   const article = useQuery({
-    queryKey: ['article-detail', detail?.id || ''],
-    queryFn: ({ signal }) => articlesApi.detail(detail!.id, { signal }),
+    queryKey: ['article-detail', detail?.id || '', release || ''],
+    queryFn: ({ signal }) => articlesApi.detail(detail!.id, { signal }, release),
     enabled: Boolean(detail?.valid && (!detail.claim || isUuid(detail.claim)) && !articleTitle),
     staleTime: 30_000,
   });
   const title = articleTitle || article.data?.title;
   const selectedTab = articleTab || detail?.tab;
   const items: Array<{ label: string; href?: string }> = [
-    { label: 'Home', href: '#/dashboard' },
+    { label: 'Workspace', href: '#/dashboard/browse' },
   ];
 
   if (route.kind === 'reader') {
     if (route.view === 'browse') {
-      items.push({ label: 'Explore data', href: '#/dashboard/browse' });
-      items.push({ label: 'Articles' });
+      items.push({ label: 'Find articles' });
     } else if (route.view === 'compare') {
       items.push({ label: 'Compare wording' });
     } else if (route.view === 'check') {
-      items.push({ label: 'Explore data', href: '#/dashboard/browse' });
       items.push({ label: 'Claim check' });
     }
   } else if (route.kind === 'claims') {
-    items.push({ label: 'Explore data', href: '#/dashboard/browse' });
-    items.push({ label: 'Extracted claims' });
+    items.push({ label: 'Extracted statements' });
   } else if (route.kind === 'article') {
-    items.push({ label: 'Explore data', href: '#/dashboard/browse' });
-    items.push({ label: 'Articles', href: '#/dashboard/browse' });
+    items.push({ label: 'Find articles', href: '#/dashboard/browse' });
     if (title) {
-      items.push({ label: title, href: articleHref(route.detail.id, 'overview', { back: route.detail.back }) });
+      items.push({ label: title, href: articleHref(route.detail.id, 'overview', { back: route.detail.back, release: route.detail.release }) });
     } else {
       items.push({ label: 'Article' });
     }
@@ -60,26 +59,28 @@ export function WorkspaceBreadcrumbs({ route, articleTitle, articleTab }: Breadc
       };
       items.push({ label: tabNames[selectedTab] || selectedTab });
     }
+  } else if (route.kind === 'topic') {
+    items.push({ label: 'Topic investigation' });
+  } else if (route.kind === 'help') {
+    items.push({ label: 'Help & methods' });
   } else if (route.kind === 'tools') {
-    items.push({ label: 'Advanced tools' });
+    items.push({ label: 'Research tools' });
   } else if (route.kind === 'advanced') {
     if (route.tab === 'casebook') {
-      items.push({ label: 'My investigations' });
+      items.push({ label: 'Saved investigations' });
     } else if (route.tab === 'atlas') {
-      items.push({ label: 'Explore data', href: '#/dashboard/browse' });
-      items.push({ label: 'Collection map' });
+      items.push({ label: 'Story map' });
     } else if (route.tab === 'fullgraph') {
-      items.push({ label: 'Explore data', href: '#/dashboard/browse' });
-      items.push({ label: 'Recorded connections' });
+      items.push({ label: 'Recorded links' });
     } else {
-      items.push({ label: 'Advanced tools', href: '#/dashboard/tools' });
+      items.push({ label: 'Research tools', href: '#/dashboard/tools' });
       const tool = findTool(route.tab);
       items.push({ label: tool ? tool.label : route.tab });
     }
   } else if (route.kind === 'developer') {
-    items.push({ label: 'Developer workspace' });
+    items.push({ label: 'Manage data' });
   } else if (route.kind === 'upload') {
-    items.push({ label: 'Developer workspace', href: '#/dashboard/developer' });
+    items.push({ label: 'Manage data', href: '#/dashboard/developer' });
     items.push({ label: 'Upload analysis' });
   }
 

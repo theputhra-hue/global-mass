@@ -5,6 +5,7 @@ import { casebookApi, type CaseDetail, type CaseSummary } from '../../../shared/
 import { featuresApi, type MutationComparisonInput } from '../../../shared/api/features';
 import { exportCase } from '../lib/caseExport';
 import { useSession } from '../../../shared/session/session';
+import { isUuid, safeReturn } from '../../../shared/navigation/articleRoutes';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { SignInNotice } from '../../account/components/SignInNotice';
 import { TextSpans } from '../../comparison/components/TextSpans';
@@ -39,12 +40,12 @@ function CasebookContent({initialComparison, ownerKey}: {initialComparison?: Mut
   const [newer, setNewer] = useState(initialComparison?.newer_text ?? '');
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() => { const selectedId = new URLSearchParams(window.location.hash.split('?')[1] || '').get('case'); return selectedId && isUuid(selectedId) ? selectedId : null; });
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const [archived, setArchived] = useState(false);
   const [offset, setOffset] = useState(0);
-  const input = (): MutationComparisonInput => ({older_text:older,newer_text:newer});
+  const input = (): MutationComparisonInput => ({...initialComparison,older_text:older,newer_text:newer});
   const query = useQuery({queryKey:['casebook',ownerKey,search,archived,offset],queryFn:({signal})=>casebookApi.list(search,archived,offset,{signal})});
   const detailKey = ['casebook-detail',ownerKey,selected];
   const detail = useQuery({queryKey:detailKey,queryFn:({signal})=>casebookApi.get(selected!,{signal}),enabled:!!selected,staleTime:Infinity});
@@ -56,7 +57,17 @@ function CasebookContent({initialComparison, ownerKey}: {initialComparison?: Mut
   const valid = older.trim().length > 0 && newer.trim().length > 0;
   const edit = (side:'a'|'b',value:string) => { if(side==='a') setOlder(value); else setNewer(value); compare.reset(); create.reset(); };
   const analyze = (event: FormEvent) => {event.preventDefault(); if(valid&&!pending) compare.mutate();};
+  const returnValue = new URLSearchParams(window.location.hash.split('?')[1] || '').get('back');
   return <div className="space-y-6">
+    {returnValue && <a href={safeReturn(returnValue)} className="text-sm underline underline-offset-4">Back to article investigation</a>}
+    <header className="space-y-3"><h1 className="font-display text-4xl">Saved investigations</h1><p className="text-sm text-hermes-bone/70">Your private comparisons, review notes and exports. Case status records your review workflow, not a truth judgment.</p></header>
+    <section aria-label="Selected investigation" className="space-y-4">
+      {detail.isFetching&&selected&&<p role="status" className="text-xs">Loading case snapshot…</p>}
+      {detail.isError&&<QueryError title="Case unavailable" error={detail.error} onRetry={()=>detail.refetch()}/>}
+      {detail.data&&<ReviewEditor key={`${detail.data.id}:${detail.data.revision}`} item={detail.data} reload={()=>{void detail.refetch();}} onUpdated={item=>{client.setQueryData(detailKey,item);void client.invalidateQueries({queryKey:['casebook',ownerKey]});}}/>}
+    </section>
+    <details className="card-brutal-dark p-5" open={!!initialComparison}>
+      <summary className="cursor-pointer text-sm font-bold">Create a new comparison case</summary>
     <section className="card-brutal-dark p-6 space-y-5">
       <div><p className="font-mono text-xs uppercase tracking-widest text-hermes-red-bright mb-2">Private workspace / account owned</p><h2 className="font-display text-3xl">Investigation Studio</h2><p className="text-sm text-hermes-bone/60 mt-3">Compare two accounts, capture a server-computed snapshot, keep your review notes and export a case file. The original analysis and its fingerprint stay unchanged when notes are edited.</p></div>
       <form onSubmit={analyze} className="space-y-4">
@@ -71,15 +82,14 @@ function CasebookContent({initialComparison, ownerKey}: {initialComparison?: Mut
       {create.isError && <QueryError title="Case could not be captured" error={create.error}/>}
       {create.isSuccess && <p role="status" className="text-sm text-emerald-300">Case captured. Open it below to review or export.</p>}
     </section>
+    </details>
     <section className="card-brutal-dark p-6 space-y-5">
       <h2 className="font-display text-2xl flex gap-2 items-center"><BookOpen className="w-5 h-5 text-hermes-red-bright"/>Your casebook</h2>
       <form className="flex flex-wrap gap-3 items-center" onSubmit={event=>{event.preventDefault();setSearch(q);setOffset(0);}}><label className="sr-only" htmlFor={`${id}-search`}>Search case titles</label><input id={`${id}-search`} className="field-brutal min-w-0 flex-1" maxLength={160} value={q} onChange={event=>setQ(event.target.value)} placeholder="Search case titles…"/><button type="submit" className="btn-ghost-brutal">Search cases</button><label className="text-xs font-mono flex items-center gap-2"><input type="checkbox" checked={archived} onChange={event=>{setArchived(event.target.checked);setOffset(0);}}/>Archived cases</label><button type="button" className="btn-ghost-brutal" onClick={()=>query.refetch()}>Refresh cases</button></form>
       {query.isPending && <p role="status" className="text-xs font-mono">Loading your saved cases…</p>}
       {query.isError && <QueryError title="Casebook unavailable" error={query.error} onRetry={()=>query.refetch()}/>}
       {query.data && <><p className="font-mono text-xs text-hermes-bone/45">{query.data.total} saved {archived?'archived ':''}cases</p>{query.data.items.length===0&&<p className="text-sm text-hermes-bone/60">No cases match this view. Capture a comparison above to start an investigation.</p>}<div className="grid sm:grid-cols-2 gap-3">{query.data.items.map(item=><button type="button" key={item.id} aria-pressed={selected===item.id} className={`text-left border p-4 ${selected===item.id?'border-hermes-red-bright':'border-hermes-bone/20'}`} onClick={()=>setSelected(item.id)}><p className="text-[10px] font-mono uppercase text-hermes-bone/40 mb-2">{item.status} · revision {item.revision}</p><h3 className="font-bold text-sm">{item.title}</h3><p className="text-xs text-hermes-bone/50 mt-2">{new Date(item.updated_at).toLocaleString()}</p></button>)}</div><div className="flex gap-3"><button type="button" className="btn-ghost-brutal" disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-20))}>Previous cases</button><button type="button" className="btn-ghost-brutal" disabled={offset+20>=query.data.total} onClick={()=>setOffset(offset+20)}>Next cases</button></div></>}
-      {detail.isFetching&&selected&&<p role="status" className="text-xs">Loading case snapshot…</p>}
-      {detail.isError&&<QueryError title="Case unavailable" error={detail.error} onRetry={()=>detail.refetch()}/>}
-      {detail.data&&<ReviewEditor key={`${detail.data.id}:${detail.data.revision}`} item={detail.data} reload={()=>{void detail.refetch();}} onUpdated={item=>{client.setQueryData(detailKey,item);void client.invalidateQueries({queryKey:['casebook',ownerKey]});}}/>}
+
     </section>
   </div>;
 }

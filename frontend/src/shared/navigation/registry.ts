@@ -5,6 +5,7 @@
  */
 
 import type { parseArticleRoute } from './articleRoutes';
+import type { TopicRoute } from './topicRoutes';
 import type { TabType } from './tabs';
 
 export type NavGroup = 'primary' | 'explore' | 'research' | 'system' | 'developer';
@@ -14,9 +15,10 @@ export type ToolPermission = 'public' | 'authenticated' | 'developer';
 export type DetailRoute = NonNullable<ReturnType<typeof parseArticleRoute>>;
 
 export type RouteDestination =
-  | { kind: 'landing' | 'public-project' | 'signin' | 'tools' | 'developer' | 'upload' | 'claims' | 'not-found' }
+  | { kind: 'landing' | 'public-project' | 'signin' | 'help' | 'tools' | 'developer' | 'upload' | 'claims' | 'not-found' }
   | { kind: 'reader'; view: 'home' | 'browse' | 'compare' | 'check' }
   | { kind: 'article'; detail: DetailRoute }
+  | { kind: 'topic'; topic: TopicRoute }
   | { kind: 'advanced'; tab: TabType };
 
 export type ResolvedAppRoute = RouteDestination & { raw: string; dashboard: boolean };
@@ -43,12 +45,12 @@ export const TOOL_REGISTRY: readonly ToolDescriptor[] = [
     href: '#/dashboard',
     legacySynonyms: ['dashboard'],
     group: 'primary',
-    summary: 'Orient yourself in the collection with a real collection summary and clear next actions.',
+    summary: 'Legacy workspace entry; continues directly to article search.',
     input: 'None (read-only orientation)',
-    output: 'Collection summary, freshness and reading guidance',
+    output: 'Article search and the current collection',
     availability: 'both',
     permission: 'authenticated',
-    primary: true,
+    primary: false,
   },
   {
     id: 'browse',
@@ -91,10 +93,10 @@ export const TOOL_REGISTRY: readonly ToolDescriptor[] = [
     primary: false,
   },
   {
-    id: 'atlas', label: 'Collection map', href: '#/dashboard/atlas', legacySynonyms: ['atlas'],
+    id: 'atlas', label: 'Story map', href: '#/dashboard/atlas', legacySynonyms: ['atlas'],
     group: 'explore', summary: 'Explore every article in a published release, grouped by article topics.',
     input: 'Complete versioned article map', output: 'All articles, topic groups and source detail links',
-    availability: 'both', permission: 'authenticated', primary: false,
+    availability: 'both', permission: 'authenticated', primary: true,
   },
   {
     id: 'compare',
@@ -111,7 +113,7 @@ export const TOOL_REGISTRY: readonly ToolDescriptor[] = [
   },
   {
     id: 'casebook',
-    label: 'My investigations',
+    label: 'Saved investigations',
     href: '#/dashboard/casebook',
     legacySynonyms: ['Casebook'],
     group: 'primary',
@@ -125,16 +127,16 @@ export const TOOL_REGISTRY: readonly ToolDescriptor[] = [
   },
   {
     id: 'tools',
-    label: 'Advanced tools',
+    label: 'Research tools',
     href: '#/dashboard/tools',
     legacySynonyms: ['Tools & guides', 'tools'],
-    group: 'primary',
+    group: 'research',
     summary: 'Exhaustive directory of all 12 specialist research, analysis and system tools.',
     input: 'Tool directory selection',
     output: 'Task-oriented index with input/output requirements and runtime availability',
     availability: 'both',
     permission: 'authenticated',
-    primary: true,
+    primary: false,
   },
   {
     id: 'developer',
@@ -292,7 +294,7 @@ export const TOOL_REGISTRY: readonly ToolDescriptor[] = [
   },
 ] as const;
 
-export const PRIMARY_NAV_IDS = ['home', 'browse', 'compare', 'casebook', 'tools'] as const;
+export const PRIMARY_NAV_IDS = ['browse', 'atlas', 'compare', 'casebook'] as const;
 export const EXPLORE_NAV_IDS = ['browse', 'claims', 'atlas', 'fullgraph'] as const;
 export const ADVANCED_TOOL_IDS = [
   'overview', 'factcheck', 'fullgraph', 'timeline', 'masala',

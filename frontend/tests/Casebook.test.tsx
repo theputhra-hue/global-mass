@@ -36,4 +36,17 @@ describe('Private casebook',()=>{
     const md=caseMarkdown(saved);
     expect(md).toContain('10 survivors'); expect(md).toContain('Saved note'); expect(md).toContain('Method: v2'); expect(md).toContain(saved.snapshot_sha256);expect(md).toContain('not proof of factual correctness');
   });
+  it('opens a saved-case deep link before the optional new-case form and keeps a safe article return',async()=>{
+    signInFixture();
+    const id='11111111-1111-1111-1111-111111111111';
+    const back='#/dashboard/articles/22222222-2222-2222-2222-222222222222/changes';
+    window.history.replaceState(null,'',`/#/dashboard/casebook?case=${id}&back=${encodeURIComponent(back)}`);
+    mockApi(endpoint=>jsonResponse(endpoint===`/casebook/${id}`?{...saved,id}:{items:[],total:0}));
+    renderWithClient(<Casebook/>);
+    const heading=await screen.findByRole('heading',{name:'Bridge case'});
+    expect(screen.getByRole('link',{name:'Back to article investigation'}).getAttribute('href')).toBe(back);
+    expect((screen.getByLabelText('Analyst review notes') as HTMLTextAreaElement).value).toBe('Saved note');
+    expect(heading.compareDocumentPosition(screen.getByText('Create a new comparison case')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('Create a new comparison case').closest('details')?.open).toBe(false);
+  });
 });

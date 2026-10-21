@@ -28,7 +28,7 @@ describe('memory-only account UI', () => {
       : jsonResponse(accountFixture));
     openLogin();
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    await waitFor(() => expect(window.location.hash).toBe('#/dashboard'));
+    await waitFor(() => expect(window.location.hash).toBe('#/dashboard/browse'));
     expect(getAccessToken()).toBe('login-access');
     expect(getRefreshToken()).toBe('login-refresh');
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ email: accountFixture.email, password: 'strong-password' });
