@@ -2,7 +2,7 @@ import uuid
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from neo4j import AsyncDriver
 from redis.asyncio import Redis
@@ -33,6 +33,7 @@ async def get_redis_client() -> AsyncGenerator[Redis, None]:
         pass
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db_session),
     redis: Redis = Depends(get_redis_client)
@@ -65,6 +66,15 @@ async def get_current_user(
     user = await user_repository.get_by_id(db, user_uuid)
     if user is None or not user.is_active:
         raise credentials_exception
+
+    # Look up the current database role on every request: an old JWT must not
+    # retain write access after an operator restricts an account to viewing.
+    if (
+        user.role == RoleEnum.viewer
+        and request.method not in {"GET", "HEAD", "OPTIONS"}
+        and not (request.method == "POST" and request.url.path == "/api/v1/auth/logout")
+    ):
+        raise HTTPException(status_code=403, detail="This account has read-only access.")
         
     return user
 

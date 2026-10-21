@@ -5,6 +5,7 @@ import { featuresApi, type MutationComparisonInput } from '../../../shared/api/f
 import { useSession } from '../../../shared/session/session';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { SignInNotice } from '../../account/components/SignInNotice';
+import { ReadOnlyNotice } from '../../account/components/ReadOnlyNotice';
 import { SaveComparisonCase } from '../../investigations/components/SaveComparisonCase';
 import { safeHttpUrl } from '../../../shared/lib/urls';
 
@@ -146,6 +147,7 @@ function ComparisonForm({ initialOlder = '', initialNewer = '', context }: Compa
 
 export function MutationComparator({ initialOlder = '', initialNewer = '', context }: ComparisonProps) {
   const { user, revision } = useSession();
+  if (user?.role === 'viewer') return <ReadOnlyNotice />;
   return (
     <section aria-labelledby="mutation-comparator-title" className="card-brutal-dark p-6 space-y-4">
       <h2 id="mutation-comparator-title" className="text-2xl font-display flex items-center gap-2"><Dna className="w-5 h-5" /> Mutation Comparator</h2>

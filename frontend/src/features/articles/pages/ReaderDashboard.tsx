@@ -11,8 +11,10 @@ import { articleHref, navigateHash } from '../../../shared/navigation/articleRou
 import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { PublishedClaimSearch } from '../../claims/components/PublishedClaimSearch';
 import { HomeOrientation } from '../components/HomeOrientation';
+import { useSession } from '../../../shared/session/session';
 
 export function ReaderDashboard({ view = 'home' }: { view?: string }) {
+  const readOnly = useSession().user?.role === 'viewer';
   const runtime = usePublicationRuntime();
   const cloud = runtime.mode === 'published';
   const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
@@ -82,7 +84,7 @@ export function ReaderDashboard({ view = 'home' }: { view?: string }) {
             <div className="flex gap-3"><button disabled={offset === 0 || articles.isFetching} onClick={() => move(search, Math.max(0, offset - 6))} className="btn-outline-dark">Previous</button><button disabled={offset + 6 >= articles.data.total || articles.isFetching} onClick={() => move(search, offset + 6)} className="btn-outline-dark">Next articles</button></div>
           </>}
         </section>
-        <aside className="border-t border-hermes-bone/15 pt-6 space-y-4"><h2 className="font-display text-2xl">Have a statement instead of a headline?</h2><div className="flex flex-wrap gap-5 text-xs"><a href="#/dashboard/check" className="underline underline-offset-4">{cloud ? 'Search saved claims' : 'Check a claim'}</a><a href="#/dashboard/compare" className="underline underline-offset-4">Compare two versions</a><a href="#/dashboard/tools" className="underline underline-offset-4">Explore all tools &amp; guides</a></div></aside>
+        <aside className="border-t border-hermes-bone/15 pt-6 space-y-4"><h2 className="font-display text-2xl">Have a statement instead of a headline?</h2><div className="flex flex-wrap gap-5 text-xs"><a href={readOnly ? '#/dashboard/claims' : '#/dashboard/check'} className="underline underline-offset-4">{cloud || readOnly ? 'Search saved claims' : 'Check a claim'}</a>{!readOnly && <><a href="#/dashboard/compare" className="underline underline-offset-4">Compare two versions</a><a href="#/dashboard/tools" className="underline underline-offset-4">Explore all tools &amp; guides</a></>}</div></aside>
       </>}
       {view === 'compare' && <MutationComparator />}
       {view === 'check' && (cloud ? <PublishedClaimSearch /> : <FactCheck />)}
