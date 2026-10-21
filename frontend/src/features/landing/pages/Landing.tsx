@@ -28,7 +28,7 @@ export function Landing() {
       ['ready services', snapshot?.services ? `${Object.values(snapshot.services).filter(s => s === 'ok').length} / 3` : '—'],
     ];
   }, [snapshot]);
-  return <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate">
+  return <div className="landing-original min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate">
     <div className="fixed inset-0 -z-10 pointer-events-none grain-overlay" aria-hidden="true" />
     <header className="border-b border-hermes-bone/15 px-4 md:px-8 py-5 flex items-center justify-between gap-4">
       <a href="#/" className="font-display text-3xl">GMEE</a>

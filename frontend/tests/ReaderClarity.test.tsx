@@ -20,7 +20,9 @@ describe('reader clarity and capability boundaries', () => {
     const local = await screen.findByRole('region', { name: 'Tools on the developers’ PC' });
     expect(within(local).queryByRole('link', { name: 'Open database graph' })).toBeNull();
     expect(await screen.findByText(/No relationship links have been saved/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Open saved investigations' }).getAttribute('href')).toBe('#/dashboard/casebook');
+    expect(screen.getByRole('link', { name: 'Open my investigations' }).getAttribute('href')).toBe('#/dashboard/casebook');
+    expect(screen.getByRole('link', { name: 'Open story map' }).getAttribute('href')).toBe('#/dashboard/atlas');
+    expect(screen.getByRole('link', { name: 'Open article & claim map' }).getAttribute('href')).toBe('#/dashboard/fullgraph');
     expect(screen.getByText('Existing tool: Postgres Vector')).toBeTruthy();
     expect(fetch.mock.calls.every(([url]) => /\/(capabilities|publications\/status)$/.test(String(url)))).toBe(true);
   });

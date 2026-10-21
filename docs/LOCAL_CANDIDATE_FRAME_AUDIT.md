@@ -34,8 +34,9 @@ Use a fresh ID because the exporter refuses overwrites. `.gitignore` covers `/pu
 
 On 21 October 2026, release preparation parenthesized an intentionally joined
 limitation string to satisfy pinned Ruff ISC004. Python AST comparison confirmed
-that the exporter behavior is unchanged. The current exporter SHA-256 is
+that the exporter behavior is unchanged. The committed LF-form exporter SHA-256 is
 `d7adfecbe088a107803f8d0895ecd70bab06c224eddf3d330f953e7676ec8a76`;
+Windows checkouts may convert its line endings to CRLF.
 the historical v3 exporter hash above still identifies the source used for that
 snapshot. Its original bytes are preserved locally under the ignored
 `.local-deployment/release-preflight/backend/scripts/` directory. No candidate

@@ -51,6 +51,7 @@ describe('article atlas interface', () => {
     mockApi(() => jsonResponse(first));
     renderWithClient(<ArticleAtlas />);
     expect(await screen.findByText(/Complete collection loaded: 1 of 1/)).toBeTruthy();
+    expect(screen.getByText(/Local workspace · saved map snapshot/)).toBeTruthy();
     fireEvent.change(screen.getByRole('combobox', { name: 'Select mapped article' }), { target: { value: article.id } });
     const inspector = screen.getByRole('region', { name: 'Selected mapped article' });
     expect(within(inspector).getByRole('link', { name: 'Open article details' }).getAttribute('href')).toContain('/overview?back=');
@@ -62,5 +63,18 @@ describe('article atlas interface', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Search all mapped articles' }), { target: { value: 'missing topic' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search map' }));
     expect(screen.getByText('No articles match these map filters.')).toBeTruthy();
+  });
+  it('requests recorded relationships from the displayed map snapshot', async () => {
+    window.location.hash = '#/dashboard/atlas?release=release-a';
+    const fetch = mockApi(path => path.includes('/graph/full')
+      ? jsonResponse({ run_id: 'release-a', nodes: [], edges: [], counts: { nodes: 0, edges: 0 } })
+      : path.includes('/atlas/roads') ? jsonResponse({ available: false, run_id: 'release-a', reason: 'No streets' })
+      : jsonResponse(first));
+    renderWithClient(<ArticleAtlas />);
+    expect(await screen.findByText(/Complete collection loaded: 1 of 1/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Recorded relationships' }));
+    expect(await screen.findByText(/0 recorded article groups in this view/)).toBeTruthy();
+    expect(fetch.mock.calls.filter(([url]) => String(url).includes('/graph/full')).map(([url]) => String(url)))
+      .toEqual([expect.stringContaining('/graph/full?release=release-a')]);
   });
 });

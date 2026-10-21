@@ -55,6 +55,6 @@ export interface ClaimGraphNode {
 }
 
 export const graphApi = {
-  full: (options?: ApiRequestOptions) => apiClient.get<FullGraph>('/graph/full', options),
+  full: (options?: ApiRequestOptions, release?: string) => apiClient.get<FullGraph>(`/graph/full${release ? '?release=' + encodeURIComponent(release) : ''}`, options),
   claims: (options?: ApiRequestOptions) => apiClient.get<FullGraph>('/graph/claims', options),
 };

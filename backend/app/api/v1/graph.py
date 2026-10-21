@@ -12,8 +12,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_db_session
 from app.db.neo4j_client import neo4j_client
 from app.services.evolution.text_changes import analyze_text_change
 
@@ -126,8 +127,13 @@ def _clean_text(v: Any, limit: int = 200) -> str | None:
 
 
 @router.get("/full")
-async def full_graph() -> dict[str, Any]:
-    """Bounded Neo4j projection: relationship endpoints first, no inferred edges."""
+async def full_graph(
+    release: uuid.UUID | None = None, db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Read a pinned snapshot or the live bounded Neo4j graph, without inference."""
+    if release is not None:
+        from app.api.v1 import published
+        return await published.graph(run=await published.active(release, db), db=db)
     driver = await neo4j_client.get_driver()
     node_limit, edge_limit = 10000, 40000
 

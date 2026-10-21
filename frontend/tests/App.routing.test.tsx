@@ -60,9 +60,9 @@ describe('dashboard sign-in boundary', () => {
     signInFixture();
     window.history.replaceState(null, '', '/#/dashboard/tools');
     renderWithClient(<App />);
-    expect(screen.getByRole('heading', { name: 'Research tools' })).toBeTruthy();
-    const homeLinks = screen.getAllByRole('link', { name: 'Find articles' });
+    expect(screen.getByRole('heading', { name: 'Tools & guides' })).toBeTruthy();
+    const homeLinks = screen.getAllByRole('link', { name: 'Explore articles' });
     expect(homeLinks.length).toBeGreaterThan(0);
-    expect(homeLinks[0].getAttribute('href')).toBe('#/dashboard/browse');
+    expect(homeLinks[0].getAttribute('href')).toBe('#/dashboard');
   });
 });

@@ -6,6 +6,13 @@ import { emptyDashboardApi, jsonResponse, mockApi, renderWithClient, zeroDashboa
 
 const TABS = ['overview', 'graph', 'vector', 'cache', 'corpus', 'factcheck', 'fullgraph', 'timeline', 'masala', 'eval'] as const;
 
+function navigateTool(tab: string) {
+  act(() => {
+    window.location.hash = `#/dashboard/${tab}`;
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  });
+}
+
 describe('real readiness, independent tabs and shared polling', () => {
   it('renders ready and legitimate zero infrastructure counts, not demo fallbacks', async () => {
     mockApi(emptyDashboardApi);
@@ -16,6 +23,19 @@ describe('real readiness, independent tabs and shared polling', () => {
     expect(screen.getByText('3 / 3 ready')).toBeTruthy();
     expect(screen.queryByText(/Demo Telemetry — simulated data stream/)).toBeNull();
     expect(screen.queryByText(/42,118|137,540|128.4 MB/)).toBeNull();
+  });
+
+  it('puts tool content before collapsed connection settings without a decorative equalizer', async () => {
+    mockApi(emptyDashboardApi);
+    window.history.replaceState(null, '', '#/dashboard/cache');
+    renderWithClient(<SystemHealth />);
+    await screen.findByText('0 MB');
+    const settings = screen.getByText(/Connection & refresh settings/).closest('details');
+    expect(settings?.open).toBe(false);
+    const content = screen.getByText(/Redis Cache & Token Blocklist Telemetry/);
+    expect(content.compareDocumentPosition(settings!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByLabelText(/Decorative equalizer/)).toBeNull();
+    expect(screen.queryByLabelText('Switch advanced tool')).toBeNull();
   });
 
   it('retains readiness dependencies on 503 and keeps Postgres-backed tabs usable', async () => {
@@ -30,10 +50,10 @@ describe('real readiness, independent tabs and shared polling', () => {
     expect(screen.getByText('down: graph unavailable')).toBeTruthy();
     expect(screen.queryByText('Readiness unavailable')).toBeNull();
     expect(screen.getByText('2 / 3 ready')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Switch advanced tool'), { target: { value: 'corpus' } });
+    navigateTool('corpus');
     expect(await screen.findByText('No articles match this search.')).toBeTruthy();
     expect(screen.getByText('0 articles')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Switch advanced tool'), { target: { value: 'factcheck' } });
+    navigateTool('factcheck');
     expect(await screen.findByText(/No verdicts yet for this filter/)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Corpus Evidence Check' })).toBeTruthy();
   });
@@ -64,7 +84,7 @@ describe('real readiness, independent tabs and shared polling', () => {
     window.history.replaceState(null, '', '#/dashboard/corpus');
     renderWithClient(<SystemHealth />);
     await screen.findByText('Article Corpus');
-    fireEvent.change(screen.getByLabelText('Switch advanced tool'), { target: { value: 'cache' } });
+    navigateTool('cache');
     await screen.findByText(/Redis Cache & Token Blocklist Telemetry/);
     expect(window.location.hash).toBe('#/dashboard/cache');
     window.history.back();
@@ -81,6 +101,8 @@ describe('real readiness, independent tabs and shared polling', () => {
     const page = renderWithClient(<SystemHealth />);
     await act(async () => { await vi.advanceTimersByTimeAsync(10); });
     expect(screen.getByText('No articles match this search.')).toBeTruthy();
+    fireEvent.click(screen.getByText(/Connection & refresh settings/));
+    fireEvent.click(screen.getByText('Refresh settings'));
     fireEvent.change(screen.getByLabelText('Background polling interval'), { target: { value: '0' } });
     const beforePause = fetch.mock.calls.length;
     await act(async () => {
@@ -89,7 +111,7 @@ describe('real readiness, independent tabs and shared polling', () => {
       await vi.advanceTimersByTimeAsync(90_000);
     });
     expect(fetch).toHaveBeenCalledTimes(beforePause);
-    fireEvent.change(screen.getByLabelText('Switch advanced tool'), { target: { value: 'factcheck' } });
+    navigateTool('factcheck');
     await act(async () => { await vi.advanceTimersByTimeAsync(10); });
     expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/verdicts'))).toBe(true);
     expect(screen.getByText(/No verdicts yet for this filter/)).toBeTruthy();

@@ -6,12 +6,14 @@ import { loadCityNetwork } from '../../../shared/api/cityNetwork';
 import { graphApi } from '../../../shared/api/graph';
 import { topicHref } from '../../../shared/navigation/topicRoutes';
 import { articleHref } from '../../../shared/navigation/articleRoutes';
+import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { buildCityScene, parseCityView, type CityEdge } from '../lib/cityScene';
 import { CityNetworkCanvas, type CityCanvasHandle } from './CityNetworkCanvas';
 import './city.css';
 
 export default function ArticleAtlas() {
+  const { mode } = usePublicationRuntime();
   const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const [topic, setTopic] = useState(params.get('topic') || ''), [query, setQuery] = useState(params.get('q') || '');
   const [search, setSearch] = useState(query), [selected, select] = useState<string | null>(params.get('node'));
@@ -29,7 +31,7 @@ export default function ArticleAtlas() {
     buildCityScene(records!, summary!, candidate);
     return candidate;
   }, enabled: request.data?.available === true && !!release, retry: false, staleTime: 300000 });
-  const links = useQuery({ queryKey: ['atlas-recorded-links', release], queryFn: ({ signal }) => graphApi.full({ signal }), enabled: showRecorded && request.data?.available === true, retry: false, staleTime: 300000 });
+  const links = useQuery({ queryKey: ['atlas-recorded-links', release], queryFn: ({ signal }) => graphApi.full({ signal }, release || undefined), enabled: showRecorded && request.data?.available === true, retry: false, staleTime: 300000 });
   const fullScene = useMemo(() => {
     if (!records || !summary) return null;
     const result = buildCityScene(records, summary, network.data);
@@ -112,6 +114,7 @@ export default function ArticleAtlas() {
     {request.isError && <QueryError title="Collection map unavailable" error={request.error} onRetry={() => request.refetch()} retrying={request.isFetching} />}
     {request.data && !request.data.available && <div className="city-notice"><h2 className="font-display text-2xl">Article topics have not been published yet.</h2><p>{request.data.reason}</p><a href="#/dashboard/browse" className="underline">Browse source articles</a></div>}
     {summary && request.data?.available && scene && fullScene && <>
+      {mode === 'local' && <p className="city-notice">Local workspace · saved map snapshot. Article details and recorded links stay pinned to this map.</p>}
       <div className="city-scope-strip"><p>Complete collection loaded: {records?.length.toLocaleString()} of {summary.total_articles.toLocaleString()} articles · {summary.topics.length} topic groups · {summary.unclassified.toLocaleString()} unclassified.</p><span>{network.data?.available ? `${network.data.roads.length.toLocaleString()} semantic streets · exploratory similarity` : network.isFetching ? 'Loading street network…' : 'Article atlas'}</span></div>
       <div className="city-toolbar"><form onSubmit={e => { e.preventDefault(); setQuery(search.trim()); setPage(0); pick(null); }}><Search size={16} /><input aria-label="Search all mapped articles" placeholder="Find an article title…" value={search} onChange={e => setSearch(e.target.value)} /><button type="submit" className="city-button">Search map</button></form><button className="city-button city-explore-toggle" aria-expanded={exploring} onClick={() => setExploring(v => !v)}><Layers3 size={15} />Explore & layers</button><button className="city-icon-button" aria-label="Toggle fullscreen map" onClick={() => void fullscreenMap()}><Maximize2 size={18} /></button></div>
       {screenError && <p className="city-notice" role="status">{screenError}</p>}
