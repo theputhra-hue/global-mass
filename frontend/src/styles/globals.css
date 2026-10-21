@@ -11,9 +11,6 @@
   --hermes-blush: #F5E2DC;
   --hermes-bone: #FFF7F2;
   --hermes-ink: #1A0608;
-  --hermes-panel: #2B1015;
-  --hermes-panel-deep: #200A0E;
-  --hermes-muted: #C3ADA9;
 }
 
 @layer base {
@@ -29,13 +26,13 @@
   }
 
   h1, h2, h3, h4, .font-display {
-    font-family: Inter, system-ui, sans-serif;
-    font-weight: 600;
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
     letter-spacing: -0.01em;
   }
 
-  select, input, button {
-    font-family: inherit;
+  code, pre, .font-mono, select, input, button {
+    font-family: 'Courier Prime', ui-monospace, monospace;
   }
 
   ::selection {
@@ -50,34 +47,30 @@
 }
 
 @layer utilities {
-  /* Shared surfaces; legacy class names preserve component compatibility. */
+  /* Flat card with hard keyline + offset shadow — no blur, no glass */
   .card-brutal {
-    @apply bg-hermes-blush border border-hermes-ink/15 rounded-xl;
+    @apply bg-hermes-blush border border-hermes-ink/90 shadow-[4px_4px_0_0_rgba(26,6,8,1)];
   }
 
   .card-brutal-hover {
-    @apply transition-colors duration-150 hover:border-hermes-red;
+    @apply transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_rgba(26,6,8,1)];
   }
 
   .field-brutal {
-    border-radius: 8px; min-height: 40px;
     @apply bg-hermes-panel-deep border border-hermes-bone/25 px-3 py-2 text-sm font-mono text-hermes-bone placeholder:text-hermes-bone/35 focus:border-hermes-bone/60 disabled:opacity-50;
   }
 
-  /* Primary action */
+  /* Primary action — solid crimson block with bone type */
   .btn-brutal {
-    border-radius: 8px; min-height: 40px;
-    @apply inline-flex items-center justify-center gap-2 border border-hermes-ink/90 font-mono text-xs font-semibold normal-case tracking-normal px-4 py-2 transition-all duration-150  cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-hermes-red text-hermes-bone  hover:bg-hermes-red-deep;
+    @apply inline-flex items-center justify-center gap-2 border border-hermes-ink/90 font-mono text-xs font-bold uppercase tracking-wider px-4 py-2 transition-all duration-150 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-hermes-red text-hermes-bone shadow-[3px_3px_0_0_rgba(26,6,8,1)] hover:bg-hermes-red-deep;
   }
 
   .btn-ghost-brutal {
-    border-radius: 8px; min-height: 40px;
-    @apply inline-flex items-center justify-center gap-2 border border-hermes-ink/60 bg-transparent font-mono text-xs font-semibold normal-case tracking-normal px-4 py-2 transition-all duration-150 hover:border-hermes-ink  cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-hermes-ink hover:bg-hermes-ink/5;
+    @apply inline-flex items-center justify-center gap-2 border border-hermes-ink/60 bg-transparent font-mono text-xs font-bold uppercase tracking-wider px-4 py-2 transition-all duration-150 hover:border-hermes-ink active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-hermes-ink hover:bg-hermes-ink/5;
   }
 
   .chip-brutal {
-    border-radius: 5px;
-    @apply inline-flex items-center gap-1.5 border border-hermes-ink/80 px-2 py-0.5 font-mono text-[10px] font-medium normal-case tracking-normal;
+    @apply inline-flex items-center gap-1.5 border border-hermes-ink/80 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest;
   }
 
   /* Skeleton shimmer — ink on rose paper */
@@ -102,19 +95,18 @@
     animation: shimmer-sweep 1.8s ease-in-out infinite;
   }
 
-  /* Raised workspace surface */
+  /* Dark observatory card — raised panel on ink */
   .card-brutal-dark {
-    @apply bg-hermes-panel border border-hermes-bone/10 rounded-xl;
+    @apply bg-hermes-panel border border-hermes-bone/15 shadow-[4px_4px_0_0_rgba(0,0,0,0.55)];
   }
 
   /* Shared dark-theme navigation and secondary actions. */
   .btn-outline-dark {
-    border-radius: 8px; min-height: 40px;
-    @apply inline-flex items-center justify-center gap-2 border border-hermes-bone/30 bg-hermes-panel-deep px-4 py-2 font-mono text-xs font-semibold normal-case tracking-normal text-hermes-bone/80  transition-colors hover:border-hermes-bone/60 hover:text-hermes-bone disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 border border-hermes-bone/30 bg-hermes-panel-deep px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-hermes-bone/80 shadow-[3px_3px_0_0_rgba(0,0,0,0.55)] transition-colors hover:border-hermes-bone/60 hover:text-hermes-bone disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .workspace-tab {
-    @apply inline-flex items-center border border-transparent border-l-2 px-4 py-3 font-mono text-xs font-semibold normal-case tracking-normal text-hermes-bone/60 transition-colors hover:bg-hermes-panel hover:text-hermes-bone;
+    @apply inline-flex items-center border border-transparent border-l-2 px-4 py-3 font-mono text-xs font-bold uppercase tracking-wider text-hermes-bone/60 transition-colors hover:bg-hermes-panel hover:text-hermes-bone;
   }
 
   .workspace-tab[aria-current='page'] {
@@ -122,19 +114,17 @@
   }
 
   .card-brutal-dark .btn-ghost-brutal {
-    border-radius: 8px; min-height: 40px;
     @apply text-hermes-bone border-hermes-bone/30 hover:border-hermes-bone/60 hover:bg-hermes-bone/5;
   }
 
   .card-brutal-dark .chip-brutal {
-    border-radius: 5px;
     @apply border-hermes-bone/30;
   }
 
-  /* Retired decorative texture */
+  /* Fractal noise grain — now a red-tinted film grain */
   .grain-overlay {
     pointer-events: none;
-    display: none;
+    opacity: 0.06;
     mix-blend-mode: multiply;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-size: 12.8rem;
@@ -202,8 +192,8 @@
   background: rgba(26, 6, 8, 0.05);
 }
 ::-webkit-scrollbar-thumb {
-  background: #805B60;
-  border-radius: 6px;
+  background: rgba(26, 6, 8, 0.75);
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--hermes-red-bright);
@@ -223,109 +213,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-
-/* Shared workspace. Existing component classes retain their API while using
-   these common surfaces and interaction rules. */
-code, pre { font-family: ui-monospace, Consolas, monospace; }
-summary { cursor: pointer; }
-button, a, input, select, textarea { touch-action: manipulation; }
-input, textarea, select { max-width: 100%; }
-select option { background: var(--hermes-panel); color: var(--hermes-bone); }
-.workspace-shell { background: var(--hermes-ink); color: var(--hermes-bone); min-height: 100vh; }
-.workspace-sidebar { position: fixed; inset: 0 auto 0 0; width: 244px; background: var(--hermes-panel-deep); border-right: 1px solid #ffffff12; overflow-y: auto; z-index: 40; }
-.workspace-brand { display: flex; gap: 12px; align-items: center; padding: 26px 22px; font-size: 21px; font-weight: 700; letter-spacing: -.5px; }
-.brand-mark { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 10px; background: var(--hermes-red); color: var(--hermes-bone); font-size: 21px; }
-.workspace-brand small { display: block; margin-top: 3px; color: var(--hermes-muted); font-size: 10px; letter-spacing: .1px; font-weight: 400; }
-.workspace-navigation { padding: 8px 14px 24px; }
-.nav-group-label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--hermes-muted); padding: 8px 12px 12px; }
-.workspace-link { display: flex; gap: 11px; align-items: center; padding: 12px; margin: 3px 0; border-radius: 7px; font-size: 13px; color: #DAC5BF; min-height: 43px; }
-.workspace-link:hover { background: #ffffff08; color: var(--hermes-bone); }
-.workspace-link[aria-current='page'] { background: rgb(165 14 29 / 15%); color: var(--hermes-bone); box-shadow: inset 3px 0 var(--hermes-red-bright); }
-.workspace-link svg { flex-shrink: 0; }
-.nav-group { margin-top: 20px; }
-.nav-group summary { padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--hermes-muted); }
-.nav-directory { border-top: 1px solid #ffffff12; margin-top: 24px; padding-top: 16px; border-radius: 0; }
-.nav-footnote { padding: 24px 12px 0; font-size: 11px; line-height: 1.8; color: var(--hermes-muted); }
-.workspace-body { margin-left: 244px; min-width: 0; }
-.workspace-topbar { position: sticky; top: 0; z-index: 30; height: 70px; display: flex; gap: 16px; align-items: center; padding: 12px 32px; border-bottom: 1px solid #ffffff12; background: var(--hermes-ink); }
-.workspace-topbar > :last-child { margin-left: auto; }
-.workspace-location { font-size: 12px; color: var(--hermes-muted); display: flex; gap: 14px; }
-.workspace-location strong { color: var(--hermes-bone); font-weight: 500; }
-.shell-icon-button { display: inline-flex; justify-content: center; align-items: center; width: 40px; height: 40px; border-radius: 7px; background: #ffffff05; border: 1px solid #ffffff15; color: var(--hermes-bone); cursor: pointer; }
-.shell-icon-button:hover { background: #ffffff12; }
-.workspace-content { width: 100%; max-width: 1600px; margin: 0 auto; overflow-wrap: anywhere; }
-.workspace-wide-map .workspace-content { max-width: none; }
-.workspace-content h1:not(.city-workspace *) { font-size: clamp(1.75rem, 3vw, 2.45rem); line-height: 1.25; letter-spacing: -.04em; }
-.workspace-content h2:not(.city-workspace *) { font-size: clamp(1.2rem, 2vw, 1.65rem); line-height: 1.35; letter-spacing: -.025em; }
-.workspace-content h3:not(.city-workspace *) { font-size: 1.05rem; line-height: 1.5; }
-.workspace-content .min-h-screen { min-height: calc(100vh - 70px); }
-.workspace-content .btn-ghost-brutal { color: var(--hermes-bone); border-color: rgb(255 247 242 / 25%); }
-.workspace-content .text-hermes-bone\/30,
-.workspace-content .text-hermes-bone\/35,
-.workspace-content .text-hermes-bone\/40,
-.workspace-content .text-hermes-bone\/45,
-.workspace-content .text-hermes-bone\/50 { color: var(--hermes-muted); }
-.workspace-content .text-\[9px\], .workspace-content .text-\[10px\] { font-size: 11px; }
-.workspace-content .shimmer { background: #ffffff0b; border-radius: 7px; }
-.workspace-content section { min-width: 0; }
-.workspace-content table { font-variant-numeric: tabular-nums; }
-.workspace-content th { font-weight: 600; text-align: left; }
-.workspace-content td, .workspace-content th { padding-top: 12px; padding-bottom: 12px; }
-.workspace-collapsed .workspace-sidebar { display: none; }
-.workspace-collapsed .workspace-body { margin-left: 0; }
-.mobile-menu { display: none; }
-.mobile-navigation-panel { color: var(--hermes-bone); background: var(--hermes-panel-deep); width: min(340px, 100%); max-height: 90vh; overflow-y: auto; border-radius: 12px; border: 1px solid #ffffff20; }
-.skip-content { position: fixed; top: 8px; left: 8px; transform: translateY(-150%); z-index: 100; background: var(--hermes-bone); color: var(--hermes-ink); padding: 12px; border-radius: 6px; }
-.skip-content:focus { transform: none; }
-.article-results { border-top: 1px solid #ffffff16; }
-.article-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 30px; padding: 24px 0; border-bottom: 1px solid #ffffff16; }
-.article-result h3 { max-width: 860px; font-size: 19px; line-height: 1.5; }
-.article-result .result-actions { display: flex; flex-direction: column; gap: 12px; justify-content: center; align-items: flex-start; }
-.tool-directory-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid #ffffff16; }
-.tool-directory-item { padding: 22px 24px 22px 0; border-bottom: 1px solid #ffffff16; }
-.tool-guide { margin-bottom: 24px; }
-.tool-guide > p { max-width: 800px; font-size: 14px; line-height: 1.7; color: var(--hermes-muted); margin-top: 10px; }
-.tool-guide details { font-size: 12px; color: var(--hermes-muted); margin-top: 12px; }
-.tool-guide dl { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 16px; padding: 20px; background: var(--hermes-panel); border-radius: 8px; line-height: 1.8; }
-.tool-guide dt { color: var(--hermes-bone); font-weight: 600; margin-bottom: 6px; }
-@media (max-width: 1023px) {
-  .workspace-sidebar { display: none; }
-  .workspace-body { margin-left: 0; }
-  .desktop-menu { display: none; }
-  .mobile-menu { display: inline-flex; }
-  .workspace-topbar { padding: 12px 20px; }
-}
-@media (max-width: 640px) {
-  .workspace-topbar { padding: 12px 16px; gap: 10px; }
-  .workspace-location { font-size: 11px; gap: 8px; }
-  .workspace-location strong { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .article-result { grid-template-columns: 1fr; padding: 20px 0; }
-  .article-result .result-actions { flex-direction: row; align-items: center; flex-wrap: wrap; }
-  .tool-directory-list, .tool-guide dl { grid-template-columns: 1fr; }
-  .tool-directory-item { padding-right: 0; }
-}
-
-.article-more-tabs { padding: 10px 12px; font-size: 12px; min-width: 0; }
-.article-more-tabs[open] { flex-basis: 100%; border-top: 1px solid #ffffff12; }
-
-/* Preserve the original landing-page identity alongside the simpler workspace. */
-.landing-original { font-family: 'Courier Prime', ui-monospace, monospace; }
-.landing-original h1, .landing-original h2, .landing-original h3,
-.landing-original .font-display {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-weight: 400;
-}
-.landing-original .font-mono { font-family: 'Courier Prime', ui-monospace, monospace; }
-
-/* Preserve the current map presentation inside the restored workspace skin. */
-.city-workspace,
-.city-workspace button,
-.city-workspace input,
-.city-workspace select { font-family: 'Courier Prime', ui-monospace, monospace; }
-.city-workspace h1,
-.city-workspace .font-display {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -.01em;
-}
-.city-workspace h2 { font-weight: 400; }

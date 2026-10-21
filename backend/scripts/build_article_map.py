@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import subprocess
 import time
 import uuid
 from datetime import UTC, datetime
@@ -27,7 +28,6 @@ from app.services.analysis.article_map import (
     coverage,
     document_input,
 )
-from scripts.map_runtime import add_runtime_arguments, configure_runtime, write_snapshot
 
 
 async def read_documents(ids: set[str]) -> tuple[list[dict[str, Any]], str]:
@@ -56,7 +56,8 @@ async def read_documents(ids: set[str]) -> tuple[list[dict[str, Any]], str]:
 
 def build(args: argparse.Namespace) -> None:
     # Configure local credentials normally; never fetch or print private values.
-    source_commit = configure_runtime(args)
+    from scripts.serve_local import configure
+    configure("https://global-mass.onrender.com")
     os.environ.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", TOKENIZERS_PARALLELISM="false",
                       NUMBA_NUM_THREADS="4", OMP_NUM_THREADS="4", OPENBLAS_NUM_THREADS="4", MKL_NUM_THREADS="4")
     from app.core.config import get_settings
@@ -67,6 +68,7 @@ def build(args: argparse.Namespace) -> None:
     if output.exists():
         raise RuntimeError("Output already exists; choose a new release path instead of overwriting")
     started, t0 = datetime.now(UTC), time.monotonic()
+    source_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     # Source hashes document uncommitted implementation without pretending HEAD
     # alone identifies the executed algorithm.
     implementation = {str(p.relative_to(Path(__file__).parents[1])): hashlib.sha256(p.read_bytes()).hexdigest()
@@ -108,8 +110,7 @@ def build(args: argparse.Namespace) -> None:
     from sentence_transformers import SentenceTransformer
     torch.set_num_threads(4)
     torch.set_num_interop_threads(2)
-    model_path = snapshot_download(MODEL, revision=REVISION, local_files_only=True,
-                                   allow_patterns=["*.json", "*.txt", "*.model", "*.safetensors"])
+    model_path = snapshot_download(MODEL, revision=REVISION, local_files_only=True)
     model = SentenceTransformer(model_path, device="cpu", local_files_only=True)
     model.max_seq_length = 384
     cache = sqlite3.connect(work / "embeddings.sqlite3")
@@ -204,7 +205,11 @@ def build(args: argparse.Namespace) -> None:
                               "topics": topics, "assignments": assignments})
     snapshot = PublicationSnapshot.model_validate(payload)
     body = snapshot.canonical_bytes()
-    write_snapshot(output, body, local_only=getattr(args, "local_only", False))
+    if len(body) > 10 * 1024 * 1024:
+        raise RuntimeError("Complete export exceeds 10 MiB; change the publication transport before uploading")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("xb") as dest:
+        dest.write(body)
     audit.update(status="complete", phase="exported", run_id=str(snapshot.run_id), sha256=snapshot.sha256(),
                  source_after=source_after, coverage=coverage(assignments), topics=len(topics),
                  unclassified=sum(a["topic_id"] is None for a in assignments), bytes=len(body),
@@ -220,7 +225,6 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     parser.add_argument("--batch-size", type=int, choices=range(1, 33), default=8)
     parser.add_argument("--min-topic-size", type=int, choices=range(5, 101), default=15)
-    add_runtime_arguments(parser)
     args = parser.parse_args()
     try:
         build(args)

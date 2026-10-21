@@ -103,31 +103,17 @@ describe('investigation-centered navigation', () => {
   it('keeps a comparison draft when moving among article sections', async () => {
     signInFixture();
     const article = { id, title: 'River report', url: 'https://example.org/report', claims_total: 1, body: '', domain: 'example.org' };
-    const fetch = mockApi(endpoint => endpoint.includes('/claims?') ? jsonResponse({ total: 1, items: [{ id: claim, text: 'River rose.', entities: [] }], selected: null })
+    mockApi(endpoint => endpoint.includes('/claims?') ? jsonResponse({ total: 1, items: [{ id: claim, text: 'River rose.', entities: [] }], selected: null })
       : endpoint.includes('/connections?') ? jsonResponse({ total_edges: 0, edges: [], articles: [article] }) : jsonResponse(article));
-    const initialRoute = parseArticleRoute(articleHref(id, 'changes', { release: run, against: other, back }).slice(2))!;
-    const { rerender, client } = renderWithClient(<ArticleInvestigation route={initialRoute} />);
+    const route = (tab: 'changes' | 'article') => parseArticleRoute(articleHref(id, tab, { back }).slice(2))!;
+    const { rerender, client } = renderWithClient(<ArticleInvestigation route={route('changes')} />);
     fireEvent.change(await screen.findByLabelText('Older text'), { target: { value: 'Unfinished comparison draft' } });
-    fireEvent.change(screen.getByLabelText('Newer text'), { target: { value: 'A later draft with additional details' } });
-    fireEvent.change(screen.getByLabelText('Context note'), { target: { value: 'Check both original sources before comparing.' } });
-    const articleRoute = parseArticleRoute(within(screen.getByRole('navigation', { name: 'Article details' })).getByRole('link', { name: 'Article', exact: true }).getAttribute('href')!.slice(2))!;
-    expect(articleRoute).toMatchObject({ tab: 'article', release: run, against: other, back });
-    rerender(<QueryClientProvider client={client}><ArticleInvestigation route={articleRoute} /></QueryClientProvider>);
+    rerender(<QueryClientProvider client={client}><ArticleInvestigation route={route('article')} /></QueryClientProvider>);
     expect(screen.queryByRole('button', { name: 'Compare mutations' })).toBeNull();
-    const articleNav = screen.getByRole('navigation', { name: 'Article details' });
-    expect(within(articleNav).getByRole('link', { name: 'Article', exact: true }).getAttribute('aria-current')).toBe('page');
-    expect(within(articleNav).getByText('Investigate further').closest('details')?.open).toBe(false);
-    fireEvent.click(within(articleNav).getByText('Investigate further'));
-    const changesRoute = parseArticleRoute(within(articleNav).getByRole('link', { name: 'Changes' }).getAttribute('href')!.slice(2))!;
-    expect(changesRoute).toMatchObject({ tab: 'changes', release: run, against: other, back });
-    rerender(<QueryClientProvider client={client}><ArticleInvestigation route={changesRoute} /></QueryClientProvider>);
+    rerender(<QueryClientProvider client={client}><ArticleInvestigation route={route('changes')} /></QueryClientProvider>);
     expect((screen.getByLabelText('Older text') as HTMLTextAreaElement).value).toBe('Unfinished comparison draft');
-    expect((screen.getByLabelText('Newer text') as HTMLTextAreaElement).value).toBe('A later draft with additional details');
-    expect((screen.getByLabelText('Context note') as HTMLTextAreaElement).value).toBe('Check both original sources before comparing.');
     const nav = screen.getByRole('navigation', { name: 'Article details' });
-    expect(within(nav).getByRole('link', { name: 'Changes' }).getAttribute('aria-current')).toBe('page');
-    expect(within(nav).getByText('Investigate further').closest('details')?.open).toBe(true);
-    expect(fetch.mock.calls.every(([, init]) => init?.method === 'GET')).toBe(true);
+    expect(within(nav).getByRole('link', { name: 'Analysis' }).getAttribute('aria-current')).toBe('page');
   });
   it('saves a server-computed comparison with source context and private notes only after explicit action', async () => {
     signInFixture();

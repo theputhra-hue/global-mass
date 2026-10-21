@@ -43,14 +43,13 @@ describe('article investigation', () => {
     expect(await screen.findByText('Saved claim service unavailable')).toBeTruthy();
     expect(screen.queryByText(/This article has no saved extracted/)).toBeNull();
   });
-  it('preserves claim, pagination, release, comparison and return state when changing article tabs', async () => {
+  it('preserves claim, pagination and return state when using the mobile section selector', async () => {
     mockApi(fixture);
-    renderWithClient(<ArticleInvestigation route={route('claims', `?claim=${claimId}&offset=20&release=${id}&against=${other}&back=${encodeURIComponent('#/dashboard/browse?q=river')}`)} />);
+    renderWithClient(<ArticleInvestigation route={route('claims', `?claim=${claimId}&offset=20&back=${encodeURIComponent('#/dashboard/browse?q=river')}`)} />);
     await screen.findByRole('heading', { name: detail.title });
-    const nav = screen.getByRole('navigation', { name: 'Article details' });
-    fireEvent.click(within(nav).getByText('Investigate further'));
-    const next = parseArticleRoute(within(nav).getByRole('link', { name: 'Data & methods' }).getAttribute('href')!.slice(2));
-    expect(next).toMatchObject({ tab: 'methods', claim: claimId, offset: 20, release: id, against: other, back: '#/dashboard/browse?q=river' });
+    fireEvent.change(screen.getByLabelText('Jump to article section'), { target: { value: 'methods' } });
+    const next = parseArticleRoute(window.location.hash.slice(2));
+    expect(next).toMatchObject({ tab: 'methods', claim: claimId, offset: 20, back: '#/dashboard/browse?q=river' });
   });
   it('updates and repeats a query route without clearing the memory-only session', () => {
     signInFixture();
@@ -59,14 +58,11 @@ describe('article investigation', () => {
     expect(window.location.hash).toBe('#/dashboard/browse?q=river&offset=6');
     expect(getAccessToken()).toBe('test-access');
   });
-  it('restores three clear primary tabs with optional investigation views and preserves the source and result query', async () => {
+  it('opens a real detail page with five main sections and preserves the source and result query', async () => {
     const fetch = mockApi(fixture);
     renderWithClient(<ArticleInvestigation route={route('overview', `?back=${encodeURIComponent('#/dashboard/browse?q=river&offset=6')}`)} />);
     await screen.findByRole('heading', { name: 'River levels rise' });
-    const nav = screen.getByRole('navigation', { name: 'Article details' });
-    expect(within(nav).getAllByRole('link').filter(link => !link.closest('details')).map(link => link.textContent)).toEqual(['Overview', 'Article', 'Claims']);
-    expect(within(nav).getByText('Investigate further').closest('details')?.open).toBe(false);
-    expect(screen.getByRole('heading', { name: 'Inside this report' }).compareDocumentPosition(screen.getByRole('region', { name: 'Saved article analysis' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(screen.getByRole('navigation', { name: 'Article details' })).getAllByRole('link')).toHaveLength(5);
     expect(screen.getByRole('link', { name: /Read original source/ }).getAttribute('href')).toBe(detail.url);
     expect(screen.getByRole('link', { name: /Back to results/ }).getAttribute('href')).toBe('#/dashboard/browse?q=river&offset=6');
     expect(fetch.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
@@ -101,15 +97,12 @@ describe('article investigation', () => {
     expect(screen.getByRole('heading', { name: detail.title })).toBeTruthy();
     expect(screen.queryByText(/No cross-article coverage links/)).toBeNull();
   });
-  it('keeps advanced article views available and the tools directory accessible without repeating its entire menu', async () => {
+  it('keeps every advanced destination and marks provenance unknown', async () => {
     mockApi(fixture); renderWithClient(<ArticleInvestigation route={route('methods')} />);
     expect(await screen.findByText('Not recorded in this article response')).toBeTruthy();
-    const nav = screen.getByRole('navigation', { name: 'Article details' });
-    expect(within(nav).getByText('Investigate further').closest('details')?.open).toBe(true);
-    for (const name of ['Related coverage', 'Evidence', 'Changes', 'Timeline', 'Graph', 'Data & methods']) {
-      expect(within(nav).getByRole('link', { name, exact: true })).toBeTruthy();
+    for (const name of ['Overview Vitals', 'Neo4j Graph Engine', 'Postgres Vector', 'Redis Queue', 'Graph', 'Timeline', 'Masala Lab', 'FactCheck', 'Eval Lab', 'Corpus']) {
+      expect(screen.getByRole('heading', { name, exact: true }).closest('a')).toBeTruthy();
     }
-    expect(screen.getByRole('link', { name: 'All tools & guides' }).getAttribute('href')).toBe('#/dashboard/tools');
   });
   it('orders the focused timeline by publication time and labels the selected article', async () => {
     mockApi(fixture); renderWithClient(<ArticleInvestigation route={route('timeline')} />);
@@ -120,11 +113,10 @@ describe('article investigation', () => {
   });
   it('shows a focused graph with exact claim links and truncation notice', async () => {
     mockApi(endpoint => endpoint.includes('/connections?') ? jsonResponse({ ...connections, truncated: true, total_edges: 150 }) : fixture(endpoint));
-    renderWithClient(<ArticleInvestigation route={route('graph', `?release=${id}`)} />);
+    renderWithClient(<ArticleInvestigation route={route('graph')} />);
     expect(await screen.findByRole('img', { name: /Article relationship map/ })).toBeTruthy();
     expect(screen.getByText(/Showing the strongest 1 of 150/)).toBeTruthy();
     expect(screen.getByRole('link', { name: claim.text }).getAttribute('href')).toContain(`claim=${claimId}`);
-    expect(screen.getByRole('link', { name: claim.text }).getAttribute('href')).toContain(`release=${id}`);
   });
   it('treats an invalid route as invalid without fetching or falling back to global data', async () => {
     const fetch = mockApi(fixture);
@@ -144,10 +136,7 @@ describe('article investigation', () => {
     const nav = screen.getByRole('navigation', { name: 'Article details' });
     const links = within(nav).getAllByRole('link'); links[0].focus();
     fireEvent.keyDown(nav, { key: 'ArrowRight' }); expect(document.activeElement).toBe(links[1]);
-    fireEvent.keyDown(nav, { key: 'End' }); expect(document.activeElement).toBe(links[2]);
-    fireEvent.click(within(nav).getByText('Investigate further'));
-    const expandedLinks = within(nav).getAllByRole('link');
-    fireEvent.keyDown(nav, { key: 'End' }); expect(document.activeElement).toBe(expandedLinks[8]);
+    fireEvent.keyDown(nav, { key: 'End' }); expect(document.activeElement).toBe(links[4]);
   });
   it('round-trips deep link state and blocks external return URLs', () => {
     const href = articleHref(id, 'claims', { claim: claimId, offset: 20, back: '#/dashboard/browse?q=river&offset=6' });

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, ExternalLink, FileText, Clock, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, FileText, Network, Clock, Search } from 'lucide-react';
 import { ArticleCoverage } from '../components/ArticleCoverage';
 import { articlesApi, type ArticleClaim, type ArticleConnections, type ArticleNode, type ConnectionEdge } from '../../../shared/api/articles';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { ClaimCheck } from '../../claims/components/ClaimCheck';
 import { MutationComparator } from '../../comparison/components/MutationComparator';
-import { articleHref, detailTabs, isUuid, navigateHash, parseArticleRoute, type DetailTab } from '../../../shared/navigation/articleRoutes';
+import { articleHref, isUuid, navigateHash, parseArticleRoute, type DetailTab } from '../../../shared/navigation/articleRoutes';
 import { safeHttpUrl } from '../../../shared/lib/urls';
 import { setSelectedArticle } from '../../../shared/navigation/useSelectedArticle';
 import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
@@ -14,16 +14,29 @@ import { useSession } from '../../../shared/session/session';
 
 const tabs: Record<DetailTab, { name: string; help: string }> = {
   overview: { name: 'Overview', help: 'Start with the source, available text and recorded analysis.' },
-  article: { name: 'Article', help: 'Read the text stored in this collection and follow the original source.' },
+  article: { name: 'Article text', help: 'Read the text stored in this collection and follow the original source.' },
   claims: { name: 'Claims', help: 'Inspect statements extracted from this article and select one to investigate.' },
   related: { name: 'Related coverage', help: 'Explore semantic neighbors and topic coverage, separately from stored claim relationships. Related wording does not prove the same event or independent corroboration.' },
   evidence: { name: 'Evidence', help: 'Select a claim, inspect its recorded assessment, or explicitly request an evidence check.' },
   changes: { name: 'Changes', help: 'Compare two versions and inspect recorded candidate evolution links. Text differences do not prove transmission.' },
   timeline: { name: 'Timeline', help: 'Publication order within this recorded neighborhood. Earlier reporting is not proof of copying.' },
   graph: { name: 'Graph', help: 'A focused map of stored claim relationships, grouped by article. Use the list below for exact claim links.' },
-  methods: { name: 'Data & methods', help: 'Inspect data availability, provenance and limits, and understand the available evidence.' },
+  methods: { name: 'Data & methods', help: 'Inspect data availability, provenance and limits, and open every existing advanced tool.' },
 };
-const primaryTabs: readonly DetailTab[] = ['overview', 'article', 'claims'];
+const sections = [
+  { key: 'overview', label: 'Overview', tabs: ['overview'] },
+  { key: 'article', label: 'Article text', tabs: ['article'] },
+  { key: 'related', label: 'Related coverage', tabs: ['related', 'timeline', 'graph'] },
+  { key: 'claims', label: 'Analysis', tabs: ['claims', 'evidence', 'changes'] },
+  { key: 'methods', label: 'Data & methods', tabs: ['methods'] },
+] as const;
+const tools = [
+  ['overview', 'Overview Vitals', 'Collection and system overview'], ['graph', 'Neo4j Graph Engine', 'Collection-wide technical graph'],
+  ['vector', 'Postgres Vector', 'Collection-wide semantic search'], ['cache', 'Redis Queue', 'System-wide runtime and cache status'],
+  ['fullgraph', 'Graph', 'Full corpus graph'], ['timeline', 'Timeline', 'Existing 3D timeline, focused on this article'],
+  ['masala', 'Masala Lab', 'Full exploratory lab'], ['factcheck', 'FactCheck', 'Standalone evidence workspace'],
+  ['eval', 'Eval Lab', 'Research annotation; existing role requirements apply'], ['corpus', 'Corpus', 'Full collection workspace'],
+];
 const date = (value: string | null | undefined) => value ? new Date(value).toLocaleString() : 'Unknown';
 const panel = 'card-brutal-dark p-5 md:p-7 min-w-0';
 const linkStyle = 'underline underline-offset-4 hover:text-hermes-red-bright';
@@ -105,6 +118,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
   const { id, tab, claim, back, offset } = route;
   const release = route.release || (runtime.mode === 'published' ? runtime.publication?.run_id || undefined : undefined);
   const archived = runtime.mode === 'published' || !!release;
+  const section = sections.find(item => (item.tabs as readonly string[]).includes(tab)) || sections[0];
   const tabsRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (runtime.mode === 'published' && !route.release && release && isUuid(release) && route.valid) {
@@ -127,18 +141,21 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
   const source = safeHttpUrl(article?.url);
   return (
     <div className="space-y-6 min-w-0">
+    <div className="flex flex-wrap items-center justify-between gap-3">
       <a href={back} className={`${linkStyle} text-xs inline-flex gap-2 items-center`}><ArrowLeft className="w-4 h-4" /> {back.startsWith('#/dashboard/browse') ? 'Back to results' : 'Back to investigation'}</a>
+      <span className="text-xs text-hermes-bone/50 font-mono">Durable article record</span>
+    </div>
     {!valid ? <Empty>This article link is invalid. Return to the collection and open an article.</Empty> : <>
       {details.isPending && <p role="status">Loading article details…</p>}
       {details.isError && <QueryError title="Article details unavailable" error={details.error} onRetry={() => details.refetch()} />}
       {article && <>
         <section className="space-y-4 border-b border-hermes-bone/15 pb-7">
-          <p className="text-[10px] uppercase tracking-widest text-hermes-red-bright">Collection / Article &amp; related topic{release ? ' · Saved map snapshot' : ''}</p>
+          <p className="text-[10px] uppercase tracking-widest text-hermes-red-bright font-mono">Attributable source record{release ? ' · Published snapshot' : ''}</p>
           <h1 className="font-display text-4xl md:text-6xl max-w-6xl break-words leading-tight">{article.title}</h1>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-hermes-bone/65">
-            <span>{article.domain || 'Source unknown'}</span>
-            <span>{article.author || 'Author unknown'}</span>
-            <span>Published {date(article.published_at)}</span>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-hermes-bone/65 font-mono">
+            <span>Source: <strong className="text-hermes-bone">{article.domain || 'Source unknown'}</strong></span>
+            <span>Author: <strong className="text-hermes-bone">{article.author || 'Author unknown'}</strong></span>
+            <span>Published: <strong className="text-hermes-bone">{date(article.published_at)}</strong></span>
           </div>
           <div className="flex gap-3 flex-wrap items-center pt-1">
             {source && (
@@ -153,21 +170,26 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
           </div>
         </section>
 
-        {tab === 'overview' && <p className="text-sm leading-relaxed text-hermes-bone/70">{article.claims_total > 0 ? `${article.claims_total} extracted statements are available to inspect.` : 'No extracted statements are saved for this article.'} Start with the source, then inspect the claims and their evidence.</p>}
-        <nav ref={tabsRef} aria-label="Article details" className="flex flex-wrap items-start gap-1 border-b border-hermes-bone/15 pb-3"
+        <p className="text-sm leading-relaxed text-hermes-bone/65 max-w-4xl">Follow this article’s source, related reporting and saved analysis. Extracted statements and model assessments need review; opening a section never runs new AI analysis.</p>
+        <div className="md:hidden">
+          <label htmlFor="article-section-select" className="block text-xs mb-2">Jump to article section</label>
+          <select id="article-section-select" value={section.key} onChange={event => navigateHash(href(event.target.value as DetailTab))} className="field-brutal w-full">
+            {sections.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}
+          </select>
+        </div>
+        <nav ref={tabsRef} aria-label="Article details" className="hidden md:flex flex-wrap gap-2 border-b border-hermes-bone/15 pb-5"
           onKeyDown={event => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-            const links = [...(tabsRef.current?.querySelectorAll<HTMLAnchorElement>('a') || [])].filter(link => !link.closest('details') || link.closest('details')?.open);
+            const links = [...(tabsRef.current?.querySelectorAll<HTMLAnchorElement>('a') || [])];
             const index = links.indexOf(document.activeElement as HTMLAnchorElement);
             const next = event.key === 'Home' ? 0 : event.key === 'End' ? links.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + links.length) % links.length;
             event.preventDefault(); links[next]?.focus();
           }}>
-          {primaryTabs.map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className="workspace-tab whitespace-nowrap shrink-0">{tabs[key].name}</a>)}
-          <details key={primaryTabs.includes(tab) ? 'primary' : 'research'} open={!primaryTabs.includes(tab)} className="article-more-tabs">
-            <summary>Investigate further</summary>
-            <div className="flex flex-wrap gap-1 mt-2">{detailTabs.filter(key => !primaryTabs.includes(key)).map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className="workspace-tab">{tabs[key].name}</a>)}</div>
-          </details>
+          {sections.map(item => <a key={item.key} href={href(item.key)} aria-current={section.key === item.key ? 'page' : undefined} className={section.key === item.key ? 'btn-brutal' : 'btn-outline-dark'}>{item.label}</a>)}
         </nav>
+        {section.tabs.length > 1 && <nav aria-label={`${section.label} views`} className="flex flex-wrap gap-2">
+          {section.tabs.map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className={`px-4 py-3 text-sm border rounded ${tab === key ? 'border-hermes-red-bright bg-hermes-panel text-hermes-bone' : 'border-hermes-bone/20 text-hermes-bone/65'}`}>{key === 'related' ? 'Similar & recorded coverage' : key === 'graph' ? 'Recorded link map' : key === 'changes' ? (readOnly ? 'Recorded changes' : 'Compare & save notes') : tabs[key].name}</a>)}
+        </nav>}
 
         <section aria-labelledby="detail-tab-heading" className="space-y-5">
           <div>
@@ -175,9 +197,6 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
             <p className="text-sm text-hermes-bone/65 mt-2 max-w-4xl leading-relaxed">{tabs[tab].help}</p>
           </div>
             {tab === 'overview' && <>
-              <div className="grid lg:grid-cols-[2fr_1fr] gap-5"><div className={panel}><FileText className="w-5 h-5 text-hermes-red-bright mb-4" /><h3 className="text-2xl mb-3">Inside this report</h3><p className="text-sm leading-loose whitespace-pre-wrap break-words">{article.body ? `${article.body.slice(0, 650)}${article.body.length > 650 ? '…' : ''}` : archived ? 'Full article text is not included in this published archive. Follow the original source above to read the report.' : 'No article text is stored for this item.'}</p><p className="text-xs text-hermes-bone/50 mt-4">{article.body ? 'Excerpt from stored text · completeness unknown; it may be a feed summary.' : 'Source metadata and saved statements remain available when recorded.'}</p><a href={href('article')} className="btn-outline-dark mt-5">{article.body ? 'Read available text' : 'Source text availability'} <ArrowRight className="w-3 h-3" /></a></div>
-              <dl className={`${panel} space-y-4 text-sm`}>{[['Published', date(article.published_at)], ['Collected', date(article.collected_at)], ['Language', article.language || 'Unknown'], ['Text preparation', article.processing_status], ['Claim extraction', article.nlp_status || 'Unknown']].map(([label, value]) => <div key={label}><dt className="text-[10px] uppercase tracking-wider text-hermes-bone/50">{label}</dt><dd className="mt-1 break-words">{value}</dd></div>)}</dl></div>
-              <div className="grid sm:grid-cols-3 gap-4">{[['claims', 'Inspect the claims', `${article.claims_total} statements extracted from this article.`], ['related', 'Follow related coverage', 'Read similar reporting and inspect separately recorded links.'], ['timeline', 'Read the timeline', 'See publication dates within this neighborhood.']].map(([target, title, description]) => <a key={target} href={href(target as DetailTab)} className={panel}><h3 className="text-2xl mb-3">{title}</h3><p className="text-xs leading-relaxed text-hermes-bone/65">{description}</p></a>)}</div>
               <ArticleCoverage id={id} release={release} back={href(tab)} compact />
               <section aria-label="Saved article analysis" className={`${panel} space-y-5`}>
                 <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-display text-2xl">Saved article analysis</h3><a href={href('claims')} className={`${linkStyle} text-xs`}>Open all saved claims</a></div>
@@ -190,6 +209,9 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
                 {claims.data && claims.data.total > 0 && <div className="space-y-4"><p className="text-xs text-hermes-bone/60">Preview: {Math.min(3, claims.data.items.length)} of {claims.data.total} statements. Open all saved claims for the complete paginated list.</p>{claims.data.items.slice(0, 3).map(c => <ClaimCard key={c.id} claim={c} href={href} />)}</div>}
                 {article.claims_total === 0 && <p className="text-xs text-hermes-bone/65">{archived ? 'An approved developer must analyze this article locally and publish a complete release containing its results.' : 'An approved developer can check extraction jobs in the developer workspace.'} <a className={linkStyle} href="#/dashboard/browse">Browse another article</a>.</p>}
               </section>
+              <div className="grid lg:grid-cols-[2fr_1fr] gap-5"><div className={panel}><FileText className="w-5 h-5 text-hermes-red-bright mb-4" /><h3 className="text-2xl mb-3">Inside this report</h3><p className="text-sm leading-loose whitespace-pre-wrap break-words">{article.body ? `${article.body.slice(0, 650)}${article.body.length > 650 ? '…' : ''}` : archived ? 'Full article text is not included in this published archive. Follow the original source above to read the report.' : 'No article text is stored for this item.'}</p><p className="text-xs text-hermes-bone/50 mt-4">{article.body ? 'Excerpt from stored text · completeness unknown; it may be a feed summary.' : 'Source metadata and saved statements remain available when recorded.'}</p><a href={href('article')} className="btn-outline-dark mt-5">{article.body ? 'Read available text' : 'Source text availability'} <ArrowRight className="w-3 h-3" /></a></div>
+              <dl className={`${panel} space-y-4 text-sm`}>{[['Published', date(article.published_at)], ['Collected', date(article.collected_at)], ['Language', article.language || 'Unknown'], ['Text preparation', article.processing_status], ['Claim extraction', article.nlp_status || 'Unknown']].map(([label, value]) => <div key={label}><dt className="text-[10px] uppercase tracking-wider text-hermes-bone/50">{label}</dt><dd className="mt-1 break-words">{value}</dd></div>)}</dl></div>
+              <div className="grid sm:grid-cols-3 gap-4">{[['claims', 'Inspect the claims', `${article.claims_total} statements extracted from this article.`], ['related', 'Follow related coverage', 'Read similar reporting and inspect separately recorded links.'], ['timeline', 'Read the timeline', 'See publication dates within this neighborhood.']].map(([target, title, description]) => <a key={target} href={href(target as DetailTab)} className={panel}><h3 className="text-2xl mb-3">{title}</h3><p className="text-xs leading-relaxed text-hermes-bone/65">{description}</p></a>)}</div>
             </>}
             {tab === 'article' && <div className={panel}><p className="text-xs text-hermes-bone/60 mb-6">Available text · {article.word_count ?? 'Unknown'} recorded words · completeness unknown</p>{article.body ? <div className="whitespace-pre-wrap break-words text-sm md:text-base leading-loose max-w-5xl">{article.body}</div> : <Empty>{archived ? 'Full article text is not included in this archive. Use the original source link above to read the report.' : 'No text was stored. Use the original source link if available.'}</Empty>}</div>}
             {claimTab && <>
@@ -218,7 +240,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
             {tab === 'methods' && <><dl className={`${panel} grid sm:grid-cols-2 gap-5 text-xs`}>{[['Article ID', article.id], ['Text field', article.body_source], ['Text completeness', article.content_completeness], ['Collected at', date(article.collected_at)], ['Processed at', date(article.processed_at)], ['Relationship basis', neighborhood?.basis || 'Unavailable'], ['Model/run revision', 'Not recorded in this article response'], ['Public release provenance', archived ? release || 'Publication details unavailable' : 'Not available; this response is from the current database']].map(([label, value]) => <div key={label}><dt className="text-hermes-bone/50 uppercase tracking-wider mb-2">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl><p className="text-sm text-hermes-bone/65">An article is a source document, and a claim is extracted text. Similarity, publication order and inferred evolution are research signals. They do not establish truth, independence or observed propagation.</p></>}
           </section>
           {claims.data && (neighborhood || connections.isError) && <div hidden={tab !== 'changes'}><Changes key={`${id}:${claim}:${route.against || ''}`} edges={neighborhood?.edges || []} selected={selected || undefined} articleId={id} title={article.title} source={source || undefined} release={release} against={route.against} comparisonBack={href('changes')} /></div>}
-          {!readOnly && <footer className="border-t border-hermes-bone/15 pt-5 flex flex-wrap gap-5 text-xs"><a href="#/dashboard/tools" className="underline underline-offset-4">All tools &amp; guides</a>{runtime.mode !== 'published' && <a href="#/dashboard/timeline" className="underline underline-offset-4" onClick={() => setSelectedArticle({ id, title: article.title, domain: article.domain })}>Open this article in the story timeline</a>}</footer>}
+          {tab === 'methods' && !readOnly && <details className={`${panel} mt-8`} open><summary className="cursor-pointer font-display text-2xl">All advanced tools <Network className="inline w-5 h-5 ml-2" /></summary><p className="text-xs text-hermes-bone/55 mt-3">All existing workspaces remain available. For explanations and local/cloud availability, open the tools directory.</p><a href="#/dashboard/tools" className="btn-outline-dark mt-4">Tools &amp; guides</a><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">{tools.map(([key, name, help]) => <a key={key} className="border border-hermes-bone/15 p-4 hover:border-hermes-red-bright" href={`#/dashboard/${key}`} onClick={() => { if (key === 'timeline') setSelectedArticle({ id, title: article.title, domain: article.domain }); }}><h3 className="font-display text-xl">{name}</h3><p className="text-xs text-hermes-bone/60 mt-2">{help}</p></a>)}</div></details>}
           <footer className="text-xs leading-relaxed text-hermes-bone/55 border-t border-hermes-bone/15 pt-5"><Search className="inline w-3 h-3 mr-2" />This page shows one article and its recorded neighborhood, not an exhaustive topic or web search. Missing data remains unknown.</footer>
         </>}
       </>}

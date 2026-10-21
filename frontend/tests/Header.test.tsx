@@ -13,23 +13,19 @@ describe('dashboard chrome', () => {
     expect(screen.getByText(label)).toBeTruthy();
   });
 
-  it('keeps polling settings collapsed and preserves explicit refresh controls', () => {
-    const setInterval = vi.fn(), refresh = vi.fn();
-    renderWithClient(<Header {...baseProps} setRefetchInterval={setInterval} onManualRefresh={refresh} activeTab="overview" setActiveTab={vi.fn()} status="ready" />);
-    const settings = screen.getByText('Refresh settings').closest('details');
-    expect(settings?.open).toBe(false);
-    fireEvent.click(screen.getByText('Refresh settings'));
-    fireEvent.change(screen.getByLabelText('Background polling interval'), { target: { value: '0' } });
-    expect(setInterval).toHaveBeenCalledWith(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh telemetry' }));
-    expect(refresh).toHaveBeenCalledOnce();
-    expect(screen.queryByRole('navigation')).toBeNull();
+  it('activates real dashboard sections and labels polling/refresh controls', () => {
+    const setActive = vi.fn();
+    renderWithClient(<Header {...baseProps} activeTab="overview" setActiveTab={setActive} status="ready" />);
+    fireEvent.click(screen.getByRole('button', { name: /FactCheck/ }));
+    expect(setActive).toHaveBeenCalledWith('factcheck');
+    expect(screen.getByLabelText('Background polling interval')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Refresh telemetry' })).toBeTruthy();
     expect(screen.queryByText(/6.4k nodes|6.4k articles/)).toBeNull();
   });
 
   it('marks an explicit demo separately and never fabricates a ready status', () => {
     renderWithClient(<Header {...baseProps} activeTab="overview" setActiveTab={vi.fn()} status="error" demoMode />);
-    expect(screen.getByText('Demo Telemetry · simulated')).toBeTruthy();
+    expect(screen.getByText('Demo Telemetry')).toBeTruthy();
     expect(screen.getByText('Connection Failed')).toBeTruthy();
     expect(screen.queryByText('Systems Ready')).toBeNull();
   });
