@@ -136,6 +136,9 @@ export async function rotateAccessToken(): Promise<void> {
 }
 
 async function request<T>(method: 'GET' | 'POST', endpoint: string, body: unknown, options: ApiRequestOptions = {}, download = false): Promise<T> {
+  // Data reads also require authentication now. Re-verify expired sessions and
+  // reject late results from an account that has since signed out/switched.
+  if (!options.anonymous && getAccessToken()) options = { ...options, authenticated: true };
   const revision = getSessionRevision();
   const token = getAccessToken();
   const ensureCurrentSession = (data: T): T => {

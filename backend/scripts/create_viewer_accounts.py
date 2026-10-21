@@ -32,7 +32,7 @@ async def provision(db: AsyncSession, accounts: list[dict[str, str]]) -> None:
     # match the original credential file and already be active viewers.
     pending = []
     for account in accounts:
-        data = UserCreate(email=account["email"], password=account["password"])
+        data = UserCreate(email=account["email"], password=account["password"], full_name="Visitor")
         existing = await db.scalar(select(User).where(User.email == data.email))
         if existing is not None:
             if (existing.role != RoleEnum.viewer or not existing.is_active
@@ -47,7 +47,7 @@ async def provision(db: AsyncSession, accounts: list[dict[str, str]]) -> None:
 
 
 async def run(emails: list[str], credentials_file: Path) -> None:
-    emails = list(dict.fromkeys(str(UserCreate(email=email, password="validation-only-password").email) for email in emails))
+    emails = list(dict.fromkeys(str(UserCreate(email=email, password="validation-only-password", full_name="Visitor").email) for email in emails))
     if credentials_file.exists():
         accounts = json.loads(credentials_file.read_text(encoding="utf-8"))["accounts"]
         if sorted(account["email"] for account in accounts) != sorted(emails):

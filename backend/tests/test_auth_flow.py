@@ -23,7 +23,7 @@ async def test_inactive_user_cannot_log_in(db_session, redis_client):
 
     from app.models.user import User
 
-    await register_user(db_session, UserCreate(email="inactive@example.com", password=PW), None)
+    await register_user(db_session, UserCreate(full_name="Test Visitor", email="inactive@example.com", password=PW), None)
     user = await db_session.scalar(select(User).where(User.email == "inactive@example.com"))
     assert user is not None
     user.is_active = False
@@ -44,14 +44,14 @@ async def test_register_issues_token_pair(db_session):
 
 
 async def test_register_duplicate_email_conflicts(db_session):
-    await register_user(db_session, UserCreate(email="dup@example.com", password=PW), None)
+    await register_user(db_session, UserCreate(full_name="Test Visitor", email="dup@example.com", password=PW), None)
     with pytest.raises(HTTPException) as ei:
-        await register_user(db_session, UserCreate(email="dup@example.com", password=PW), None)
+        await register_user(db_session, UserCreate(full_name="Test Visitor", email="dup@example.com", password=PW), None)
     assert ei.value.status_code == 409
 
 
 async def test_login_success_and_wrong_password_generic_error(db_session, redis_client):
-    await register_user(db_session, UserCreate(email="login@example.com", password=PW), None)
+    await register_user(db_session, UserCreate(full_name="Test Visitor", email="login@example.com", password=PW), None)
 
     ok = await authenticate_user(
         db_session, redis_client,
@@ -72,7 +72,7 @@ async def test_login_success_and_wrong_password_generic_error(db_session, redis_
 
 async def test_refresh_rotation_and_reuse_detection(db_session, redis_client):
     created = await register_user(
-        db_session, UserCreate(email="rot@example.com", password=PW), None
+        db_session, UserCreate(full_name="Test Visitor", email="rot@example.com", password=PW), None
     )
 
     rotated = await rotate_refresh_token(
@@ -96,7 +96,7 @@ async def test_refresh_rotation_and_reuse_detection(db_session, redis_client):
 
 async def test_logout_revokes_and_blocklists(db_session, redis_client):
     await register_user(
-        db_session, UserCreate(email="out@example.com", password=PW), None
+        db_session, UserCreate(full_name="Test Visitor", email="out@example.com", password=PW), None
     )
     me = await authenticate_user(
         db_session, redis_client,

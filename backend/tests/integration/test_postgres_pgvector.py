@@ -56,6 +56,34 @@ async def _scalar(sql: str) -> Any:
         return (await db.execute(text(sql))).scalar()
 
 
+@pytest.fixture
+async def approved_pg_headers(_require_postgres: None) -> AsyncGenerator[dict[str, str], None]:
+    from fakeredis import FakeAsyncRedis
+    from sqlalchemy import delete
+
+    from app.api.deps import get_redis_client
+    from app.core.security import create_access_token
+    from app.db.postgres import async_session_maker
+    from app.main import app
+    from app.models.user import RoleEnum, User
+
+    user_id = uuid.uuid4()
+    async with async_session_maker() as db:
+        db.add(User(id=user_id, email=f"{user_id}@example.invalid", hashed_password="unused",
+                    role=RoleEnum.viewer, access_status="approved"))
+        await db.commit()
+    cache = FakeAsyncRedis()
+    app.dependency_overrides[get_redis_client] = lambda: cache
+    try:
+        yield {"Authorization": "Bearer " + create_access_token(str(user_id), "viewer", str(uuid.uuid4()))}
+    finally:
+        app.dependency_overrides.pop(get_redis_client, None)
+        await cache.aclose()
+        async with async_session_maker() as db:
+            await db.execute(delete(User).where(User.id == user_id))
+            await db.commit()
+
+
 async def test_viewer_enum_roundtrips_after_migration() -> None:
     from app.db.postgres import async_session_maker
     from app.models.user import RoleEnum, User
@@ -69,6 +97,75 @@ async def test_viewer_enum_roundtrips_after_migration() -> None:
         assert user.role == RoleEnum.viewer
         # A rollback keeps this integration-only identity out of the database.
         await db.rollback()
+
+
+async def test_approval_migration_preserves_legacy_accounts() -> None:
+    import importlib.util
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    from app.db.postgres import engine
+
+    path = Path(__file__).resolve().parents[2] / "alembic/versions/gmee11_visitor_approval.py"
+    spec = importlib.util.spec_from_file_location("approval_migration", path)
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    schema = "approval_fixture_" + uuid.uuid4().hex
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        try:
+            await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            await connection.execute(text(f'SET LOCAL search_path TO "{schema}", public'))
+            await connection.execute(text("CREATE TABLE users (id uuid PRIMARY KEY, role text NOT NULL, created_at timestamptz DEFAULT now())"))
+            await connection.execute(text("INSERT INTO users (id,role) VALUES (:a,'admin'),(:b,'viewer')"), {"a": uuid.uuid4(), "b": uuid.uuid4()})
+
+            def upgrade(sync_connection: Any) -> None:
+                with Operations.context(MigrationContext.configure(sync_connection)):
+                    migration.upgrade()
+
+            await connection.run_sync(upgrade)
+            rows = (await connection.execute(text("SELECT role, access_status, access_revision FROM users ORDER BY role"))).all()
+            assert [tuple(row) for row in rows] == [("admin", "approved", 1), ("viewer", "approved", 1)]
+        finally:
+            # The isolated schema and all fixture rows disappear together.
+            await transaction.rollback()
+
+
+async def test_two_developers_cannot_replace_each_others_approval() -> None:
+    import asyncio
+
+    from fastapi import HTTPException
+    from sqlalchemy import delete
+
+    from app.db.postgres import async_session_maker
+    from app.models.user import RoleEnum, User
+    from app.services.identity.access import review_request
+
+    user_id, reviewer = uuid.uuid4(), uuid.uuid4()
+    async with async_session_maker() as db:
+        db.add(User(id=user_id, email=f"{user_id}@example.invalid", hashed_password="unused", role=RoleEnum.viewer, access_status="pending"))
+        await db.commit()
+
+    async def decide() -> dict[str, Any] | int:
+        async with async_session_maker() as db:
+            try:
+                return await review_request(db, user_id, "approve", 1, reviewer)
+            except HTTPException as exc:
+                return exc.status_code
+
+    try:
+        outcomes = await asyncio.wait_for(asyncio.gather(decide(), decide()), timeout=15)
+        assert sum(isinstance(result, dict) for result in outcomes) == 1
+        assert outcomes.count(409) == 1
+        async with async_session_maker() as db:
+            user = await db.get(User, user_id)
+            assert user is not None and user.access_status == "approved" and user.access_revision == 2
+    finally:
+        async with async_session_maker() as db:
+            await db.execute(delete(User).where(User.id == user_id))
+            await db.commit()
 
 
 @pytest.mark.asyncio
@@ -240,14 +337,14 @@ async def test_article_embedding_is_in_the_migrated_schema() -> None:
 
 
 @pytest.mark.asyncio
-async def test_corpus_endpoints_on_migrated_postgres() -> None:
+async def test_corpus_endpoints_on_migrated_postgres(approved_pg_headers: dict[str, str]) -> None:
     """Fresh-schema SQL regressions cannot be hidden by frontend demo data."""
     from httpx import ASGITransport, AsyncClient
 
     from app.main import app
 
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test", headers=approved_pg_headers
     ) as client:
         stats = await client.get("/api/v1/corpus/stats")
         assert stats.status_code == 200, stats.text
@@ -258,7 +355,7 @@ async def test_corpus_endpoints_on_migrated_postgres() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mutation_chains_endpoint_runs_on_pgvector() -> None:
+async def test_mutation_chains_endpoint_runs_on_pgvector(approved_pg_headers: dict[str, str]) -> None:
     """Regression: /verdicts/game/mutations ordered its pair query by
     ``claims.created_at`` — a column the table never had — so the Mutation DNA
     panel 500'd on real Postgres (asyncpg UndefinedColumnError) while the
@@ -269,7 +366,7 @@ async def test_mutation_chains_endpoint_runs_on_pgvector() -> None:
     from app.main import app
 
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test", headers=approved_pg_headers
     ) as client:
         resp = await client.get(
             "/api/v1/verdicts/game/mutations",

@@ -1,12 +1,14 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.api.deps import require_data_access
 from app.api.v1 import (
+    account_access,
     alerts,
     article_insights,
     auth,
@@ -76,16 +78,17 @@ def create_app() -> FastAPI:
     async def job_lease_lost(request: Request, exc: JobLeaseLost) -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": str(exc)})
 
-    api_router = APIRouter()
+    api_router = APIRouter(dependencies=[Depends(require_data_access)])
+    public_router = APIRouter()
 
-    @api_router.get("/capabilities", tags=["Runtime"])
+    @public_router.get("/capabilities", tags=["Runtime"])
     async def capabilities() -> dict[str, object]:
         return {"mode": "local", "live_ai": True, "pipeline": settings.DEVELOPER_PIPELINE_ENABLED,
                 "publication_enabled": settings.PUBLICATION_ACTIVATION_ENABLED}
 
-    api_router.include_router(health.router, prefix="/health", tags=["health"])
+    public_router.include_router(health.router, prefix="/health", tags=["health"])
     api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
-    api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+    public_router.include_router(auth.router, prefix="/auth", tags=["auth"])
     api_router.include_router(collection.router, prefix="/collection", tags=["Collection"])
     api_router.include_router(preprocessing.router, prefix="/preprocessing", tags=["Preprocessing"])
     api_router.include_router(nlp.router, prefix="/nlp", tags=["NLP"])
@@ -100,12 +103,14 @@ def create_app() -> FastAPI:
     api_router.include_router(lineage.router, prefix="/graph", tags=["Graph"])
     api_router.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])
     api_router.include_router(casebook.router, prefix="/casebook", tags=["Casebook"])
-    api_router.include_router(project.router, prefix="/project", tags=["Project"])
+    public_router.include_router(project.router, prefix="/project", tags=["Project"])
     api_router.include_router(eval.router, prefix="/eval", tags=["Evaluation"])
     api_router.include_router(publications.router, prefix="/publications", tags=["Developer uploads"])
     api_router.include_router(publication_export.router, prefix="/developer", tags=["Local publication export"])
     api_router.include_router(developer.router, prefix="/developer", tags=["Developer console"])
+    api_router.include_router(account_access.router, prefix="/developer", tags=["Visitor requests"])
 
+    app.include_router(public_router, prefix="/api/v1")
     app.include_router(api_router, prefix="/api/v1")
 
     return app

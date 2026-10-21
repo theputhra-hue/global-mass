@@ -23,7 +23,7 @@ from app.api.deps import get_current_user
 from app.api.v1.eval import VALID_LABELS, EvalLabelBody, _blinded, _per_annotator
 from app.main import app
 from app.models.eval import EvalPairLabel
-from app.models.user import RoleEnum
+from app.models.user import RoleEnum, User
 from app.services.research.evaluation.dataset import iso
 from tests.test_research_support import seed_pair, seed_user
 
@@ -336,8 +336,12 @@ async def test_real_bearer_identity_not_client_identity(async_client, db_session
     # rollback can expire ORM objects, unlike separate production sessions.
     pair_id = str(pair.id)
     await db_session.commit()
-    registration = await async_client.post("/api/v1/auth/register", json={"email": "eval-real-bearer@example.com", "password": "password123"})
+    registration = await async_client.post("/api/v1/auth/register", json={"full_name": "Test Visitor", "email": "eval-real-bearer@example.com", "password": "password123"})
     assert registration.status_code == 201
+    registered_user = await db_session.scalar(select(User).where(User.email == "eval-real-bearer@example.com"))
+    registered_user.access_status = "approved"
+    registered_user.role = RoleEnum.researcher
+    await db_session.commit()
     token = registration.json()["access_token"]
     me = await async_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     response = await async_client.post("/api/v1/eval/label", headers={"Authorization": f"Bearer {token}"}, json={"pair_id": pair_id, "label": "DISTINCT", "annotator": "untrusted-client"})

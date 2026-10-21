@@ -222,18 +222,28 @@ class FakeHttpClient:
         elif path == prefix + "/verdicts/stats":
             payload = {"total_claims": 0}
         elif path.startswith(prefix + "/corpus/articles"):
-            payload = {"total": 0, "items": []}
+            if token is None or (token == "fixture-login-token" and not getattr(self, "approved", False)):
+                status, payload = (401 if token is None else 403), {"detail": "Approval required"}
+            else:
+                payload = {"total": 0, "items": []}
         elif path == prefix + "/auth/register":
             assert body is not None
             self.email = body["email"]
             status, payload = 201, {"access_token": "fixture-register-token"}
         elif path == prefix + "/auth/login":
-            payload = {"access_token": "fixture-login-token", "token_type": "bearer"}
+            assert body is not None
+            role = "research" if body["email"] == "fixture-researcher@example.com" else "admin" if body["email"] == "fixture-developer@example.com" else "login"
+            payload = {"access_token": f"fixture-{role}-token", "token_type": "bearer"}
         elif path == prefix + "/auth/me":
             if token is None:
                 status, payload = 401, {"detail": "Not authenticated"}
             else:
-                payload = {"email": self.email, "role": "user"}
+                payload = {"email": self.email, "role": "viewer", "access_status": "approved" if getattr(self, "approved", False) else "pending"}
+        elif path == prefix + "/developer/accounts":
+            payload = {"items": [{"id": "fixture-request", "email": self.email, "revision": 1}]}
+        elif path == prefix + "/developer/accounts/fixture-request/review":
+            self.approved = True
+            payload = {"access_status": "approved", "role": "viewer"}
         elif any(path == prefix + trigger for trigger in smoke.ADMIN_TRIGGERS):
             status, payload = (401 if token is None else 403), {"detail": "Forbidden"}
         elif path == prefix + "/verdicts/check":
@@ -247,8 +257,8 @@ class FakeHttpClient:
         elif path == prefix + "/eval/progress":
             payload = {"total_pairs": 0}
         elif path == prefix + "/graph/mutation/compare":
-            if token is None:
-                status, payload = 401, {"detail": "Not authenticated"}
+            if token != "fixture-research-token":
+                status, payload = (401 if token is None else 403), {"detail": "Not authenticated"}
             else:
                 assert body is not None
                 numeric = body["older_text"] != body["newer_text"]
@@ -326,7 +336,7 @@ class HttpSmokeSafetyTests(unittest.TestCase):
         comparisons = [
             call
             for call in client.calls
-            if call[1] == "/api/v1/graph/mutation/compare" and call[3]
+            if call[1] == "/api/v1/graph/mutation/compare" and call[3] == "fixture-research-token"
         ]
         self.assertEqual(len(comparisons), 2)
         self.assertNotIn("fixture-login-token", stream.getvalue())
@@ -341,7 +351,7 @@ class HttpSmokeSafetyTests(unittest.TestCase):
                 self.assertRaises(smoke.SmokeError),
             ):
                 smoke.run_smoke(client)
-            self.assertFalse(any(call[0] == "POST" for call in client.calls))
+            self.assertFalse(any(call[1] == "/api/v1/auth/register" for call in client.calls))
 
     def test_fabricated_propagation_or_missing_numeric_type_fails(self) -> None:
         for field in ("claim_propagation", "hide_numeric_type"):

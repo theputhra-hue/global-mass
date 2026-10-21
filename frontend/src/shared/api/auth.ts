@@ -5,7 +5,7 @@ import {
 } from '../session/session';
 
 export interface LoginInput { email: string; password: string }
-export interface RegisterInput extends LoginInput { full_name?: string }
+export interface RegisterInput extends LoginInput { full_name: string }
 
 async function authenticate(endpoint: '/auth/login' | '/auth/register', input: LoginInput | RegisterInput): Promise<AccountUser> {
   clearSession();

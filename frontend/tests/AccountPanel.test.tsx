@@ -40,15 +40,15 @@ describe('memory-only account UI', () => {
     expect(screen.queryByText('login-access')).toBeNull();
   });
 
-  it('registers with an optional full name from the dedicated sign-in page', async () => {
+  it('requests access with a required full name from the dedicated sign-in page', async () => {
     const fetch = mockApi((endpoint) => endpoint === '/auth/register'
       ? jsonResponse({ access_token: 'registered-access', refresh_token: 'registered-refresh' }, 201)
       : jsonResponse(accountFixture));
     openLogin();
     fireEvent.click(screen.getByRole('button', { name: 'New to GMEE? Create an account' }));
-    fireEvent.change(screen.getByLabelText('Full name (optional)'), { target: { value: '  Corpus Reviewer  ' } });
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: '  Corpus Reviewer  ' } });
     expect(screen.getByLabelText('Password').getAttribute('minlength')).toBe('10');
-    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Request access' }));
     await waitFor(() => expect(getAccessToken()).toBe('registered-access'));
     expect(String(fetch.mock.calls[0][0])).toContain('/auth/register');
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ email: accountFixture.email, password: 'strong-password', full_name: 'Corpus Reviewer' });

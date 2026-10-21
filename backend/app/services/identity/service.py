@@ -61,8 +61,10 @@ async def register_user(db: AsyncSession, user_in: UserCreate, device_info: str 
         )
         
     hashed_password = await asyncio.to_thread(security.hash_password, user_in.password)
-    role = RoleEnum.viewer if user_in.read_only else RoleEnum.user
-    new_user = await user_repository.create(db, user_in.email, hashed_password, user_in.full_name, role)
+    # Signup never grants data access or a writing role. The legacy read_only
+    # flag is accepted for compatibility but cannot bypass developer review.
+    new_user = await user_repository.create(db, user_in.email, hashed_password, user_in.full_name, RoleEnum.viewer)
+    new_user.access_status = "pending"
     
     from sqlalchemy import exc
     try:

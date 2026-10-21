@@ -27,7 +27,7 @@ from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 
-from app.api.deps import get_db_session, get_redis_client
+from app.api.deps import get_db_session, get_redis_client, require_data_access
 from app.main import app
 from app.models.base import Base
 
@@ -70,6 +70,10 @@ async def redis_client() -> AsyncGenerator[FakeAsyncRedis, None]:
 
 @pytest_asyncio.fixture
 async def async_client(db_session: AsyncSession, redis_client: FakeAsyncRedis) -> AsyncGenerator[AsyncClient, None]:
+    # Route/domain tests isolate the shared data-read gate. Authorization suites
+    # construct real ASGI clients and exercise the actual token/database guard.
+    # Existing endpoint-specific auth dependencies remain real in this fixture.
+    app.dependency_overrides[require_data_access] = lambda: None
     app.dependency_overrides[get_db_session] = lambda: db_session
     app.dependency_overrides[get_redis_client] = lambda: redis_client
     async with AsyncClient(

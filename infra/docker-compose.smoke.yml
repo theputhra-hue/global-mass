@@ -51,6 +51,8 @@ services:
       context: ../backend
       target: production
     environment:
+      GMEE_SMOKE_FIXTURE: "1"
+      DEVELOPER_UPLOAD_EMAILS: '["fixture-developer@example.com"]'
       ENVIRONMENT: testing
       POSTGRES_URL: postgresql+asyncpg://fixture:fixture-only-postgres@postgres:5432/gmee_smoke_fixture
       DATABASE_URL: postgresql+asyncpg://fixture:fixture-only-postgres@postgres:5432/gmee_smoke_fixture
@@ -63,6 +65,9 @@ services:
       ENABLE_SCHEDULER: "false"
       RATE_LIMIT_ENABLED: "true"
       FORWARDED_ALLOW_IPS: 172.30.48.10
+    # Only this disposable fixture seeds operator identities. Production image
+    # startup does not invoke the bootstrap and never creates default accounts.
+    command: ["sh", "-c", "alembic upgrade head && python scripts/bootstrap_smoke_accounts.py && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips 172.30.48.10"]
     networks:
       data:
       proxy:

@@ -21,7 +21,7 @@ async def test_concurrent_refresh_is_single_use_and_replay_revokes_family() -> N
     email = f"refresh-fixture-{uuid.uuid4().hex}@example.com"
     try:
         async with async_session_maker() as db:
-            issued = await register_user(db, UserCreate(email=email, password="Fixture-only-strong-password!"), None)
+            issued = await register_user(db, UserCreate(full_name="Test Visitor", email=email, password="Fixture-only-strong-password!"), None)
             user_id = await db.scalar(select(User.id).where(User.email == email))
             assert user_id is not None
         ready = asyncio.Event()
