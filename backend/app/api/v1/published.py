@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db_session
 from app.models.publication import (
     PublicationHead,
+    PublicationUpload,
 )
 from app.models.publication import (
     PublishedArticleRow as Article,
@@ -19,6 +20,10 @@ from app.models.publication import (
 )
 from app.models.publication import (
     PublishedRelationshipRow as Edge,
+)
+from app.services.analysis_availability import (
+    analysis_availability,
+    evidence_availability,
 )
 from app.services.publications.store import status
 
@@ -47,13 +52,13 @@ async def article_row(db: AsyncSession, run_id: uuid.UUID, article_id: uuid.UUID
 
 
 def article_json(row: Article) -> dict[str, Any]:
-    return {**row.payload, "nlp_status": "published", "excerpt": "",
-            "collected_at": None, "processed_at": None, "processing_status": "published"}
+    return {**row.payload, "publication_status": "published", "nlp_status": "not_recorded", "excerpt": "",
+            "collected_at": None, "processed_at": None, "processing_status": "not_recorded"}
 
 
 def claim_json(row: Claim) -> dict[str, Any]:
     return {**row.payload, "verdict_rationale": row.payload.get("rationale"),
-            "verdict_evidence": None, "entities": []}
+            "verdict_evidence": None, "evidence_availability": evidence_availability(None, published=True), "entities": []}
 
 
 @router.get("/dashboard")
@@ -68,7 +73,7 @@ async def dashboard(db: AsyncSession = Depends(get_db_session)) -> dict[str, Any
               for name, model in (("articles", Article), ("claims", Claim), ("relationships", Edge))}
     return {"generated_at": datetime.now(UTC), "publication": release,
             "articles_total": counts["articles"], "claims_total": counts["claims"],
-            "embedded_claims": 0, "entities_total": 0, "nlp_status_counts": {"published": counts["articles"]},
+            "embedded_claims": 0, "entities_total": 0, "nlp_status_counts": {"not_recorded": counts["articles"]},
             "services": {"postgres": "ok", "redis": "managed", "neo4j": "not_required"},
             "graph": {"available": True, "nodes": {"Article": counts["articles"], "Claim": counts["claims"]}, "relationships": counts["relationships"]},
             "cache": {"available": False, "used_memory_human": "Not published", "used_memory_mb": 0}}
@@ -100,7 +105,7 @@ async def recent(limit: int = Query(12, ge=1, le=40), run: uuid.UUID = Depends(a
 async def stats(run: uuid.UUID = Depends(active), db: AsyncSession = Depends(get_db_session)) -> dict[str, Any]:
     row = (await db.execute(select(func.count(), func.count(func.distinct(Article.domain)), func.min(Article.published_at), func.max(Article.published_at)).where(Article.run_id == run))).one()
     return {"total": row[0], "embedded": 0, "domains": row[1], "earliest": row[2].date().isoformat() if row[2] else None,
-            "latest": row[3].date().isoformat() if row[3] else None, "nlp_counts": {"published": row[0]}}
+            "latest": row[3].date().isoformat() if row[3] else None, "nlp_counts": {"not_recorded": row[0]}}
 
 
 @router.get("/corpus/articles/{article_id}")
@@ -111,8 +116,12 @@ async def detail(article_id: uuid.UUID, run: uuid.UUID = Depends(active), db: As
     assessment_counts = dict((await db.execute(
         select(label, func.count()).where(Claim.run_id == run, Claim.article_id == article_id).group_by(label)
     )).all())
+    provenance = await db.scalar(select(PublicationUpload.payload["provenance"]).where(PublicationUpload.run_id == run))
     return {**article_json(row), "body": "", "body_source": "not_published", "content_completeness": "not_published",
-            "claims_total": count or 0, "assessment_counts": assessment_counts}
+            "claims_total": count or 0, "assessment_counts": assessment_counts,
+            "release_id": str(run), "analysis_provenance": provenance,
+            "analysis_availability": analysis_availability(published=True, body="", nlp_status="not_recorded",
+                claims_total=count or 0, assessment_counts=assessment_counts)}
 
 
 @router.get("/corpus/articles/{article_id}/claims")

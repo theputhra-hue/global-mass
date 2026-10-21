@@ -3,14 +3,21 @@ import type { CorpusArticle } from './corpus';
 
 export interface ArticleDetail extends CorpusArticle {
   body: string; body_source: string; content_completeness: string;
-  collected_at: string; processed_at: string | null; processing_status: string; claims_total: number;
+  collected_at: string | null; processed_at: string | null; processing_status: string; claims_total: number;
+  release_id?: string;
+  analysis_provenance?: { source_commit: string; config_sha256: string; model_revisions: Record<string, string>; analysis_started_at: string; analysis_completed_at: string } | null;
   assessment_counts?: Record<string, number>;
+  publication_status?: string;
+  analysis_availability?: {
+    publication: string; source_text: string; extraction: string; claims: string; assessments: string; warnings: string[];
+  };
 }
 export interface ArticleClaim {
   id: string; article_id: string; text: string; extracted_at: string;
   confidence: number | null; verdict: string | null; verdict_probability: number | null;
   verdict_rationale: string | null; entities: { text: string; type: string }[];
   verdict_evidence: Record<string, unknown> | null;
+  evidence_availability?: { status: string; method_version: string | null; score_kind: string; calibrated: boolean; disclosure: string };
 }
 export interface ArticleClaims {
   article_id: string; total: number; limit: number; offset: number;

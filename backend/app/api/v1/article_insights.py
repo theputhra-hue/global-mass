@@ -15,6 +15,11 @@ from app.api.deps import get_db_session
 from app.models.article import Article
 from app.models.claim import Claim
 from app.models.evolution import ClaimRelationship
+from app.services.analysis_availability import (
+    AnalysisAvailability,
+    analysis_availability,
+    evidence_availability,
+)
 
 router = APIRouter()
 
@@ -37,6 +42,7 @@ class ArticleDetail(BaseModel):
     content_completeness: str = "unknown"
     claims_total: int
     assessment_counts: dict[str, int]
+    analysis_availability: AnalysisAvailability
 
 
 class EntityItem(BaseModel):
@@ -55,6 +61,7 @@ class ClaimItem(BaseModel):
     verdict_rationale: str | None
     verdict_evidence: dict[str, Any] | None
     entities: list[EntityItem]
+    evidence_availability: dict[str, Any]
 
 
 class ClaimPage(BaseModel):
@@ -113,6 +120,7 @@ def _claim(item: Claim) -> ClaimItem:
         verdict_rationale=item.verdict_rationale,
         verdict_evidence=item.verdict_evidence if isinstance(item.verdict_evidence, dict) else None,
         entities=[EntityItem(text=e.entity_text, type=e.entity_type) for e in item.entities],
+        evidence_availability=evidence_availability(item.verdict_evidence),
     )
 
 
@@ -144,6 +152,8 @@ async def article_detail(
         body=body, body_source="cleaned_content" if cleaned and cleaned.strip() else "content" if body else "missing",
         claims_total=claims or 0,
         assessment_counts=assessment_counts,
+        analysis_availability=analysis_availability(published=False, body=body, nlp_status=article.nlp_status.value,
+            claims_total=claims or 0, assessment_counts=assessment_counts),
     )
 
 

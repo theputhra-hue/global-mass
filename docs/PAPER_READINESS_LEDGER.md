@@ -162,3 +162,21 @@ inventory and experiment entries above remain historical evidence.
   rights, authorship/declarations and venue gates remain open.
 
 No push, upload, external message, submission or live-data mutation occurred.
+
+## Local core-integrity checkpoint — 22 October 2026
+
+The user selected RAM prices as the first topic and requested a saved checkpoint
+before resuming tomorrow. See
+[the checkpoint](checkpoints/CORE_EVIDENCE_RAM_PRICES_2026-10-22.md).
+The existing published archive was validated and audited read-only: 8 lexical
+topic candidates across 2 domains, including 1 without extracted claims. All
+remain relevance-review pending; none has a verified event assignment. This is
+candidate inventory, not independent gold, exhaustive retrieval or a RAM-price
+finding. Source bodies and detailed evidence remain absent from publication
+formats 1–3; local database availability was not audited because Docker was off.
+Local integrity/API/UI changes and synthetic RAM comparison guards have 65
+targeted backend and 40 targeted frontend passing tests; final checks and
+browser verification remain open. Existing frozen VitaminC outcomes were not
+changed or re-evaluated. No new scientific gate is claimed complete. The prior
+research-preserving application restoration was merged as `ddfb3ef`; this new
+core work remains local and undeployed.
