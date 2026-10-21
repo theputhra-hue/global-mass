@@ -239,7 +239,7 @@ class FakeHttpClient:
                 status, payload = 401, {"detail": "Not authenticated"}
             else:
                 payload = {"email": self.email, "role": "viewer", "access_status": "approved" if getattr(self, "approved", False) else "pending"}
-        elif path == prefix + "/developer/accounts":
+        elif path == prefix + "/developer/accounts?access_status=pending":
             payload = {"items": [{"id": "fixture-request", "email": self.email, "revision": 1}]}
         elif path == prefix + "/developer/accounts/fixture-request/review":
             self.approved = True

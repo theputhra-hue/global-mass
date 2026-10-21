@@ -7,7 +7,7 @@ import { accountFixture, jsonResponse, mockApi, renderWithClient, signInFixture 
 
 const pending = { ...accountFixture, role: 'viewer', full_name: 'New Visitor', access_status: 'pending' as const };
 const request = { id: accountFixture.id, email: accountFixture.email, full_name: 'New Visitor',
-  access_status: 'pending', revision: 1, role: 'viewer', created_at: '2026-10-21T10:00:00Z', reviewed_at: null };
+  access_status: 'pending', revision: 1, role: 'viewer', is_active: true, created_at: '2026-10-21T10:00:00Z', reviewed_at: null };
 
 describe('visitor approval workflow', () => {
   it('registers a named visitor and shows the waiting page without requesting corpus data', async () => {
@@ -62,20 +62,53 @@ describe('visitor approval workflow', () => {
     const fetch = mockApi((endpoint, init) => {
       if (endpoint === '/publications/access') return jsonResponse({ allowed: true });
       if (init?.method === 'POST') { reviewed = true; return jsonResponse({ ...request, access_status: 'approved', revision: 2 }); }
-      return jsonResponse({ items: reviewed ? [] : [request], counts: { pending: reviewed ? 0 : 1, approved: reviewed ? 1 : 0, rejected: 0 }, total: reviewed ? 0 : 1, limit: 20, offset: 0 });
+      return jsonResponse({ items: reviewed ? [] : [request], counts: { all: 1, pending: reviewed ? 0 : 1, approved: reviewed ? 1 : 0, rejected: 0 }, total: reviewed ? 0 : 1, limit: 20, offset: 0 });
     });
     renderWithClient(<AccountApprovals />);
+    await screen.findByRole('heading', { name: 'All accounts' });
+    fireEvent.change(screen.getByLabelText('Show'), { target: { value: 'pending' } });
     fireEvent.click(await screen.findByRole('button', { name: 'Approve New Visitor for viewing' }));
     await screen.findByText('New Visitor: approved for viewing only.');
     expect(JSON.parse(String(fetch.mock.calls.find(([, init]) => init?.method === 'POST')?.[1]?.body))).toEqual({ decision: 'approve', expected_revision: 1 });
     expect(screen.queryByRole('textbox')).toBeNull();
     await screen.findByText('No accounts are waiting for approval.');
   });
+  it('defaults to every account, shows roles and disabled identities, and only reviews active pending viewers', async () => {
+    signInFixture({ role: 'admin' });
+    const accounts = [request,
+      { ...request, id: 'admin', email: 'developer@example.com', role: 'admin', full_name: 'Developer', access_status: 'approved' },
+      { ...request, id: 'researcher', email: 'researcher@example.com', role: 'researcher', full_name: 'Researcher', access_status: 'approved' },
+      { ...request, id: 'disabled', email: 'disabled@example.com', full_name: 'Disabled Viewer', is_active: false },
+      { ...request, id: 'user', email: 'user@example.com', role: 'user', full_name: 'Legacy User', access_status: 'approved' }];
+    const fetch = mockApi(endpoint => endpoint === '/publications/access' ? jsonResponse({ allowed: true })
+      : jsonResponse({ items: accounts, counts: { all: 5, pending: 2, approved: 3, rejected: 0 }, total: 5, limit: 20, offset: 0 }));
+    renderWithClient(<AccountApprovals />);
+    await screen.findByText('developer@example.com');
+    for (const account of accounts) expect(screen.getByText(account.email)).toBeTruthy();
+    expect(screen.getByText('Role: Developer / admin')).toBeTruthy();
+    expect(screen.getByText('Role: Researcher')).toBeTruthy();
+    expect(screen.getByText('Disabled account · Sign-in unavailable')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /^Approve / })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /^Decline / })).toHaveLength(1);
+    expect(fetch.mock.calls.some(([url]) => String(url).includes('access_status=all'))).toBe(true);
+    fireEvent.change(screen.getByLabelText('Show'), { target: { value: 'approved' } });
+    await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url).includes('access_status=approved'))).toBe(true));
+  });
+  it('paginates the complete directory rather than silently limiting displayed emails', async () => {
+    signInFixture({ role: 'admin' });
+    const fetch = mockApi(endpoint => endpoint === '/publications/access' ? jsonResponse({ allowed: true })
+      : jsonResponse({ items: [request], counts: { all: 21, pending: 21, approved: 0, rejected: 0 }, total: 21, limit: 20, offset: 0 }));
+    renderWithClient(<AccountApprovals />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Next accounts' }));
+    await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url).includes('offset=20'))).toBe(true));
+    fireEvent.change(screen.getByLabelText('Show'), { target: { value: 'pending' } });
+    await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url).includes('access_status=pending&offset=0'))).toBe(true));
+  });
   it('keeps a failed stale decision visible and never repeats the mutation automatically', async () => {
     signInFixture({ role: 'admin' });
     const fetch = mockApi((endpoint, init) => endpoint === '/publications/access' ? jsonResponse({ allowed: true })
       : init?.method === 'POST' ? jsonResponse({ detail: 'Request changed. Refresh the list.' }, 409)
-        : jsonResponse({ items: [request], counts: { pending: 1, approved: 0, rejected: 0 }, total: 1, limit: 20, offset: 0 }));
+        : jsonResponse({ items: [request], counts: { all: 1, pending: 1, approved: 0, rejected: 0 }, total: 1, limit: 20, offset: 0 }));
     renderWithClient(<AccountApprovals />);
     fireEvent.click(await screen.findByRole('button', { name: 'Decline New Visitor' }));
     await screen.findByText('Request changed. Refresh the list.');
@@ -85,7 +118,7 @@ describe('visitor approval workflow', () => {
     signInFixture({ role: 'viewer', access_status: 'approved' });
     const fetch = mockApi(() => jsonResponse({ detail: 'Forbidden' }, 403));
     renderWithClient(<AccountApprovals />);
-    expect(screen.queryByRole('region', { name: 'Visitor access requests' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Account management' })).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 });

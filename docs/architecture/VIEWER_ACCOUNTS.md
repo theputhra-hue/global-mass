@@ -19,11 +19,14 @@ changes an existing identity. Client-supplied role, approval or legacy
 
 ## Developer experience
 
-Open **Manage data → Visitor access requests** on the developer dashboard.
-The pending list shows names, email addresses and request times. Choose
-**Approve viewing access** or **Decline request**. Approved and declined
-accounts are available through the Show selector. Lists are paginated and
-refresh every 30 seconds. Passwords and password hashes are never returned.
+Open **Manage data → Account management → All accounts** on the developer dashboard.
+The default directory includes every registered email across all roles, including
+developers, researchers, legacy users, viewers and disabled accounts. Each row
+shows the name, email, role, active state, approval state and registration time.
+Use the Show selector for pending, approved or declined accounts. Only active
+pending viewers have **Approve viewing access** and **Decline request** actions.
+Lists are paginated and refresh every 30 seconds; status counts cover all roles.
+Passwords and password hashes are never returned.
 
 Only active, approved administrators whose emails are in the existing
 `DEVELOPER_UPLOAD_EMAILS` allowlist can list/review accounts. Review records the
@@ -37,8 +40,10 @@ accounts. There is no bulk approval or automatic approval.
 
 - `POST /api/v1/auth/register`: name/email/password → pending viewer + normal
   memory-only session tokens. `GET /auth/me` includes `access_status`.
-- `GET /api/v1/developer/accounts`: developer-only list; filters pending,
-  approved and rejected; defaults to 20, maximum 50 per page.
+- `GET /api/v1/developer/accounts`: developer-only directory of all roles and active states;
+  `access_status=all` (default), pending, approved or rejected; defaults to 20,
+  maximum 50 per page. Nonnegative offsets allow paging through the entire directory.
+  Responses add `is_active` on each row and `counts.all` for the complete total.
 - `POST /api/v1/developer/accounts/{id}/review`: developer-only decision with
   `decision=approve|reject` and `expected_revision`.
 - Collection, graph, saved-result, publication and private-case routers require

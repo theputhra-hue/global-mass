@@ -13,7 +13,7 @@ from app.models.user import User
 from app.services.identity.access import list_requests, review_request
 
 router = APIRouter(dependencies=[Depends(require_data_access)])
-AccessStatus = Literal["pending", "approved", "rejected"]
+AccessStatus = Literal["all", "pending", "approved", "rejected"]
 
 
 class AccessDecision(BaseModel):
@@ -24,7 +24,7 @@ class AccessDecision(BaseModel):
 
 @router.get("/accounts")
 async def requests(
-    access_status: AccessStatus = "pending", offset: int = Query(0, ge=0, le=10000),
+    access_status: AccessStatus = "all", offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=50), db: AsyncSession = Depends(get_db_session),
     developer: User = Depends(require_developer),
 ) -> dict[str, Any]:

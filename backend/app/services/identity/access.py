@@ -1,4 +1,4 @@
-"""Bounded visitor request queries and atomic viewing-access decisions."""
+"""Developer account directory and atomic visitor viewing-access decisions."""
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -14,16 +14,18 @@ def account_json(user: User) -> dict[str, Any]:
     return {"id": str(user.id), "email": user.email, "full_name": user.full_name,
             "access_status": user.access_status, "revision": user.access_revision,
             "created_at": user.created_at, "reviewed_at": user.access_reviewed_at,
-            "role": user.role.value}
+            "role": user.role.value, "is_active": user.is_active}
 
 
 async def list_requests(db: AsyncSession, access_status: str, offset: int, limit: int) -> dict[str, Any]:
-    groups = (await db.execute(select(User.access_status, func.count()).where(
-        User.role == RoleEnum.viewer).group_by(User.access_status))).all()
+    groups = (await db.execute(select(User.access_status, func.count()).group_by(User.access_status))).all()
     counts = {key: 0 for key in ("pending", "approved", "rejected")}
     counts.update({str(key): count for key, count in groups})
-    rows = await db.scalars(select(User).where(User.role == RoleEnum.viewer, User.access_status == access_status)
-        .order_by(User.created_at.desc(), User.id.desc()).offset(offset).limit(limit))
+    counts["all"] = sum(counts.values())
+    query = select(User)
+    if access_status != "all":
+        query = query.where(User.access_status == access_status)
+    rows = await db.scalars(query.order_by(User.created_at.desc(), User.id.desc()).offset(offset).limit(limit))
     return {"items": [account_json(user) for user in rows], "counts": counts,
             "total": counts[access_status], "limit": limit, "offset": offset}
 
