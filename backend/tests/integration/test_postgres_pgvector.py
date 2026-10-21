@@ -56,6 +56,34 @@ async def _scalar(sql: str) -> Any:
         return (await db.execute(text(sql))).scalar()
 
 
+@pytest.fixture
+async def approved_pg_headers(_require_postgres: None) -> AsyncGenerator[dict[str, str], None]:
+    from fakeredis import FakeAsyncRedis
+    from sqlalchemy import delete
+
+    from app.api.deps import get_redis_client
+    from app.core.security import create_access_token
+    from app.db.postgres import async_session_maker
+    from app.main import app
+    from app.models.user import RoleEnum, User
+
+    user_id = uuid.uuid4()
+    async with async_session_maker() as db:
+        db.add(User(id=user_id, email=f"{user_id}@example.invalid", hashed_password="unused",
+                    role=RoleEnum.viewer, access_status="approved"))
+        await db.commit()
+    cache = FakeAsyncRedis()
+    app.dependency_overrides[get_redis_client] = lambda: cache
+    try:
+        yield {"Authorization": "Bearer " + create_access_token(str(user_id), "viewer", str(uuid.uuid4()))}
+    finally:
+        app.dependency_overrides.pop(get_redis_client, None)
+        await cache.aclose()
+        async with async_session_maker() as db:
+            await db.execute(delete(User).where(User.id == user_id))
+            await db.commit()
+
+
 async def test_viewer_enum_roundtrips_after_migration() -> None:
     from app.db.postgres import async_session_maker
     from app.models.user import RoleEnum, User
@@ -309,14 +337,14 @@ async def test_article_embedding_is_in_the_migrated_schema() -> None:
 
 
 @pytest.mark.asyncio
-async def test_corpus_endpoints_on_migrated_postgres() -> None:
+async def test_corpus_endpoints_on_migrated_postgres(approved_pg_headers: dict[str, str]) -> None:
     """Fresh-schema SQL regressions cannot be hidden by frontend demo data."""
     from httpx import ASGITransport, AsyncClient
 
     from app.main import app
 
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test", headers=approved_pg_headers
     ) as client:
         stats = await client.get("/api/v1/corpus/stats")
         assert stats.status_code == 200, stats.text
@@ -327,7 +355,7 @@ async def test_corpus_endpoints_on_migrated_postgres() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mutation_chains_endpoint_runs_on_pgvector() -> None:
+async def test_mutation_chains_endpoint_runs_on_pgvector(approved_pg_headers: dict[str, str]) -> None:
     """Regression: /verdicts/game/mutations ordered its pair query by
     ``claims.created_at`` — a column the table never had — so the Mutation DNA
     panel 500'd on real Postgres (asyncpg UndefinedColumnError) while the
@@ -338,7 +366,7 @@ async def test_mutation_chains_endpoint_runs_on_pgvector() -> None:
     from app.main import app
 
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test", headers=approved_pg_headers
     ) as client:
         resp = await client.get(
             "/api/v1/verdicts/game/mutations",
