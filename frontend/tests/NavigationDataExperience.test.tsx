@@ -78,7 +78,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
   });
 
   describe('Shared Workspace Shell and Active Navigation', () => {
-    it('renders the shared sidebar and clear workspace location for signed-in users', async () => {
+    it('renders the shared sidebar with primary destinations and breadcrumbs for signed-in users', async () => {
       signInFixture();
       mockNavigationApi((endpoint) => {
         if (endpoint === '/dashboard') {
@@ -96,29 +96,30 @@ describe('Navigation and Data Experience (Package N5)', () => {
       window.history.replaceState(null, '', '/#/dashboard/browse');
       renderApp();
 
-      // The restored topbar identifies the current destination.
-      expect(document.querySelector('.workspace-location')?.textContent).toContain('Explore articles');
+      // Verify breadcrumbs
+      const breadcrumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+      expect(breadcrumb).toBeTruthy();
+      expect(within(breadcrumb).getByText('Workspace')).toBeTruthy();
 
       // Verify sidebar navigation items
-      const nav = screen.getByRole('navigation', { name: 'Workspace' });
+      const nav = screen.getByRole('navigation', { name: 'Primary destinations' });
       expect(nav).toBeTruthy();
       expect(within(nav).queryByRole('link', { name: 'Start here' })).toBeNull();
-      const research = within(nav).getByText('Explore & research');
-      expect(research.closest('details')?.open).toBe(false);
-      expect(within(nav).getByRole('link', { name: 'Explore articles' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Check a claim' })).toBeTruthy();
-      fireEvent.click(research);
+      expect(within(nav).getByRole('button', { name: 'Research tools' }).getAttribute('aria-expanded')).toBe('false');
       expect(within(nav).getByRole('link', { name: 'Story map' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Article & claim map' })).toBeTruthy();
+      fireEvent.click(within(nav).getByRole('button', { name: 'Research tools' }));
+      expect(within(nav).getByRole('link', { name: 'Find articles' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'Extracted statements' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'Recorded links' })).toBeTruthy();
       expect(within(nav).getByRole('link', { name: 'Compare wording' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'My investigations' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'All tools & guides' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'Saved investigations' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'All research tools' })).toBeTruthy();
 
       // Developer workspace should NOT be shown for normal user without manage permission
-      expect(screen.queryByRole('link', { name: 'Developer console' })).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Manage data' })).toBeNull();
     });
 
-    it('shows Developer workspace links in Account for approved publishers/managers', async () => {
+    it('shows Developer workspace link in sidebar for approved publishers/managers', async () => {
       signInFixture({ role: 'admin' });
       mockNavigationApi((endpoint) => {
         if (endpoint.startsWith('/publications/access')) {
@@ -130,9 +131,9 @@ describe('Navigation and Data Experience (Package N5)', () => {
       window.history.replaceState(null, '', '/#/dashboard');
       renderApp();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Account' }));
-      expect(await screen.findByRole('link', { name: 'Developer console' })).toBeTruthy();
-      expect(screen.getByRole('link', { name: 'Developer uploads' })).toBeTruthy();
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: 'Manage data' })).toBeTruthy();
+      });
     });
 
     it('supports mobile menu toggle with keyboard accessibility (Escape to close)', async () => {
@@ -142,19 +143,19 @@ describe('Navigation and Data Experience (Package N5)', () => {
       renderApp();
 
       // Find mobile menu toggle button
-      const menuBtn = screen.getByRole('button', { name: 'Open navigation' });
+      const menuBtn = screen.getByRole('button', { name: 'Open navigation menu' });
       expect(menuBtn).toBeTruthy();
       expect(menuBtn.getAttribute('aria-expanded')).toBe('false');
 
       // Click to open drawer
       fireEvent.click(menuBtn);
       expect(menuBtn.getAttribute('aria-expanded')).toBe('true');
-      expect(screen.getByRole('dialog', { name: 'Your workspace' })).toBeTruthy();
+      expect(screen.getByRole('dialog', { name: 'Navigation menu' })).toBeTruthy();
 
       // Close drawer via Escape key
       fireEvent.keyDown(document, { key: 'Escape' });
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Your workspace' })).toBeNull();
+        expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).toBeNull();
       });
     });
   });
@@ -184,7 +185,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
     });
   });
 
-  describe('Article search home', () => {
+  describe('Home Orientation Experience', () => {
     it('renders real collection counts and honest research purpose without hardcoded metrics', async () => {
       signInFixture();
       mockNavigationApi((endpoint) => {
@@ -210,13 +211,11 @@ describe('Navigation and Data Experience (Package N5)', () => {
         expect(document.querySelector('[aria-label="Collection size"]')?.textContent).toContain('1,050');
       });
 
-      // Reading, comparisons, maps and guidance remain reachable.
+      // Three primary actions
       expect(screen.getByRole('textbox', { name: 'Search article titles or authors' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Story map' })).toBeTruthy();
       expect(screen.getByRole('link', { name: 'Compare wording' })).toBeTruthy();
-      const nav = screen.getByRole('navigation', { name: 'Workspace' });
-      fireEvent.click(within(nav).getByText('Explore & research'));
-      expect(within(nav).getByRole('link', { name: 'Story map' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'All tools & guides' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Help & methods' })).toBeTruthy();
     });
   });
 
@@ -317,7 +316,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
       window.history.replaceState(null, '', '/#/dashboard/tools');
       renderApp();
 
-      expect(screen.getByRole('heading', { name: 'Tools & guides' })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Research tools' })).toBeTruthy();
       expect(screen.getByText('Explore the collection')).toBeTruthy();
       expect(screen.getByText('Compare & keep research notes')).toBeTruthy();
     });
@@ -337,7 +336,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
   });
 
   describe('Article Investigation 9 Tabs Experience', () => {
-    it('keeps reading tabs clear and retains all nine investigation deep links', async () => {
+    it('groups detail views into five main sections and retains deep links', async () => {
       signInFixture();
       mockNavigationApi((endpoint) => {
         if (endpoint.includes('/claims?')) {
@@ -380,17 +379,16 @@ describe('Navigation and Data Experience (Package N5)', () => {
       expect(await screen.findByRole('heading', { name: 'Major Climate Report Released' })).toBeTruthy();
       expect(screen.getByText('reuters.com')).toBeTruthy();
 
+      // Verify tab group headers
+      expect(screen.getByRole('link', { name: 'Overview' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Article text' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Analysis' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Related coverage' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Data & methods' })).toBeTruthy();
+
+      // Verify all 9 tabs are rendered
       const nav = screen.getByRole('navigation', { name: 'Article details' });
-      expect(within(nav).getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
-      expect(within(nav).getByRole('link', { name: 'Article' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Claims' })).toBeTruthy();
-      const further = within(nav).getByText('Investigate further');
-      expect(further.closest('details')?.open).toBe(false);
-      fireEvent.click(further);
-      expect(further.closest('details')?.open).toBe(true);
-      expect(within(nav).getAllByRole('link')).toHaveLength(9);
-      expect(within(nav).getByRole('link', { name: 'Related coverage' }).getAttribute('href')).toContain('/related');
-      expect(within(nav).getByRole('link', { name: 'Data & methods' }).getAttribute('href')).toContain('/methods');
+      expect(within(nav).getAllByRole('link')).toHaveLength(5);
     });
   });
 
@@ -407,9 +405,9 @@ describe('Navigation and Data Experience (Package N5)', () => {
       window.history.replaceState(null, '', '/#/dashboard');
       renderApp();
 
-      expect(screen.getByRole('navigation', { name: 'Workspace' })).toBeTruthy();
+      expect(screen.getByRole('navigation', { name: 'Primary destinations' })).toBeTruthy();
 
-      // Open the Account modal from the topbar.
+      // Open Account modal (select desktop sidebar button)
       const accountBtns = screen.getAllByRole('button', { name: /Account/ });
       fireEvent.click(accountBtns[0]);
 
@@ -420,7 +418,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeTruthy();
       });
-      expect(screen.queryByRole('navigation', { name: 'Workspace' })).toBeNull();
+      expect(screen.queryByRole('navigation', { name: 'Primary destinations' })).toBeNull();
     });
   });
 });

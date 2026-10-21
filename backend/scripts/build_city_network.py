@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import subprocess
 import time
 import uuid
 from datetime import UTC, datetime
@@ -18,12 +19,12 @@ from typing import Any
 from app.schemas.city_network import Highway, road_aggregates, super_aggregates
 from app.schemas.publication import PublicationSnapshot
 from app.services.analysis.article_map import checkpoint_key
-from scripts.map_runtime import add_runtime_arguments, configure_runtime, write_snapshot
 
 
 def build(args: argparse.Namespace) -> None:
     os.environ.update(OPENBLAS_NUM_THREADS="4", OMP_NUM_THREADS="4", MKL_NUM_THREADS="4")
-    source_commit = configure_runtime(args)
+    from scripts.serve_local import configure
+    configure("https://global-mass.onrender.com")
     from app.core.config import get_settings
     get_settings.cache_clear()
     import networkx as nx
@@ -108,7 +109,7 @@ def build(args: argparse.Namespace) -> None:
     payload.update(schema_version="3", run_id=str(uuid.uuid4()), generated_at=completed.isoformat(),
         city_network={**{key: value for key, value in config.items() if key != "implementation_sha256"},
             "started_at": started.isoformat(), "completed_at": completed.isoformat(),
-            "source_commit": source_commit,
+            "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
             "source_map_run_id": str(base.run_id), "source_map_sha256": base.sha256(),
             "input_sha256": input_hash, "config_sha256": hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
             "embedding_model": base.topic_map.embedding_model, "embedding_revision": base.topic_map.embedding_revision,
@@ -116,7 +117,11 @@ def build(args: argparse.Namespace) -> None:
             "themes": themes, "superways": super_aggregates(highways, membership)})
     snapshot = PublicationSnapshot.model_validate(payload)
     body = snapshot.canonical_bytes()
-    write_snapshot(target, body, local_only=getattr(args, "local_only", False))
+    if len(body) > 10 * 1024 * 1024:
+        raise RuntimeError("Full export exceeds 10 MiB; no data was truncated")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("xb") as output:
+        output.write(body)
     degree = [0] * len(article_ids)
     graph = nx.Graph()
     graph.add_nodes_from(usable)
@@ -148,7 +153,6 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     parser.add_argument("--neighbors", type=int, choices=range(1, 21), default=10)
     parser.add_argument("--min-similarity", type=float, default=.72)
-    add_runtime_arguments(parser)
     args = parser.parse_args()
     if not 0 <= args.min_similarity <= 1:
         parser.error("min-similarity must be in [0,1]")

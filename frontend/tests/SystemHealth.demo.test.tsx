@@ -22,7 +22,6 @@ describe('explicit optional infrastructure simulator', () => {
     expect(await screen.findByText('Readiness unavailable')).toBeTruthy();
     expect(screen.queryByText(/Demo Telemetry — simulated data stream/)).toBeNull();
     expect(screen.queryByText('98.4%')).toBeNull();
-    fireEvent.click(screen.getByText(/Connection & refresh settings/));
     fireEvent.click(screen.getByRole('button', { name: 'Launch Demo Telemetry' }));
     expect(screen.getByText(/Demo Telemetry — simulated data stream/)).toBeTruthy();
     expect(screen.getByText('98.4%')).toBeTruthy();
@@ -37,7 +36,6 @@ describe('explicit optional infrastructure simulator', () => {
     window.history.replaceState(null, '', '#/dashboard/cache');
     renderWithClient(<SystemHealth />);
     await screen.findByText('Systems Ready');
-    fireEvent.click(screen.getByText(/Connection & refresh settings/));
     fireEvent.click(screen.getByRole('button', { name: 'Launch Demo Telemetry' }));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh telemetry' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh telemetry' }).hasAttribute('disabled')).toBe(false));
