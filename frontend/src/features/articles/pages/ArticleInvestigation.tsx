@@ -10,6 +10,7 @@ import { articleHref, isUuid, navigateHash, parseArticleRoute, type DetailTab } 
 import { safeHttpUrl } from '../../../shared/lib/urls';
 import { setSelectedArticle } from '../../../shared/navigation/useSelectedArticle';
 import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
+import { useSession } from '../../../shared/session/session';
 
 const tabs: Record<DetailTab, { name: string; help: string }> = {
   overview: { name: 'Overview', help: 'Start with the source, available text and recorded analysis.' },
@@ -112,6 +113,7 @@ function Changes({ edges, selected, articleId, title, source, release, against, 
 }
 
 export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<typeof parseArticleRoute>> }) {
+  const readOnly = useSession().user?.role === 'viewer';
   const runtime = usePublicationRuntime();
   const { id, tab, claim, back, offset } = route;
   const release = route.release || (runtime.mode === 'published' ? runtime.publication?.run_id || undefined : undefined);
@@ -186,7 +188,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
           {sections.map(item => <a key={item.key} href={href(item.key)} aria-current={section.key === item.key ? 'page' : undefined} className={section.key === item.key ? 'btn-brutal' : 'btn-outline-dark'}>{item.label}</a>)}
         </nav>
         {section.tabs.length > 1 && <nav aria-label={`${section.label} views`} className="flex flex-wrap gap-2">
-          {section.tabs.map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className={`px-4 py-3 text-sm border rounded ${tab === key ? 'border-hermes-red-bright bg-hermes-panel text-hermes-bone' : 'border-hermes-bone/20 text-hermes-bone/65'}`}>{key === 'related' ? 'Similar & recorded coverage' : key === 'graph' ? 'Recorded link map' : key === 'changes' ? 'Compare & save notes' : tabs[key].name}</a>)}
+          {section.tabs.map(key => <a key={key} href={href(key)} aria-current={tab === key ? 'page' : undefined} className={`px-4 py-3 text-sm border rounded ${tab === key ? 'border-hermes-red-bright bg-hermes-panel text-hermes-bone' : 'border-hermes-bone/20 text-hermes-bone/65'}`}>{key === 'related' ? 'Similar & recorded coverage' : key === 'graph' ? 'Recorded link map' : key === 'changes' ? (readOnly ? 'Recorded changes' : 'Compare & save notes') : tabs[key].name}</a>)}
         </nav>}
 
         <section aria-labelledby="detail-tab-heading" className="space-y-5">
@@ -238,7 +240,7 @@ export function ArticleInvestigation({ route }: { route: NonNullable<ReturnType<
             {tab === 'methods' && <><dl className={`${panel} grid sm:grid-cols-2 gap-5 text-xs`}>{[['Article ID', article.id], ['Text field', article.body_source], ['Text completeness', article.content_completeness], ['Collected at', date(article.collected_at)], ['Processed at', date(article.processed_at)], ['Relationship basis', neighborhood?.basis || 'Unavailable'], ['Model/run revision', 'Not recorded in this article response'], ['Public release provenance', archived ? release || 'Publication details unavailable' : 'Not available; this response is from the current database']].map(([label, value]) => <div key={label}><dt className="text-hermes-bone/50 uppercase tracking-wider mb-2">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl><p className="text-sm text-hermes-bone/65">An article is a source document, and a claim is extracted text. Similarity, publication order and inferred evolution are research signals. They do not establish truth, independence or observed propagation.</p></>}
           </section>
           {claims.data && (neighborhood || connections.isError) && <div hidden={tab !== 'changes'}><Changes key={`${id}:${claim}:${route.against || ''}`} edges={neighborhood?.edges || []} selected={selected || undefined} articleId={id} title={article.title} source={source || undefined} release={release} against={route.against} comparisonBack={href('changes')} /></div>}
-          {tab === 'methods' && <details className={`${panel} mt-8`} open><summary className="cursor-pointer font-display text-2xl">All advanced tools <Network className="inline w-5 h-5 ml-2" /></summary><p className="text-xs text-hermes-bone/55 mt-3">All existing workspaces remain available. For explanations and local/cloud availability, open the tools directory.</p><a href="#/dashboard/tools" className="btn-outline-dark mt-4">Tools &amp; guides</a><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">{tools.map(([key, name, help]) => <a key={key} className="border border-hermes-bone/15 p-4 hover:border-hermes-red-bright" href={`#/dashboard/${key}`} onClick={() => { if (key === 'timeline') setSelectedArticle({ id, title: article.title, domain: article.domain }); }}><h3 className="font-display text-xl">{name}</h3><p className="text-xs text-hermes-bone/60 mt-2">{help}</p></a>)}</div></details>}
+          {tab === 'methods' && !readOnly && <details className={`${panel} mt-8`} open><summary className="cursor-pointer font-display text-2xl">All advanced tools <Network className="inline w-5 h-5 ml-2" /></summary><p className="text-xs text-hermes-bone/55 mt-3">All existing workspaces remain available. For explanations and local/cloud availability, open the tools directory.</p><a href="#/dashboard/tools" className="btn-outline-dark mt-4">Tools &amp; guides</a><div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3 mt-5">{tools.map(([key, name, help]) => <a key={key} className="border border-hermes-bone/15 p-4 hover:border-hermes-red-bright" href={`#/dashboard/${key}`} onClick={() => { if (key === 'timeline') setSelectedArticle({ id, title: article.title, domain: article.domain }); }}><h3 className="font-display text-xl">{name}</h3><p className="text-xs text-hermes-bone/60 mt-2">{help}</p></a>)}</div></details>}
           <footer className="text-xs leading-relaxed text-hermes-bone/55 border-t border-hermes-bone/15 pt-5"><Search className="inline w-3 h-3 mr-2" />This page shows one article and its recorded neighborhood, not an exhaustive topic or web search. Missing data remains unknown.</footer>
         </>}
       </>}

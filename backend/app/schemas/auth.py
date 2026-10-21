@@ -10,6 +10,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=10, max_length=1024, description="Password must be at least 10 characters long")
     full_name: str | None = Field(default=None, max_length=300)
+    # Opting into fewer permissions is safe; callers cannot request an
+    # administrator/researcher role or promote an existing identity.
+    read_only: bool = Field(default=False, strict=True)
     
     @field_validator('password')
     @classmethod

@@ -2,9 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { investigationApi } from '../../../shared/api/investigation';
 import { articleHref } from '../../../shared/navigation/articleRoutes';
 import { topicHref } from '../../../shared/navigation/topicRoutes';
+import { useSession } from '../../../shared/session/session';
 import { QueryError } from '../../../shared/ui/QueryError';
 
 export function ArticleCoverage({ id, release, back, compact = false }: { id: string; release?: string; back: string; compact?: boolean }) {
+  const readOnly = useSession().user?.role === 'viewer';
   const context = useQuery({ queryKey: ['article-context', release, id], queryFn: ({ signal }) => investigationApi.context(id, release!, { signal }), enabled: !!release, staleTime: 60_000 });
   if (!release) return null;
   if (context.isPending) return <p role="status">Loading topic context…</p>;
@@ -18,7 +20,7 @@ export function ArticleCoverage({ id, release, back, compact = false }: { id: st
     {!compact && <>
       {!data.network_available && <p className="text-sm">A semantic street network has not been published for this release.</p>}
       {data.network_available && !data.neighbors.length && <p className="text-sm">No semantic pairs passed the published retention rules for this article. Explore its topic or search other reporting.</p>}
-      <div className="grid md:grid-cols-2 gap-4">{data.neighbors.map(item => <article key={item.id} className="border border-hermes-bone/20 p-5 space-y-3"><p className="text-xs text-hermes-bone/60">{item.domain} · {item.published_at ? new Date(item.published_at).toLocaleDateString() : 'Date unknown'}</p><h4 className="font-display text-xl">{item.title}</h4><p className="text-xs text-hermes-bone/65">Cosine similarity {item.score.toFixed(3)} · grouping input: {item.basis.replace(/_/g, ' ')}</p><div className="flex flex-wrap gap-4 text-sm"><a className="underline" href={articleHref(item.id, 'overview', { back, release })}>Investigate related article</a><a className="underline" href={articleHref(id, 'changes', { back, release, against: item.id })}>Compare with this source</a></div></article>)}</div>
+      <div className="grid md:grid-cols-2 gap-4">{data.neighbors.map(item => <article key={item.id} className="border border-hermes-bone/20 p-5 space-y-3"><p className="text-xs text-hermes-bone/60">{item.domain} · {item.published_at ? new Date(item.published_at).toLocaleDateString() : 'Date unknown'}</p><h4 className="font-display text-xl">{item.title}</h4><p className="text-xs text-hermes-bone/65">Cosine similarity {item.score.toFixed(3)} · grouping input: {item.basis.replace(/_/g, ' ')}</p><div className="flex flex-wrap gap-4 text-sm"><a className="underline" href={articleHref(item.id, 'overview', { back, release })}>Investigate related article</a>{!readOnly && <a className="underline" href={articleHref(id, 'changes', { back, release, against: item.id })}>Compare with this source</a>}</div></article>)}</div>
     </>}
   </section>;
 }

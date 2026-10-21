@@ -6,6 +6,7 @@ import { useSession } from '../../../shared/session/session';
 import { safeHttpUrl } from '../../../shared/lib/urls';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { SignInNotice } from '../../account/components/SignInNotice';
+import { ReadOnlyNotice } from '../../account/components/ReadOnlyNotice';
 import { articleHref } from '../../../shared/navigation/articleRoutes';
 import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 
@@ -146,6 +147,7 @@ function CheckForm({ initialClaim = '' }: { initialClaim?: string }) {
 export function ClaimCheck({ initialClaim = '' }: { initialClaim?: string }) {
   const { user, revision } = useSession();
   const runtime = usePublicationRuntime();
+  if (user?.role === 'viewer') return <ReadOnlyNotice />;
   if (runtime.mode === 'published') return <p className="card-brutal-dark p-6 text-sm">This page shows the saved assessment above. New AI evidence checks run on the analysis PC; no model is running in the cloud.</p>;
   return (
     <section aria-labelledby="claim-check-title" className="card-brutal-dark p-6 space-y-4">

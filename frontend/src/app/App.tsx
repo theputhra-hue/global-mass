@@ -16,6 +16,8 @@ import { ArticleInvestigation } from '../features/articles/pages/ArticleInvestig
 import { ClaimsWorkspace } from '../features/claims/pages/ClaimsWorkspace';
 import { WorkspaceShell } from './layouts/WorkspaceShell';
 import { useAppRoute } from './routing/useAppRoute';
+import { ReadOnlyNotice } from '../features/account/components/ReadOnlyNotice';
+import { viewerCanOpen } from '../shared/navigation/viewerAccess';
 
 /** Application composition only. Route parsing and redirects live in routing/. */
 function App() {
@@ -31,6 +33,9 @@ function App() {
   if (route.kind === 'landing') page = <Landing />;
   else if (route.kind === 'public-project') page = <PublicProjectLab />;
   else if (!user) page = <SignIn />;
+  else if (user.role === 'viewer' && !viewerCanOpen(route)) {
+    page = <WorkspaceShell route={route}><ReadOnlyNotice /></WorkspaceShell>;
+  }
   else {
     switch (route.kind) {
       case 'help':

@@ -11,6 +11,7 @@ from app.models.base import Base
 
 
 class RoleEnum(str, enum.Enum):
+    viewer = "viewer"
     user = "user"
     admin = "admin"
     researcher = "researcher"

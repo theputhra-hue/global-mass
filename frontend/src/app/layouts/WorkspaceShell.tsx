@@ -4,6 +4,7 @@ import { WorkspaceSidebar } from '../../features/navigation/components/Workspace
 import { WorkspaceMobileHeader } from '../../features/navigation/components/WorkspaceMobileHeader';
 import { WorkspaceBreadcrumbs } from '../../features/navigation/components/WorkspaceBreadcrumbs';
 import { PublicationNotice } from '../../shared/runtime/publicationRuntime';
+import { useSession } from '../../shared/session/session';
 
 interface WorkspaceShellProps {
   route: Destination & { raw: string; dashboard: boolean };
@@ -13,6 +14,7 @@ interface WorkspaceShellProps {
 }
 
 export function WorkspaceShell({ route, articleTitle, articleTab, children }: WorkspaceShellProps) {
+  const readOnly = useSession().user?.role === 'viewer';
   const wideMap = route.kind === 'advanced' && (route.tab === 'atlas' || route.tab === 'fullgraph');
   return (
     <div className="min-h-screen bg-hermes-ink text-hermes-bone font-mono relative isolate flex flex-col lg:flex-row">
@@ -38,6 +40,7 @@ export function WorkspaceShell({ route, articleTitle, articleTab, children }: Wo
 
         {/* Global published notice when operating in published cloud mode */}
         <PublicationNotice />
+        {readOnly && <p role="status" className="border-b border-hermes-bone/15 px-5 py-3 text-xs text-hermes-bone/70">Viewer account · Read-only access to published data. Analysis and editing are disabled.</p>}
 
         {/* Primary Page Content */}
         <main

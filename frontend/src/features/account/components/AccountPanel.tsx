@@ -69,7 +69,7 @@ export function AccountPanel({ signInLabel = 'Sign in', compact = false }: { sig
               <dl className="text-sm space-y-2">
                 <div><dt className="text-hermes-bone/50 font-mono text-xs">Signed in as</dt><dd>{user.full_name || user.email}</dd></div>
                 <div><dt className="text-hermes-bone/50 font-mono text-xs">Email</dt><dd>{user.email}</dd></div>
-                <div><dt className="text-hermes-bone/50 font-mono text-xs">Role</dt><dd>{user.role}</dd></div>
+                <div><dt className="text-hermes-bone/50 font-mono text-xs">Role</dt><dd>{user.role === 'viewer' ? 'Viewer — read-only' : user.role}</dd></div>
               </dl>
               <div className="flex flex-wrap gap-3">
                 {developerAccess.data?.allowed && <><a href="#/dashboard/developer" className="btn-outline-dark" onClick={() => setOpen(false)}>Developer console</a><a href="#/dashboard/upload" className="btn-outline-dark" onClick={() => setOpen(false)}>Developer uploads</a></>}

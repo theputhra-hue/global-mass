@@ -56,6 +56,21 @@ async def _scalar(sql: str) -> Any:
         return (await db.execute(text(sql))).scalar()
 
 
+async def test_viewer_enum_roundtrips_after_migration() -> None:
+    from app.db.postgres import async_session_maker
+    from app.models.user import RoleEnum, User
+
+    async with async_session_maker() as db:
+        user = User(id=uuid.uuid4(), email=f"{uuid.uuid4()}@example.invalid",
+                    hashed_password="unused", role=RoleEnum.viewer)
+        db.add(user)
+        await db.flush()
+        await db.refresh(user)
+        assert user.role == RoleEnum.viewer
+        # A rollback keeps this integration-only identity out of the database.
+        await db.rollback()
+
+
 @pytest.mark.asyncio
 async def test_concurrent_refresh_issues_only_one_successor() -> None:
     import asyncio
