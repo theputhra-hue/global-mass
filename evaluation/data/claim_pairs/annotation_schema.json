@@ -1,21 +1,8 @@
 {
-  "version": "1.0",
-  "labels": {
-    "EVOLVED_FROM": "Claim B is a semantic mutation of Claim A — same core assertion, different framing, emphasis, or added/dropped details. Both refer to the same real-world event.",
-    "SIMILAR_TO": "Claims share a topic but assert different (non-mutated) facts.",
-    "UNRELATED": "Claims are about different events or topics.",
-    "DUPLICATE": "Claims are semantically identical or near-identical."
-  },
-  "fields": [
-    "pair_id",
-    "claim_a",
-    "claim_b",
-    "source_a",
-    "source_b",
-    "date_a",
-    "date_b",
-    "label",
-    "annotator_confidence",
-    "notes"
-  ]
+  "status": "retired",
+  "legacy_version": "1.0",
+  "reason": "The former four-class CSV annotation contract is incompatible with the current claim-pairs-v2 human evaluation protocol.",
+  "active_rubric": "GET /eval/rubric",
+  "active_annotation_endpoints": ["GET /eval/next", "POST /eval/label"],
+  "documentation": ["docs/EVALUATION.md", "docs/RESEARCH.md"]
 }

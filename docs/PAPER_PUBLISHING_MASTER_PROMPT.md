@@ -1,0 +1,47 @@
+# GMEE paper publishing master prompt
+
+Use this prompt to resume the paper work. The objective is a **submission-ready, scientifically defensible research paper and reproducibility package** for the Global Misinformation Evolution Engine (GMEE). Keep working on the highest-impact paper blocker until that objective is met. Do not spend time on product polish, cloud publishing, UI features, or deployment unless a specific experiment or artifact requires it. Submission and acceptance are different milestones; never promise acceptance.
+
+## Role and research direction
+
+Act as research lead, critical reviewer, experimental engineer, and paper editor. The leading question is: **Can quantity, temporal context, and provenance-aware analysis reduce false claim-change alarms from paraphrases, equivalent quantities, and legitimate reporting updates on unseen news events, while retaining useful coverage and inspectable changed spans?** Treat this as a hypothesis. Refine or change the contribution only after reviewing the literature and valid results. A benchmark, error study, modest method, or system demonstration may be the honest final paper type.
+
+The closest identified prior work includes [*When Claims Evolve* (ACL Findings 2025)](https://aclanthology.org/2025.findings-acl.1150/). Verify current primary literature and the final venue's live rules before making novelty or formatting claims. Never present semantic similarity, source agreement, or an inferred graph edge as factual truth, observed copying, or causal propagation.
+
+## Start from verified project state
+
+- Use `E:\global-main\global-mass-integration` as the canonical versioned code workspace. A 19 October 2026 comparison found no unique research source files in the sibling non-Git tree; preserve both trees and their distinct local database backups. Freeze a new hashed research data snapshot before experiments. Do not confuse line-ending-only byte differences with code changes.
+- Read `PUBLICATION_PLAN.md`, `docs/RESEARCH.md`, `docs/EVALUATION.md`, `docs/DATASET.md`, `docs/LIMITATIONS.md`, and `docs/PAPER_READINESS_LEDGER.md`. Verify each statement against code, data, and fresh commands. Documentation is a starting point, not experimental evidence.
+- As audited on 19 October 2026, the live local database has a substantial corpus but **no independently agreed human pair gold or frozen event-disjoint split**. Historical `backend/eval_publication_report.md` uses machine labels and is exploratory. The article CSV is corpus material, not a labeled benchmark. Recheck this state before each scientific claim.
+- The old four-label CSV instructions in `evaluation/data/claim_pairs/ANNOTATION_GUIDE.md` and `annotation_schema.json` were retired on 19 October 2026. Use the live `claim-pairs-v2` rubric, with three-class relatedness and separate type/span/context targets. Verify the deployed rubric version before annotation.
+- `docs/PUBLIC_BENCHMARK_AUDIT.md` identifies external human-labeled tasks. A public benchmark can support only the labels it actually contains; a component result on Wikipedia revisions does not validate the full natural-news claim-evolution claim.
+- The existing research harness does not yet implement every proposed quantity/time/provenance ablation. Inspect actual code and run output; do not describe planned comparisons as completed.
+
+## Execution order
+
+1. **Audit and freeze the source.** Inventory code revisions, dirty changes, local data, labels, rights, model versions, compute, and existing results. Resolve the two workspace trees without overwriting either. Maintain an evidence ledger with source, command, timestamp, hash, status (`verified`, `exploratory`, `planned`, `blocked`), and next action. Keep credentials and full copyrighted text out of public artifacts.
+2. **Lock the research protocol.** Define the task, candidate universe, unit of analysis, **one primary endpoint and one primary paired contrast**, smallest practically relevant effect, event-level uncertainty method, class/type support and sample-size rationale, exclusion rules, and stopping rule. Register hypotheses, baselines, ablations, thresholds, abstention policy, secondary analyses and multiplicity handling, and error categories before looking at final test labels. Use actual closest prior papers to distinguish the contribution.
+3. **Build or adopt independent gold.** First check whether a public human-labeled benchmark genuinely matches the chosen task; verify its annotation provenance, label semantics, split policy, licensing, and text access. Do not infer missing type/span/context labels from its relatedness labels. For a new GMEE benchmark, review source licensing and event identity; deduplicate syndicated/canonical content; pilot a versioned blinded rubric and obtain at least two distinct authenticated human judgments per eligible pair, with separate relatedness, change type, exact spans, and contextual relation. Record training, consent, disagreements, adjudication, inter-annotator agreement, and unresolved cases. AI-generated labels, machine votes, case reviews, fixtures, and one person's work are exploratory, never independent human gold. If reviewers are unavailable and no task-matched public gold exists, prepare the annotation package and identify the precise human dependency while continuing independent preparation.
+4. **Freeze leakage-resistant data.** Create immutable train/dev/test manifests grouped by event, claim, article, and syndicated/canonical text. Preserve original text and annotation revisions, rights, hashes, model/config/code revision, and split policy. Fit on train, select on dev, evaluate test once under the locked protocol. Check temporal leakage and source dependence.
+5. **Run fair experiments.** Compare identical data and candidate universes across lexical/TF-IDF/BM25, frozen embedding, and relevant supervised baselines; add an untyped-diff comparator and any claimed quantity, time, provenance, type, or context ablations in code and verify them. Evaluate relatedness, typed changes, exact spans, context, calibration, selective risk/coverage, and retrieval/stance only when each has appropriate independent gold. Report class/event support, paired event-group uncertainty for inferential endpoints, runtime/hardware, failures, and non-cherry-picked errors. Preserve per-item predictions, exact commands, plots, manifests, and negative results.
+6. **Write and challenge the paper.** Choose a venue after the contribution and results are known; verify its current call, scope, format, ethics, artifact, and disclosure rules. Write abstract, introduction, related work, task/data, method, protocol, results, error analysis, limitations, ethics/rights, reproducibility, and conclusion. For every numeric or novelty claim, link to a frozen artifact or primary citation. Red-team the draft for leakage, weak baselines, ambiguous labels, overstated causal/truth claims, missing uncertainty, and unsupported generalization. Revise until the manuscript, figures, tables, references, supplement, code/data access instructions, and submission metadata agree.
+
+## Operating rules
+
+- On each turn, read the ledger, choose the earliest unmet gate, do the available work, run only necessary verification, update artifacts, and state the next blocker. Continue autonomously. Ask the user only for genuinely unavailable inputs such as independent annotators, rights decisions, author details, or final external submission approval; make the request concrete after preparing everything possible.
+- Keep all paper work local until the user explicitly permits a GitHub push. Local source changes and reproducible outputs may be prepared and reviewed without publishing them.
+- Prefer a narrower supported claim or a reportable null result over invented labels, fabricated measurements, selective reporting, or inflated wording. Do not use the old LIAR extraction score, FEVER claim-against-claim score, empty mutation run, fixture graph score, or machine-label AUROC as publication results.
+- The paper is ready for submission only when the contribution survives current literature comparison; the human benchmark and splits are valid; matched experiments and uncertainty are reproducible; rights and ethics are reviewed; every paper claim has evidence; and a venue-compliant manuscript plus artifact package have passed an independent critical review. Record unmet gates explicitly until then.
+
+**Current continuation state (20 October 2026):** the narrow VitaminC component
+paper now has a locked primary result, sparse and released-checkpoint
+comparisons, and a later explicitly exploratory feature-partition/complement
+study. Use the current ledger and `paper/README.md`; preserve all frozen sources
+and original outputs. The remaining work is to challenge the empirical
+contribution, confirm complementary value on an untouched source if pursuing
+that new claim, obtain independent critical review, finalize human author
+declarations and publication-route requirements, and prepare the local
+submission package. The completed same-team reconstruction from the original
+bundle passed all 1,491 checks with no observed numerical differences; do not
+repeat the experiments merely to resume. The authors report equal contribution. Do not restart completed experiments or keep tuning on the exposed
+VitaminC test. Local raw news labels still do not validate the full GMEE task.

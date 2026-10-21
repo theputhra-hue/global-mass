@@ -1,0 +1,40 @@
+{
+  "status": "figures_from_existing_predictions_no_new_inference",
+  "rows": 30828,
+  "factual": 11293,
+  "input_sha256": {
+    ".local-deployment\\research-runs\\vitaminc-score-v1-20261019\\test_predictions.jsonl": "4199998ab531c50ce1a5606f72ee852e547cfc194a5f4fa1d1a87f88c58b090f",
+    ".local-deployment\\research-runs\\vitaminc-score-v1-20261019\\results.json": "15e18b6290e6bccc71a83f3fdde4f9f93a6732964ed7a6498ec5a20260b718fd",
+    ".local-deployment\\research-runs\\vitaminc-sparse-score-v1\\predictions.jsonl": "b360e65b078c2ff646a295abd71178e964d988c314512e071424c45d5c3a5593",
+    ".local-deployment\\research-runs\\vitaminc-sparse-score-v1\\results.json": "29bb3d50f0621c3e38ad23206ec75c4ece827d3fca32e78dd3d53dfe8cdb0a03",
+    ".local-deployment\\research-runs\\vitaminc-anchor-score-v1\\anchor_predictions.jsonl": "e223938634dcc504891b954f7921f9fd60152f5892dc9b9859ec96c8162fbeb0",
+    ".local-deployment\\research-runs\\vitaminc-anchor-score-v1\\results.json": "90faaf3520ce9e9b701c7c46b59d40db0408f333fe5b9ddc70d84a49d87f63fb"
+  },
+  "series": {
+    "Lexical summaries": {
+      "auroc": 0.7224997620787987,
+      "average_precision": 0.5798049664386354
+    },
+    "GMEE features": {
+      "auroc": 0.8116241533569236,
+      "average_precision": 0.6528551619701823
+    },
+    "Sparse edit text (supp.)": {
+      "auroc": 0.8204875096638844,
+      "average_precision": 0.685371041508598
+    },
+    "ALBERT (supp.)": {
+      "auroc": 0.9189335550168894,
+      "average_precision": 0.851002145723219
+    }
+  },
+  "script_sha256": "91dad51a973417987b2a852bf9e97d772d42cba8b5c26f54af6a626c27cb7f6c",
+  "outputs_sha256": {
+    "vitaminc_discrimination.pdf": "972c5b40be8528d1572a4485d1f52fa29003dd8dfc2d4e15f78a6017c9eb94c3",
+    "vitaminc_discrimination.png": "3720cc399988d5110d3ba7159c206d4cdd2123d6fb95d053f39da3d0f93ccefb",
+    "vitaminc_discrimination.svg": "2ad4e1258167dc42250885a89d1de24c64f2245193fd5b330cb4b91451ba9924",
+    "vitaminc_primary_contrast.pdf": "1c48682c23c9b2126368c9b5da2ec84271647f7b57dc955a5bcb9e8a023313d8",
+    "vitaminc_primary_contrast.png": "c231c658877104f70d768144069d67bd01580f65cdfeeb02d40b53836e79a8de",
+    "vitaminc_primary_contrast.svg": "5931a4000c49435995c249097a716f5f941bcd61ee25de2df77abb3ab1e7f6c7"
+  }
+}

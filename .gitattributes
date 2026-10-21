@@ -1,0 +1,7 @@
+# Preserve the exact bytes recorded in the research reproducibility receipts.
+# Frozen files include LF sources and historical CRLF analyzer dependencies.
+/evaluation/** -text
+/paper/** -text
+/docs/VITAMINC_*.md -text
+/backend/app/services/evolution/quantities.py -text
+/backend/app/services/evolution/text_changes.py -text

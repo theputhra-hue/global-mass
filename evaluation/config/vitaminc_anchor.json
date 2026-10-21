@@ -1,0 +1,32 @@
+{
+  "schema": "vitaminc-author-anchor-v1",
+  "model_repo": "tals/albert-base-vitaminc_flagging",
+  "revision": "1e5f38d76c4d9402bf0c7d73e1aab6eaafca0ea8",
+  "authors_code_revision": "eb532922b88b199df68ed26afeb58dca5501b52f",
+  "input_features": "raw_sents",
+  "max_seq_length": 256,
+  "padding": "max_length",
+  "truncation": true,
+  "label_order": ["not factual", "factual"],
+  "positive_class_index": 1,
+  "probability": "softmax(logits)[1]",
+  "decision_threshold": 0.5,
+  "batch_size": 32,
+  "device": "cuda",
+  "precision": "float32",
+  "torch_num_threads": 8,
+  "runtime": {
+    "python": "3.11.9",
+    "torch": "2.5.1+cu121",
+    "transformers": "4.46.3",
+    "tokenizer_class": "AlbertTokenizerFast",
+    "model_class": "AlbertForSequenceClassification"
+  },
+  "model_files_sha256": {
+    "config.json": "adcdc2914c4116aa52adf5497f29e9c7dfd797a5eda158019add834fe8bdf449",
+    "pytorch_model.bin": "6917dc276d3af402d453e84c252b1c43c16903bead0cfc03387927d92fec9dfc",
+    "spiece.model": "fefb02b667a6c5c2fe27602d28e5fb3428f66ab89c7d6f388e7c8d44a02d0336",
+    "tokenizer_config.json": "3a7e20518084860b652061fcf94ba2e26dfa750930f7ba8cbdb1c838d28e7bd7",
+    "special_tokens_map.json": "dafa474106cf4c7bee4470cf371e915005d4fe7a664f88c4b512dc4e4f2f2476"
+  }
+}

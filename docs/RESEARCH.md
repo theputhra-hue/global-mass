@@ -228,6 +228,16 @@ same dataset, label definition, retrieval universe and scorer.
 | [Dey et al., *Temporal Fact Conflicts in LLMs*, March 2026 preprint](https://arxiv.org/abs/2603.15892) | Reproduces temporal-conflict studies across DYNAMICQA/MULAN and investigates dataset/metric/model-size dependence. | A recent reproducibility warning, not a peer-reviewed superiority benchmark: report cross-event sensitivity and exact task definitions. Do not imply this LLM-memory task is identical to news-pair analysis. |
 | [Upravitelev et al., *Take It All*, FEVER 2026](https://aclanthology.org/2026.fever-1.7/) | Multimodal evidence aggregation with runtime/performance ablations. | A current adjacent efficiency reference; GMEE is text-only. Adding image support is optional scope, not a prerequisite for publishing a focused textual contribution. |
 
+### Additional task overlap checked 19 October 2026
+
+| Prior work | Existing human target | Consequence for GMEE |
+|---|---|---|
+| [Ko et al., *ClaimDiff*, ACL Findings 2023](https://aclanthology.org/2023.findings-acl.289/) | Expert-rated strengthen/weaken relations and rationale phrases for cross-outlet news claim pairs. | Cross-outlet comparison itself is established. These directional relations are not GMEE's relatedness, typed change, or chronological lineage labels; evaluate only a deliberately implemented matching target. |
+| [Spangher et al., *NewsEdits 2.0*](https://arxiv.org/abs/2411.18811) | Journalist-annotated factual, stylistic and narrative intentions in same-article news revisions. | Distinguishing legitimate updates from other edits is established. Its gold annotations would be a valuable external test if obtainable, but same-article revisions do not establish cross-outlet claim evolution. |
+| [Schuster et al., *VitaminC*, NAACL 2021](https://aclanthology.org/2021.naacl-main.52/) | Human-reviewed real Wikipedia factual revisions and contrastive claim/evidence examples; a separate synthetic subset exists. | Its real revision-flagging task can test a factual-change component with the author's labels and splits. It cannot validate natural-news typed spans, context, event generalization or propagation. |
+
+The [public benchmark audit](PUBLIC_BENCHMARK_AUDIT.md) records label fit, access and rights. These resources narrow the novelty claim and must not be silently relabeled to fit GMEE's task.
+
 Calibration and selective prediction are established methodology:
 [Guo et al. (2017)](https://proceedings.mlr.press/v70/guo17a.html) studies
 probability calibration, and [Geifman and El-Yaniv (2019)](https://proceedings.mlr.press/v97/geifman19a.html)
