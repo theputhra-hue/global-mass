@@ -55,7 +55,7 @@ async def test_viewer_reads_profile_but_cannot_compare_or_save(viewer_client, db
 
 
 async def test_viewer_can_login_refresh_and_logout(viewer_client):
-    login = await viewer_client.post("/api/v1/auth/login", json={"full_name": "Test Visitor", 
+    login = await viewer_client.post("/api/v1/auth/login", json={"full_name": "Test Visitor",
         "email": "viewer@example.com", "password": "viewer-test-password"})
     assert login.status_code == 200
     rotated = await viewer_client.post("/api/v1/auth/refresh", json={
@@ -69,7 +69,7 @@ async def test_viewer_can_login_refresh_and_logout(viewer_client):
 
 
 async def test_public_registration_cannot_self_assign_viewer_or_admin(async_client, db_session):
-    result = await async_client.post("/api/v1/auth/register", json={"full_name": "Test Visitor", 
+    result = await async_client.post("/api/v1/auth/register", json={"full_name": "Test Visitor",
         "email": "signup@example.com", "password": "normal-test-password", "role": "admin"})
     assert result.status_code == 201
     user = await db_session.scalar(select(User).where(User.email == "signup@example.com"))
@@ -92,7 +92,7 @@ async def test_registration_can_only_opt_into_fewer_permissions(async_client):
 
 
 async def test_read_only_registration_requires_a_boolean(async_client):
-    response = await async_client.post("/api/v1/auth/register", json={"full_name": "Test Visitor", 
+    response = await async_client.post("/api/v1/auth/register", json={"full_name": "Test Visitor",
         "email": "invalid-flag@example.com", "password": "normal-test-password", "read_only": "false"})
     assert response.status_code == 422
 
