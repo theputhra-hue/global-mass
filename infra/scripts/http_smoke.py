@@ -345,7 +345,7 @@ def run_smoke(client: Client) -> None:
         "email": "fixture-developer@example.com", "password": "Fixture-only-developer-password"})
     admin_token = admin.get("access_token")
     require(isinstance(admin_token, str) and bool(admin_token), "Fixture developer login failed.")
-    listing = expect(client, "GET", "/developer/accounts", (200,), token=admin_token)
+    listing = expect(client, "GET", "/developer/accounts?access_status=pending", (200,), token=admin_token)
     items = listing.get("items")
     require(isinstance(items, list) and len(items) == 1, "The visitor must appear in the developer approval list.")
     item = items[0]
