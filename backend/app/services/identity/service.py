@@ -33,9 +33,15 @@ generic_error = HTTPException(
 )
 
 async def _issue_tokens_and_session(db: AsyncSession, user: User, device_info: str | None) -> TokenResponse:
+    # Lock the identity before touching sessions, consistently with suspension.
+    # A concurrent login/refresh must not escape session revocation.
+    current = await user_repository.get_by_id(db, user.id, for_update=True)
+    if current is None or not current.is_active or current.access_status == "banned":
+        raise credentials_exception
+    user = current
     # 1. Access Token
     jti = str(uuid.uuid4())
-    access_token = security.create_access_token(user_id=str(user.id), role=user.role.value, jti=jti)
+    access_token = security.create_access_token(user_id=str(user.id), role=user.role.value, jti=jti, access_epoch=user.access_epoch)
     
     # 2. Refresh Token
     refresh_token = security.generate_refresh_token()
@@ -94,11 +100,17 @@ async def authenticate_user(db: AsyncSession, redis: Redis, login_in: LoginReque
         security.verify_password, user.hashed_password, login_in.password
     ):
         raise generic_error
+    if user.access_status == "banned":
+        raise HTTPException(403, "This account is banned. Contact the developers to request a review.")
         
     return await _issue_tokens_and_session(db, user, device_info)
 
 async def rotate_refresh_token(db: AsyncSession, refresh_in: RefreshRequest, device_info: str | None) -> TokenResponse:
     token_hash = security.hash_refresh_token(refresh_in.refresh_token)
+    candidate = await session_repository.get_by_refresh_token_hash(db, token_hash)
+    if candidate is None:
+        raise credentials_exception
+    user = await user_repository.get_by_id(db, candidate.user_id, for_update=True)
     db_session = await session_repository.get_by_refresh_token_hash(db, token_hash, for_update=True)
     
     if not db_session:
@@ -122,8 +134,7 @@ async def rotate_refresh_token(db: AsyncSession, refresh_in: RefreshRequest, dev
         raise credentials_exception
         
     # Get user
-    user = await user_repository.get_by_id(db, db_session.user_id)
-    if not user or not user.is_active:
+    if not user or not user.is_active or user.access_status == "banned":
         raise credentials_exception
         
     # Rotate token

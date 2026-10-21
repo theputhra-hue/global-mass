@@ -35,6 +35,7 @@
     "POST /api/v1/auth/register",
     "POST /api/v1/casebook",
     "POST /api/v1/casebook/{case_id}/review",
+    "POST /api/v1/developer/accounts/{user_id}/control",
     "POST /api/v1/developer/accounts/{user_id}/review",
     "POST /api/v1/graph/mutation/compare",
     "POST /api/v1/publications/upload",

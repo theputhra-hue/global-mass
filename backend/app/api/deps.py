@@ -66,11 +66,16 @@ async def get_current_user(
     user = await user_repository.get_by_id(db, user_uuid)
     if user is None or not user.is_active:
         raise credentials_exception
+    # Legacy tokens have epoch 1. Suspension increments the durable epoch so
+    # old access tokens cannot regain access after a subsequent Allow action.
+    epoch = payload.get("ae", 1)
+    if type(epoch) is not int or epoch != user.access_epoch:
+        raise credentials_exception
 
     account_endpoint = request.url.path == "/api/v1/auth/me" and request.method == "GET"
     logout_endpoint = request.url.path == "/api/v1/auth/logout" and request.method == "POST"
-    if user.access_status in {"pending", "rejected"} and not (account_endpoint or logout_endpoint):
-        raise HTTPException(status_code=403, detail="Developer approval is required to view data.",
+    if user.access_status != "approved" and not (account_endpoint or logout_endpoint):
+        raise HTTPException(status_code=403, detail=f"Account access is {user.access_status}. Contact the developers.",
                             headers={"Cache-Control": "no-store"})
 
     # Look up the current database role on every request: an old JWT must not

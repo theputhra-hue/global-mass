@@ -3,7 +3,7 @@ import uuid
 from typing import Any
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 
 from app.api.deps import get_db_session, get_redis_client
 from app.cloud import create_cloud_app
@@ -22,7 +22,7 @@ DATA_PATHS = ["/dashboard", "/corpus/articles", "/graph/atlas", "/graph/full", "
 
 
 def bearer(user: User) -> dict[str, str]:
-    return {"Authorization": "Bearer " + create_access_token(str(user.id), user.role.value, str(uuid.uuid4()))}
+    return {"Authorization": "Bearer " + create_access_token(str(user.id), user.role.value, str(uuid.uuid4()), user.access_epoch)}
 
 
 @pytest.fixture(params=["local", "cloud"])
@@ -113,7 +113,7 @@ async def test_directory_includes_every_role_and_disabled_account_with_paginatio
     response = await client.get("/api/v1/developer/accounts", headers=headers)
     assert response.status_code == 200
     directory = response.json()
-    assert directory["counts"] == {"pending": 1, "approved": 4, "rejected": 0, "all": 5}
+    assert directory["counts"] == {"pending": 1, "approved": 4, "rejected": 0, "paused": 0, "banned": 0, "all": 5}
     assert directory["total"] == 5
     assert {row["role"] for row in directory["items"]} == {role.value for role in RoleEnum}
     assert {row["email"] for row in directory["items"]} == {
@@ -169,3 +169,74 @@ async def test_request_filters_and_revision_validation(approval_client):
         assert (await client.get("/api/v1/developer/accounts", params=params, headers=developer["headers"])).status_code == 422
     for body in ({"decision": "admin", "expected_revision": 1}, {"decision": "approve", "expected_revision": True}, {"decision": "approve", "expected_revision": 1, "role": "admin"}):
         assert (await client.post(f"/api/v1/developer/accounts/{me['id']}/review", json=body, headers=developer["headers"])).status_code == 422
+
+
+async def test_allow_pause_ban_invalidate_tokens_and_restore_only_viewing(approval_client, db_session):
+    from sqlalchemy import select
+
+    from app.models.session import Session
+    client, developer = approval_client
+    me, old_headers, tokens = await signup(client)
+    path = f"/api/v1/developer/accounts/{me['id']}/control"
+    admin = developer['headers']
+    async def act(action: str, revision: int) -> Response:
+        return await client.post(path, headers=admin, json={'action': action, 'expected_revision': revision})
+    assert (await act('allow', 1)).json()['access_status'] == 'approved'
+    assert (await client.get('/api/v1/corpus/articles', headers=old_headers)).status_code == 200
+    assert (await act('pause', 2)).json()['access_status'] == 'paused'
+    assert (await client.get('/api/v1/corpus/articles', headers=old_headers)).status_code == 401
+    assert (await client.post('/api/v1/auth/refresh', json={'refresh_token': tokens['refresh_token']})).status_code == 401
+    paused_login = await client.post('/api/v1/auth/login', json={'email': me['email'], 'password': 'Visitor-password-test!'})
+    assert paused_login.status_code == 200
+    paused_headers = {'Authorization': 'Bearer ' + paused_login.json()['access_token']}
+    assert (await client.get('/api/v1/auth/me', headers=paused_headers)).json()['access_status'] == 'paused'
+    for endpoint in DATA_PATHS:
+        assert (await client.get('/api/v1' + endpoint, headers=paused_headers)).status_code == 403
+    assert (await act('allow', 3)).status_code == 200
+    # Tokens from before Pause stay invalid even after access is restored.
+    assert (await client.get('/api/v1/corpus/articles', headers=old_headers)).status_code == 401
+    assert (await client.get('/api/v1/corpus/articles', headers=paused_headers)).status_code == 200
+    assert (await act('ban', 4)).json()['access_status'] == 'banned'
+    assert (await client.get('/api/v1/corpus/articles', headers=paused_headers)).status_code == 401
+    login = await client.post('/api/v1/auth/login', json={'email': me['email'], 'password': 'Visitor-password-test!'})
+    assert login.status_code == 403 and 'banned' in login.json()['detail']
+    assert (await client.post('/api/v1/auth/refresh', json={'refresh_token': paused_login.json()['refresh_token']})).status_code == 401
+    sessions = (await db_session.scalars(select(Session).where(Session.user_id == uuid.UUID(me['id'])))).all()
+    assert sessions and all(session.revoked for session in sessions)
+    assert (await act('pause', 5)).status_code == 409  # Ban cannot be bypassed via Pause.
+    assert (await act('allow', 5)).json()['role'] == 'viewer'
+    assert (await client.get('/api/v1/corpus/articles', headers=paused_headers)).status_code == 401
+    fresh = await client.post('/api/v1/auth/login', json={'email': me['email'], 'password': 'Visitor-password-test!'})
+    fresh_headers = {'Authorization': 'Bearer ' + fresh.json()['access_token']}
+    assert (await client.get('/api/v1/corpus/articles', headers=fresh_headers)).status_code == 200
+    assert (await client.post('/api/v1/publications/upload', headers=fresh_headers, json={})).status_code == 403
+    user = await db_session.get(User, uuid.UUID(me['id']), populate_existing=True)
+    assert user.access_epoch == 3 and user.access_revision == 6
+    assert str(user.access_reviewed_by) == developer['id']
+
+
+async def test_control_authorization_protected_roles_and_stale_decisions(approval_client, db_session):
+    client, developer = approval_client
+    me, headers, _ = await signup(client)
+    path = f"/api/v1/developer/accounts/{me['id']}/control"
+    body = {'action': 'ban', 'expected_revision': 1}
+    assert (await client.post(path, json=body)).status_code == 401
+    assert (await client.post(path, headers=headers, json=body)).status_code == 403
+    rogue = User(id=uuid.uuid4(), email='rogue@example.com', hashed_password='unused', role=RoleEnum.admin)
+    researcher = User(id=uuid.uuid4(), email='researcher@example.com', hashed_password='unused', role=RoleEnum.researcher)
+    disabled = User(id=uuid.uuid4(), email='disabled@example.com', hashed_password='unused', role=RoleEnum.viewer, is_active=False)
+    legacy = User(id=uuid.uuid4(), email='legacy@example.com', hashed_password='unused', role=RoleEnum.user)
+    legacy_id = str(legacy.id)
+    db_session.add_all([rogue, researcher, disabled, legacy])
+    await db_session.commit()
+    assert (await client.post(path, headers=bearer(rogue), json=body)).status_code == 403
+    for protected in (developer['id'], str(researcher.id), str(disabled.id), str(uuid.uuid4())):
+        for action in ('allow', 'pause', 'ban'):
+            assert (await client.post(f'/api/v1/developer/accounts/{protected}/control', headers=developer['headers'], json={'action': action, 'expected_revision': 1})).status_code == 409
+    assert (await client.post(path, headers=developer['headers'], json=body)).status_code == 200
+    assert (await client.post(path, headers=developer['headers'], json={'action': 'allow', 'expected_revision': 1})).status_code == 409
+    assert (await client.get('/api/v1/developer/accounts', headers=developer['headers'], params={'access_status': 'banned'})).json()['total'] == 1
+    allowed = await client.post(f'/api/v1/developer/accounts/{legacy_id}/control', headers=developer['headers'], json={'action': 'allow', 'expected_revision': 1})
+    assert allowed.status_code == 200 and allowed.json()['role'] == 'viewer'
+    for invalid in ({'action': 'admin', 'expected_revision': 2}, {'action': 'allow', 'expected_revision': True}, {'action': 'allow', 'expected_revision': 2, 'role': 'admin'}):
+        assert (await client.post(path, headers=developer['headers'], json=invalid)).status_code == 422

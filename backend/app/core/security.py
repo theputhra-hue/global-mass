@@ -30,12 +30,13 @@ def generate_refresh_token() -> str:
     """Generates an opaque, cryptographically random string."""
     return secrets.token_urlsafe(32)
 
-def create_access_token(user_id: str, role: str, jti: str) -> str:
+def create_access_token(user_id: str, role: str, jti: str, access_epoch: int = 1) -> str:
     expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_TTL_MINUTES)
     to_encode = {
         "sub": str(user_id),
         "role": role,
         "jti": jti,
+        "ae": access_epoch,
         "exp": expire,
         "iat": datetime.now(UTC)
     }

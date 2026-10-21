@@ -10,15 +10,21 @@ from app.api.deps import get_db_session, require_data_access
 from app.api.developer_access import require_developer
 from app.core.ops_security import record_audit
 from app.models.user import User
-from app.services.identity.access import list_requests, review_request
+from app.services.identity.access import control_account, list_requests, review_request
 
 router = APIRouter(dependencies=[Depends(require_data_access)])
-AccessStatus = Literal["all", "pending", "approved", "rejected"]
+AccessStatus = Literal["all", "pending", "approved", "rejected", "paused", "banned"]
 
 
 class AccessDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
     decision: Literal["approve", "reject"]
+    expected_revision: int = Field(strict=True, ge=1)
+
+
+class AccountControl(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["allow", "pause", "ban"]
     expected_revision: int = Field(strict=True, ge=1)
 
 
@@ -39,4 +45,15 @@ async def review(
     result = await review_request(db, user_id, body.decision, body.expected_revision, developer.id)
     await record_audit(db, actor=developer.email, action=f"visitor.{result['access_status']}", target=str(user_id),
                        detail={"role": "viewer", "expected_revision": body.expected_revision}, request=request)
+    return result
+
+
+@router.post("/accounts/{user_id}/control")
+async def control(
+    user_id: uuid.UUID, body: AccountControl, request: Request,
+    db: AsyncSession = Depends(get_db_session), developer: User = Depends(require_developer),
+) -> dict[str, Any]:
+    result = await control_account(db, user_id, body.action, body.expected_revision, developer.id)
+    await record_audit(db, actor=developer.email, action=f"account.{body.action}", target=str(user_id),
+                       detail={"access_status": result["access_status"], "expected_revision": body.expected_revision}, request=request)
     return result
