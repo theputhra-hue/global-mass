@@ -19,7 +19,7 @@ class RoleEnum(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        CheckConstraint("access_status IN ('pending', 'approved', 'rejected')", name="ck_users_access_status"),
+        CheckConstraint("access_status IN ('pending', 'approved', 'rejected', 'paused', 'banned')", name="ck_users_access_status"),
         Index("ix_users_visitor_requests", "role", "access_status", "created_at"),
     )
 
@@ -33,6 +33,7 @@ class User(Base):
     # sets pending explicitly, independently of any client-supplied flags.
     access_status: Mapped[str] = mapped_column(String(20), default="approved", server_default="approved", nullable=False)
     access_revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    access_epoch: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
     access_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     access_reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

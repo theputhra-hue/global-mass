@@ -7,7 +7,7 @@ export interface AccountUser {
   role: string;
   is_active: boolean;
   created_at: string;
-  access_status?: 'pending' | 'approved' | 'rejected';
+  access_status?: 'pending' | 'approved' | 'rejected' | 'paused' | 'banned';
 }
 
 export interface SessionTokens {
@@ -45,7 +45,8 @@ export function setSessionTokens(next: SessionTokens): void {
 }
 
 export function setSessionUser(user: AccountUser): void {
-  publish({ user, revision: snapshot.revision + (snapshot.user?.id === user.id ? 0 : 1) });
+  const changed = snapshot.user?.id !== user.id || snapshot.user?.role !== user.role || snapshot.user?.access_status !== user.access_status;
+  publish({ user, revision: snapshot.revision + (changed ? 1 : 0) });
 }
 
 export function clearSession(): void {

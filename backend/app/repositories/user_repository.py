@@ -10,7 +10,10 @@ async def get_by_email(db: AsyncSession, email: str) -> User | None:
     result = await db.execute(select(User).where(User.email == email))
     return result.scalars().first()
 
-async def get_by_id(db: AsyncSession, user_id: uuid.UUID) -> User | None:
+async def get_by_id(db: AsyncSession, user_id: uuid.UUID, *, for_update: bool = False) -> User | None:
+    if for_update:
+        result = await db.execute(select(User).where(User.id == user_id).with_for_update().execution_options(populate_existing=True))
+        return result.scalars().first()
     return await db.get(User, user_id)
 
 async def create(db: AsyncSession, email: str, hashed_password: str, full_name: str | None, role: RoleEnum) -> User:

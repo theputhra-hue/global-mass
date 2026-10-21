@@ -20,6 +20,7 @@ import { ReadOnlyNotice } from '../features/account/components/ReadOnlyNotice';
 import { viewerCanOpen } from '../shared/navigation/viewerAccess';
 import { ApprovalStatus } from '../features/account/pages/ApprovalStatus';
 import { AccountApprovals } from '../features/developer/components/AccountApprovals';
+import { AccountAccessMonitor } from '../features/account/components/AccountAccessMonitor';
 
 /** Application composition only. Route parsing and redirects live in routing/. */
 function App() {
@@ -89,7 +90,7 @@ function App() {
     }
     page = <WorkspaceShell route={route}>{page}</WorkspaceShell>;
   }
-  return <div className="App">{page}</div>;
+  return <div className="App"><AccountAccessMonitor />{page}</div>;
 }
 
 export default App;

@@ -438,3 +438,87 @@ async def test_corpus_stats_and_search_use_claim_embeddings(monkeypatch: pytest.
         assert document_matches[0]["score"] == pytest.approx(0.8)
         assert document_matches[0]["embedding_source"] == "article"
         await db.rollback()
+
+
+async def test_account_controls_migration_preserves_approval_and_supports_suspension() -> None:
+    import importlib.util
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    from app.db.postgres import engine
+
+    path = Path(__file__).resolve().parents[2] / 'alembic/versions/gmee12_account_controls.py'
+    spec = importlib.util.spec_from_file_location('controls_migration', path)
+    assert spec is not None and spec.loader is not None
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    schema = 'controls_fixture_' + uuid.uuid4().hex
+    async with engine.connect() as connection:
+        transaction = await connection.begin()
+        try:
+            await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+            await connection.execute(text(f'SET LOCAL search_path TO "{schema}", public'))
+            await connection.execute(text("CREATE TABLE users (id uuid PRIMARY KEY, access_status text NOT NULL DEFAULT 'approved', CONSTRAINT ck_users_access_status CHECK (access_status IN ('pending','approved','rejected')))"))
+            await connection.execute(text("INSERT INTO users (id,access_status) VALUES (:a,'approved'),(:b,'pending')"), {'a': uuid.uuid4(), 'b': uuid.uuid4()})
+            def upgrade(sync_connection: Any) -> None:
+                with Operations.context(MigrationContext.configure(sync_connection)):
+                    migration.upgrade()
+            await connection.run_sync(upgrade)
+            rows = (await connection.execute(text('SELECT access_status, access_epoch FROM users ORDER BY access_status'))).all()
+            assert [tuple(row) for row in rows] == [('approved', 1), ('pending', 1)]
+            await connection.execute(text("UPDATE users SET access_status='paused' WHERE access_status='approved'"))
+            await connection.execute(text("UPDATE users SET access_status='banned' WHERE access_status='pending'"))
+            assert (await connection.execute(text('SELECT count(*) FROM users'))).scalar_one() == 2
+        finally:
+            await transaction.rollback()
+
+
+async def test_suspension_racing_refresh_leaves_no_usable_session() -> None:
+    import asyncio
+    from datetime import UTC, datetime, timedelta
+
+    from fastapi import HTTPException
+    from sqlalchemy import delete, select
+
+    from app.core.security import decode_access_token, hash_refresh_token
+    from app.db.postgres import async_session_maker
+    from app.models.session import Session
+    from app.models.user import RoleEnum, User
+    from app.schemas.auth import RefreshRequest, TokenResponse
+    from app.services.identity.access import control_account
+    from app.services.identity.service import rotate_refresh_token
+
+    user_id = uuid.uuid4()
+    token = uuid.uuid4().hex
+    async with async_session_maker() as db:
+        db.add(User(id=user_id, email=f'{user_id}@example.invalid', hashed_password='unused', role=RoleEnum.viewer))
+        await db.flush()
+        db.add(Session(user_id=user_id, refresh_token_hash=hash_refresh_token(token), expires_at=datetime.now(UTC) + timedelta(days=1)))
+        await db.commit()
+    async def suspend() -> dict[str, Any]:
+        async with async_session_maker() as db:
+            return await control_account(db, user_id, 'pause', 1, uuid.uuid4())
+    async def refresh() -> TokenResponse | int:
+        async with async_session_maker() as db:
+            try:
+                return await rotate_refresh_token(db, RefreshRequest(refresh_token=token), None)
+            except HTTPException as exc:
+                return exc.status_code
+    try:
+        results = await asyncio.wait_for(asyncio.gather(suspend(), refresh()), timeout=15)
+        assert isinstance(results[0], dict) and results[0]['access_status'] == 'paused'
+        async with async_session_maker() as db:
+            user = await db.get(User, user_id)
+            assert user is not None and user.access_epoch == 2
+            sessions = (await db.scalars(select(Session).where(Session.user_id == user_id))).all()
+            assert sessions and all(session.revoked for session in sessions)
+            if isinstance(results[1], TokenResponse):
+                payload = decode_access_token(results[1].access_token)
+                assert payload is not None and payload['ae'] < user.access_epoch
+            else:
+                assert results[1] == 401
+    finally:
+        async with async_session_maker() as db:
+            await db.execute(delete(User).where(User.id == user_id))
+            await db.commit()

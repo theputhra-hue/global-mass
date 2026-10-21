@@ -23,8 +23,11 @@ Open **Manage data → Account management → All accounts** on the developer da
 The default directory includes every registered email across all roles, including
 developers, researchers, legacy users, viewers and disabled accounts. Each row
 shows the name, email, role, active state, approval state and registration time.
-Use the Show selector for pending, approved or declined accounts. Only active
-pending viewers have **Approve viewing access** and **Decline request** actions.
+Use the Show selector for pending, approved, declined, paused or banned accounts.
+Active viewers and legacy users have **Allow viewing**, **Pause access** and
+**Ban account** controls. Each action requires confirmation of the affected email.
+Pending viewers also have **Decline request**. Developer/researcher accounts, the
+acting developer and disabled identities are protected on the server and in the UI.
 Lists are paginated and refresh every 30 seconds; status counts cover all roles.
 Passwords and password hashes are never returned.
 
@@ -34,25 +37,40 @@ reviewer ID, timestamp, decision and incremented revision. A compare-and-swap
 update permits one decision for a pending viewer: stale tabs and simultaneous
 reviewers receive 409 and cannot overwrite an earlier decision. Review cannot
 promote visitors, alter developer/researcher identities or reactivate disabled
-accounts. There is no bulk approval or automatic approval.
+accounts. **Allow viewing** sets the role to viewer, including legacy user accounts,
+so restoring access never grants editing permissions. **Pause** blocks data access
+and revokes sessions but permits a new sign-in to the status page. **Ban** blocks
+sign-in and data access and revokes sessions. Both are reversible with Allow.
+A banned identity cannot be changed to paused to bypass its sign-in restriction. There is no bulk approval or automatic approval.
 
 ## API boundaries
 
 - `POST /api/v1/auth/register`: name/email/password → pending viewer + normal
   memory-only session tokens. `GET /auth/me` includes `access_status`.
 - `GET /api/v1/developer/accounts`: developer-only directory of all roles and active states;
-  `access_status=all` (default), pending, approved or rejected; defaults to 20,
+  `access_status=all` (default), pending, approved, rejected, paused or banned; defaults to 20,
   maximum 50 per page. Nonnegative offsets allow paging through the entire directory.
   Responses add `is_active` on each row and `counts.all` for the complete total.
 - `POST /api/v1/developer/accounts/{id}/review`: developer-only decision with
   `decision=approve|reject` and `expected_revision`.
+- `POST /api/v1/developer/accounts/{id}/control`: developer-only action with
+  `action=allow|pause|ban` and `expected_revision`; conflicting, stale or protected
+  changes return 409. No automatic retries or bulk actions are provided.
 - Collection, graph, saved-result, publication and private-case routers require
   authentication in both local and cloud profiles. Anonymous requests receive
-  401; pending/rejected identities receive 403, including direct API URLs.
+  401; pending/rejected/paused identities receive 403, including direct API URLs.
+  Revoked access tokens receive 401. Banned accounts cannot log in or refresh.
 - An approved viewer can only read. Authenticated mutations return 403, except
   the explicit session-logout endpoint. Login and refresh have their own
   credential verification. Health, capability discovery and authored public
   project demonstrations remain available without corpus access.
+
+Suspension increments a durable `access_epoch` and revokes all refresh sessions
+in one transaction. Access JWTs carry the epoch (`ae`); legacy JWTs are accepted
+as epoch 1 only. Old tokens remain invalid after Allow. Issuance and rotation
+lock the user before sessions so concurrent refresh cannot escape suspension.
+Idle reader pages recheck their account every 30 seconds; new protected requests
+enforce the decision immediately. Content already viewed cannot be retracted.
 
 The current database state is checked on every authorized request; JWT role
 claims or old sessions cannot override an approval decision. Protected data and
@@ -68,6 +86,11 @@ content and analysis permissions, not authentication bookkeeping.
 constraint and request-list index. Existing identities are backfilled as
 approved, preserving developer and previously provisioned viewer access. Only
 future public signup is forced to pending. The active publication is unchanged.
+
+`gmee12` adds `access_epoch` (existing users default to 1) and extends the
+status constraint with paused/banned. It preserves all existing roles, approval
+states, passwords and corpus rows. Its downgrade refuses to erase suspension
+or token-revocation state. Deploy the API before the updated frontend.
 
 Deploy API and frontend together, verify existing developer access, then check
 the registration/review flow. The migration downgrade refuses to silently
