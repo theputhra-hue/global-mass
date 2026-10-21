@@ -11,6 +11,7 @@ This creates website accounts, not email inboxes. Do not commit the output file.
 import argparse
 import asyncio
 import json
+import os
 import secrets
 import sys
 from pathlib import Path
@@ -55,10 +56,9 @@ async def run(emails: list[str], credentials_file: Path) -> None:
         accounts = [{"email": email, "password": secrets.token_urlsafe(24)} for email in emails]
         # Create exclusively, never overwrite credentials. OS ACLs of the private
         # parent directory must restrict access to the operator (including Windows).
-        with credentials_file.open("x", encoding="utf-8") as stream:
+        descriptor = os.open(credentials_file, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             json.dump({"accounts": accounts}, stream, indent=2)
-        if sys.platform != "win32":
-            credentials_file.chmod(0o600)
     async with async_session_maker() as db:
         await provision(db, accounts)
     print("Viewer accounts verified: " + ", ".join(emails))
@@ -71,7 +71,12 @@ def main() -> None:
     parser.add_argument("--credentials-file", required=True, type=Path)
     args = parser.parse_args()
     try:
-        asyncio.run(run(args.email, args.credentials_file))
+        if sys.platform == "win32":
+            # psycopg's async driver requires a selector loop on Windows.
+            with asyncio.Runner(loop_factory=asyncio.SelectorEventLoop) as runner:
+                runner.run(run(args.email, args.credentials_file))
+        else:
+            asyncio.run(run(args.email, args.credentials_file))
     except Exception as exc:
         # Driver exceptions may include connection details and password hashes.
         raise SystemExit(f"Provisioning stopped ({type(exc).__name__}); no credentials were printed.") from None

@@ -1,8 +1,11 @@
 # Read-only visitor accounts
 
 Website accounts use email-shaped login identifiers; they do not create email
-inboxes or deliver mail. The operator provisions the `viewer` role separately
-from public signup. Public signup continues to create ordinary `user` accounts.
+inboxes or deliver mail. Registration creates ordinary `user` accounts by
+default. The explicit strict-boolean `read_only: true` registration option
+creates a `viewer`, allowing operators to provision viewing accounts through
+the existing HTTPS API. It can only reduce permissions; registration cannot
+request administrator/researcher roles or change an existing identity.
 
 ## Permissions
 
@@ -29,7 +32,11 @@ does not disable session lifecycle or server observability.
    additive `gmee10` PostgreSQL enum migration; it changes no existing accounts.
 2. Confirm the new API is serving before provisioning viewer rows. Older API
    versions cannot deserialize the new enum value.
-3. Load the target database configuration privately into the operator process.
+3. Prefer POST `/api/v1/auth/register` with `read_only: true`, a new email and a
+   privately generated password. Check `/auth/me` reports `viewer` immediately.
+   Do not automatically repeat a timed-out registration: try login with the
+   same saved credentials first. A duplicate email never resets an account.
+   For direct database provisioning, load configuration privately into the operator process.
    Run `backend/scripts/create_viewer_accounts.py` with repeated `--email` flags
    and an absolute `--credentials-file` outside the repository, in an OS-protected
    directory. The script generates independent random passwords and stores
@@ -48,7 +55,7 @@ it must never silently grant them ordinary-user permissions.
 
 ## Validation for the initial implementation
 
-- Backend: 691 unit/regression tests passed, including actual JWT/database
+- Backend: 693 unit/regression tests passed, including actual JWT/database
   authorization against both runtime profiles and provisioning retry checks.
 - Frontend: 344 tests passed; the common desktop/mobile navigation and inline
   analyzer restrictions have dedicated checks. Lint, production build, strict
