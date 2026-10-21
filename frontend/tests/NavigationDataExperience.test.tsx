@@ -99,22 +99,24 @@ describe('Navigation and Data Experience (Package N5)', () => {
       // Verify breadcrumbs
       const breadcrumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
       expect(breadcrumb).toBeTruthy();
-      expect(within(breadcrumb).getByText('Home')).toBeTruthy();
+      expect(within(breadcrumb).getByText('Workspace')).toBeTruthy();
 
       // Verify sidebar navigation items
       const nav = screen.getByRole('navigation', { name: 'Primary destinations' });
       expect(nav).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Home' })).toBeTruthy();
-      expect(within(nav).getByRole('button', { name: 'Explore data' }).getAttribute('aria-expanded')).toBe('true');
-      expect(within(nav).getByRole('link', { name: 'Articles' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Extracted claims' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Recorded connections' })).toBeTruthy();
+      expect(within(nav).queryByRole('link', { name: 'Start here' })).toBeNull();
+      expect(within(nav).getByRole('button', { name: 'Research tools' }).getAttribute('aria-expanded')).toBe('false');
+      expect(within(nav).getByRole('link', { name: 'Story map' })).toBeTruthy();
+      fireEvent.click(within(nav).getByRole('button', { name: 'Research tools' }));
+      expect(within(nav).getByRole('link', { name: 'Find articles' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'Extracted statements' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'Recorded links' })).toBeTruthy();
       expect(within(nav).getByRole('link', { name: 'Compare wording' })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: /My investigations/ })).toBeTruthy();
-      expect(within(nav).getByRole('link', { name: 'Advanced tools' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'Saved investigations' })).toBeTruthy();
+      expect(within(nav).getByRole('link', { name: 'All research tools' })).toBeTruthy();
 
       // Developer workspace should NOT be shown for normal user without manage permission
-      expect(screen.queryByRole('link', { name: /Developer workspace/ })).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Manage data' })).toBeNull();
     });
 
     it('shows Developer workspace link in sidebar for approved publishers/managers', async () => {
@@ -130,7 +132,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
       renderApp();
 
       await waitFor(() => {
-        expect(screen.getByRole('link', { name: /Developer workspace/ })).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'Manage data' })).toBeTruthy();
       });
     });
 
@@ -203,19 +205,17 @@ describe('Navigation and Data Experience (Package N5)', () => {
       renderApp();
 
       // Purpose statement
-      expect(screen.getByText(/An extracted claim is not a verified fact/)).toBeTruthy();
+      expect(screen.getByText(/Statements identified in articles, not verified facts/)).toBeTruthy();
 
       await waitFor(() => {
-        expect(document.querySelector('[aria-label="Collection summary"]')?.textContent).toContain('1,050');
+        expect(document.querySelector('[aria-label="Collection size"]')?.textContent).toContain('1,050');
       });
 
       // Three primary actions
-      expect(screen.getByRole('heading', { name: 'Find source articles' })).toBeTruthy();
-      expect(screen.getByRole('heading', { name: 'Inspect extracted claims' })).toBeTruthy();
-      expect(screen.getByRole('heading', { name: 'Compare wording' })).toBeTruthy();
-
-      // Definitions
-      expect(screen.getByText('What these records mean')).toBeTruthy();
+      expect(screen.getByRole('textbox', { name: 'Search article titles or authors' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Story map' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Compare wording' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Help & methods' })).toBeTruthy();
     });
   });
 
@@ -316,7 +316,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
       window.history.replaceState(null, '', '/#/dashboard/tools');
       renderApp();
 
-      expect(screen.getByRole('heading', { name: 'Advanced tools' })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Research tools' })).toBeTruthy();
       expect(screen.getByText('Explore the collection')).toBeTruthy();
       expect(screen.getByText('Compare & keep research notes')).toBeTruthy();
     });
@@ -336,7 +336,7 @@ describe('Navigation and Data Experience (Package N5)', () => {
   });
 
   describe('Article Investigation 9 Tabs Experience', () => {
-    it('groups 9 detail tabs into Source, Analysis, Context, Methods and retains navigation', async () => {
+    it('groups detail views into five main sections and retains deep links', async () => {
       signInFixture();
       mockNavigationApi((endpoint) => {
         if (endpoint.includes('/claims?')) {
@@ -380,14 +380,15 @@ describe('Navigation and Data Experience (Package N5)', () => {
       expect(screen.getByText('reuters.com')).toBeTruthy();
 
       // Verify tab group headers
-      expect(screen.getByText('Source')).toBeTruthy();
-      expect(screen.getByText('Analysis')).toBeTruthy();
-      expect(screen.getByText('Context')).toBeTruthy();
-      expect(screen.getByText('Methods')).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Overview' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Article text' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Analysis' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Related coverage' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Data & methods' })).toBeTruthy();
 
       // Verify all 9 tabs are rendered
       const nav = screen.getByRole('navigation', { name: 'Article details' });
-      expect(within(nav).getAllByRole('link')).toHaveLength(9);
+      expect(within(nav).getAllByRole('link')).toHaveLength(5);
     });
   });
 

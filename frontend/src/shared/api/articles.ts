@@ -27,11 +27,12 @@ export interface ArticleConnections {
   articles: ArticleNode[]; edges: ConnectionEdge[]; observed_propagation: boolean;
 }
 export const articlesApi = {
-  detail: (id: string, options?: ApiRequestOptions) => apiClient.get<ArticleDetail>(`/corpus/articles/${encodeURIComponent(id)}`, options),
-  claims: (id: string, offset: number, selected: string, options?: ApiRequestOptions) => {
+  detail: (id: string, options?: ApiRequestOptions, release?: string) => apiClient.get<ArticleDetail>(`/corpus/articles/${encodeURIComponent(id)}${release ? `?release=${encodeURIComponent(release)}` : ''}`, options),
+  claims: (id: string, offset: number, selected: string, options?: ApiRequestOptions, release?: string) => {
     const params = new URLSearchParams({ limit: '20', offset: String(offset) });
+    if (release) params.set('release', release);
     if (selected) params.set('selected', selected);
     return apiClient.get<ArticleClaims>(`/corpus/articles/${encodeURIComponent(id)}/claims?${params}`, options);
   },
-  connections: (id: string, options?: ApiRequestOptions) => apiClient.get<ArticleConnections>(`/corpus/articles/${encodeURIComponent(id)}/connections?limit=100`, options),
+  connections: (id: string, options?: ApiRequestOptions, release?: string) => apiClient.get<ArticleConnections>(`/corpus/articles/${encodeURIComponent(id)}/connections?limit=100${release ? `&release=${encodeURIComponent(release)}` : ''}`, options),
 };

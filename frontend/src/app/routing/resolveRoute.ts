@@ -1,3 +1,4 @@
+import { parseTopicRoute } from '../../shared/navigation/topicRoutes';
 import { parseArticleRoute } from '../../shared/navigation/articleRoutes';
 import { isDashboardTab } from '../../shared/navigation/tabs';
 import type { RouteDestination, ResolvedAppRoute } from '../../shared/navigation/registry';
@@ -14,6 +15,9 @@ export function resolveRoute(hash: string): ResolvedAppRoute {
   if (raw === 'landing') return route({ kind: 'landing' });
   if (raw === 'project') return route({ kind: 'public-project' });
   if (pathname === 'signin') return route({ kind: 'signin' });
+  if (pathname === 'dashboard/help') return route({ kind: 'help' });
+  const topic = parseTopicRoute(raw);
+  if (topic) return route({ kind: 'topic', topic });
   if (pathname === 'dashboard/tools') return route({ kind: 'tools' });
   if (pathname === 'dashboard/developer') return route({ kind: 'developer' });
   if (pathname === 'dashboard/upload') return route({ kind: 'upload' });
@@ -26,7 +30,7 @@ export function resolveRoute(hash: string): ResolvedAppRoute {
     if (params.has('q') || params.has('offset')) {
       return route({ kind: 'reader', view: 'browse' });
     }
-    return route({ kind: 'reader', view: 'home' });
+    return route({ kind: 'reader', view: 'browse' });
   }
   const tab = pathname.split('/')[1];
   if (['browse', 'compare', 'check'].includes(tab)) {

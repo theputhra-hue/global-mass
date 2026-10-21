@@ -116,10 +116,13 @@ def _claim(item: Claim) -> ClaimItem:
     )
 
 
-@router.get("/articles/{article_id}", response_model=ArticleDetail)
+@router.get("/articles/{article_id}", response_model=ArticleDetail | dict[str, Any])
 async def article_detail(
-    article_id: UUID, db: AsyncSession = Depends(get_db_session),
-) -> ArticleDetail:
+    article_id: UUID, release: UUID | None = None, db: AsyncSession = Depends(get_db_session),
+) -> ArticleDetail | dict[str, Any]:
+    if release is not None:
+        from app.api.v1 import published
+        return await published.detail(article_id, run=await published.active(release, db), db=db)
     article = await _article(article_id, db)
     claims = await db.scalar(select(func.count()).select_from(Claim).where(Claim.article_id == article_id))
     # Aggregate every stored claim, independently of the claims page size. These
@@ -144,14 +147,19 @@ async def article_detail(
     )
 
 
-@router.get("/articles/{article_id}/claims", response_model=ClaimPage)
+@router.get("/articles/{article_id}/claims", response_model=ClaimPage | dict[str, Any])
 async def article_claims(
     article_id: UUID,
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
     selected: UUID | None = None,
+    release: UUID | None = None,
     db: AsyncSession = Depends(get_db_session),
-) -> ClaimPage:
+) -> ClaimPage | dict[str, Any]:
+    if release is not None:
+        from app.api.v1 import published
+        return await published.claims(article_id, limit=limit, offset=offset, selected=selected,
+                                      run=await published.active(release, db), db=db)
     await _article(article_id, db)
     scope = Claim.article_id == article_id
     total = await db.scalar(select(func.count()).select_from(Claim).where(scope))
@@ -168,12 +176,16 @@ async def article_claims(
     )
 
 
-@router.get("/articles/{article_id}/connections", response_model=ArticleConnections)
+@router.get("/articles/{article_id}/connections", response_model=ArticleConnections | dict[str, Any])
 async def article_connections(
     article_id: UUID,
     limit: int = Query(100, ge=1, le=200),
+    release: UUID | None = None,
     db: AsyncSession = Depends(get_db_session),
-) -> ArticleConnections:
+) -> ArticleConnections | dict[str, Any]:
+    if release is not None:
+        from app.api.v1 import published
+        return await published.connections(article_id, limit=limit, run=await published.active(release, db), db=db)
     article = await _article(article_id, db)
     source, target = aliased(Claim), aliased(Claim)
     joined = (select(ClaimRelationship, source, target)

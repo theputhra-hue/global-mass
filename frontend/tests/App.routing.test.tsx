@@ -4,6 +4,7 @@ import App from '../src/app/App';
 import { clearSession } from '../src/shared/session/session';
 import { mockApi, renderWithClient, signInFixture } from './helpers';
 vi.mock('../src/features/articles/pages/ReaderDashboard', () => ({ ReaderDashboard: ({ view }: { view: string }) => <div>Private dashboard: reader {view}</div> }));
+vi.mock('../src/features/investigations/components/Casebook', () => ({ Casebook: () => <div>Private dashboard</div> }));
 vi.mock('../src/features/operations/pages/SystemHealth', () => ({ SystemHealth: () => <div>Private dashboard</div> }));
 describe('dashboard sign-in boundary', () => {
   it('redirects signed-out deep links before mounting data panels', async () => {
@@ -19,8 +20,8 @@ describe('dashboard sign-in boundary', () => {
     window.history.replaceState(null, '', '/#/signin');
     renderWithClient(<App />);
     act(() => signInFixture());
-    expect(await screen.findByText('Private dashboard: reader home')).toBeTruthy();
-    await waitFor(() => expect(window.location.hash).toBe('#/dashboard'));
+    expect(await screen.findByText('Private dashboard: reader browse')).toBeTruthy();
+    await waitFor(() => expect(window.location.hash).toBe('#/dashboard/browse'));
     act(() => clearSession());
     expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeTruthy();
     expect(screen.queryByText('Private dashboard')).toBeNull();
@@ -59,9 +60,9 @@ describe('dashboard sign-in boundary', () => {
     signInFixture();
     window.history.replaceState(null, '', '/#/dashboard/tools');
     renderWithClient(<App />);
-    expect(screen.getByRole('heading', { name: 'Advanced tools' })).toBeTruthy();
-    const homeLinks = screen.getAllByRole('link', { name: 'Home' });
+    expect(screen.getByRole('heading', { name: 'Research tools' })).toBeTruthy();
+    const homeLinks = screen.getAllByRole('link', { name: 'Find articles' });
     expect(homeLinks.length).toBeGreaterThan(0);
-    expect(homeLinks[0].getAttribute('href')).toBe('#/dashboard');
+    expect(homeLinks[0].getAttribute('href')).toBe('#/dashboard/browse');
   });
 });

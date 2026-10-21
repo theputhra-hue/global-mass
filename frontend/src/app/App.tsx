@@ -6,6 +6,9 @@ import { DeveloperUpload } from '../features/publishing/pages/DeveloperUpload';
 import { DeveloperConsole } from '../features/developer/pages/DeveloperConsole';
 import { PublicProjectLab } from '../features/research/pages/PublicProjectLab';
 import { PublishedWorkspace } from './layouts/PublishedWorkspace';
+import { TopicInvestigation } from '../features/articles/pages/TopicInvestigation';
+import { Casebook } from '../features/investigations/components/Casebook';
+import { WorkspaceHelp } from '../features/navigation/pages/WorkspaceHelp';
 import { ToolsDirectory } from '../features/navigation/pages/ToolsDirectory';
 import { DataServiceState, usePublicationRuntime } from '../shared/runtime/publicationRuntime';
 import { useSession } from '../shared/session/session';
@@ -30,6 +33,12 @@ function App() {
   else if (!user) page = <SignIn />;
   else {
     switch (route.kind) {
+      case 'help':
+        page = <WorkspaceHelp />;
+        break;
+      case 'topic':
+        page = <TopicInvestigation route={route.topic} />;
+        break;
       case 'tools':
         page = <ToolsDirectory />;
         break;
@@ -44,17 +53,17 @@ function App() {
         page = <ClaimsWorkspace key={route.raw} />;
         break;
       case 'article':
-        page = <ArticleInvestigation key={`${user.id}:${route.detail.id}`} route={route.detail} />;
+        page = <ArticleInvestigation key={`${user.id}:${route.detail.id}:${route.detail.release || ''}`} route={route.detail} />;
         break;
       case 'reader':
         page = <ReaderDashboard key={route.raw} view={route.view} />;
         break;
       case 'advanced':
-        page = runtime.mode === 'published'
+        page = route.tab === 'casebook' ? <Casebook key={user.id} /> : runtime.mode === 'published'
           ? <PublishedWorkspace key={route.raw.split('?')[0]} tab={route.tab} /> : <SystemHealth />;
         break;
       case 'signin':
-        page = <ReaderDashboard key={route.raw} view="home" />;
+        page = <ReaderDashboard key={route.raw} view="browse" />;
         break;
       default:
         page = (

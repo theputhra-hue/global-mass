@@ -18,8 +18,10 @@ export function safeReturn(value: string | null): string {
     && !/[\r\n]/.test(value) ? value : '#/dashboard/browse';
 }
 
-export function articleHref(id: string, tab: DetailTab = 'overview', options: { claim?: string; back?: string; offset?: number } = {}): string {
+export function articleHref(id: string, tab: DetailTab = 'overview', options: { claim?: string; back?: string; offset?: number; release?: string; against?: string } = {}): string {
   const params = new URLSearchParams();
+  if (options.release && isUuid(options.release)) params.set('release', options.release);
+  if (options.against && isUuid(options.against)) params.set('against', options.against);
   if (options.claim) params.set('claim', options.claim);
   if (options.back) params.set('back', safeReturn(options.back));
   if (options.offset) params.set('offset', String(options.offset));
@@ -33,13 +35,15 @@ export function parseArticleRoute(route: string) {
   const params = new URLSearchParams(query);
   const offset = Number(params.get('offset') || 0);
   return {
+    ...(params.has('against') ? { against: params.get('against')! } : {}),
+    ...(params.has('release') ? { release: params.get('release')! } : {}),
     id: match[1], tab: (match[2] || 'overview') as DetailTab,
-    valid: isUuid(match[1]) && (!match[2] || detailTabs.includes(match[2] as DetailTab)),
+    valid: (!params.has('against') || isUuid(params.get('against')!)) && (!params.has('release') || isUuid(params.get('release')!)) && isUuid(match[1]) && (!match[2] || detailTabs.includes(match[2] as DetailTab)),
     claim: params.get('claim') || '', back: safeReturn(params.get('back')),
     offset: Number.isSafeInteger(offset) && offset >= 0 ? offset : 0,
   };
 }
 
 export function signInDestination(hash = window.location.hash): string {
-  return safeReturn(new URLSearchParams(hash.split('?')[1] || '').get('next') || '#/dashboard');
+  return safeReturn(new URLSearchParams(hash.split('?')[1] || '').get('next') || '#/dashboard/browse');
 }

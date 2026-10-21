@@ -5,6 +5,7 @@ import { featuresApi, type MutationComparisonInput } from '../../../shared/api/f
 import { useSession } from '../../../shared/session/session';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { SignInNotice } from '../../account/components/SignInNotice';
+import { SaveComparisonCase } from '../../investigations/components/SaveComparisonCase';
 import { safeHttpUrl } from '../../../shared/lib/urls';
 
 const RELATIONS: Record<string, string> = {
@@ -25,13 +26,15 @@ function returnedSpanText(value: unknown, side: 'older' | 'newer'): string | und
   return typeof legacy === 'string' ? legacy : undefined;
 }
 
-function ComparisonForm({ initialOlder = '', initialNewer = '' }: { initialOlder?: string; initialNewer?: string }) {
+interface ComparisonProps { initialOlder?: string; initialNewer?: string; context?: { title: string; source?: string; note: string; workspaceHref?: string } }
+
+function ComparisonForm({ initialOlder = '', initialNewer = '', context }: ComparisonProps) {
   const [older, setOlder] = useState(initialOlder);
   const [newer, setNewer] = useState(initialNewer);
   const [olderTimestamp, setOlderTimestamp] = useState('');
   const [newerTimestamp, setNewerTimestamp] = useState('');
-  const [contextNote, setContextNote] = useState('');
-  const [provenanceUrl, setProvenanceUrl] = useState('');
+  const [contextNote, setContextNote] = useState(context?.note || '');
+  const [provenanceUrl, setProvenanceUrl] = useState(context?.source || '');
   const controller = useRef<AbortController | null>(null);
   const id = useId();
   useEffect(() => () => controller.current?.abort(), []);
@@ -131,22 +134,23 @@ function ComparisonForm({ initialOlder = '', initialNewer = '' }: { initialOlder
         </div>}
         {typeof result.analysis.similarity === 'number' && <p className="text-xs font-mono">Text similarity: {result.analysis.similarity.toFixed(3)} (uncalibrated matching signal)</p>}
         {typeof result.analysis.algorithm_version === 'string' && <p className="text-xs font-mono">Algorithm: {result.analysis.algorithm_version}</p>}
-        {limitations.length > 0 && <ul className="list-disc pl-5 text-xs text-amber-300">{limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul>}
+        {limitations.length > 0 && <details className="text-xs text-amber-300"><summary className="cursor-pointer">Method limitations ({limitations.length})</summary><ul className="list-disc pl-5 mt-3 space-y-2">{limitations.map((limitation, index) => <li key={index}>{limitation}</li>)}</ul></details>}
         {result.warnings?.length ? <ul className="list-disc pl-5 text-xs text-amber-300">{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul> : null}
         <p className="text-xs font-mono text-hermes-bone/55">Any similarity or confidence fields below are unvalidated heuristic signals, not calibrated probabilities.</p>
         <details><summary className="cursor-pointer text-xs font-mono">Full API analysis (including additive diff fields)</summary><pre className="mt-2 whitespace-pre-wrap break-words text-xs text-hermes-bone/75">{JSON.stringify(result.analysis, null, 2)}</pre></details>
+        <SaveComparisonCase input={input()} title={context?.title || 'Wording comparison'} back={context?.workspaceHref} />
       </div>}
     </div>
   );
 }
 
-export function MutationComparator({ initialOlder = '', initialNewer = '' }: { initialOlder?: string; initialNewer?: string }) {
+export function MutationComparator({ initialOlder = '', initialNewer = '', context }: ComparisonProps) {
   const { user, revision } = useSession();
   return (
     <section aria-labelledby="mutation-comparator-title" className="card-brutal-dark p-6 space-y-4">
       <h2 id="mutation-comparator-title" className="text-2xl font-display flex items-center gap-2"><Dna className="w-5 h-5" /> Mutation Comparator</h2>
       <p className="text-sm text-hermes-bone/65">Compare two supplied versions for changed numbers, entities and wording. Text changes do not prove misinformation, direction of transmission, or observed propagation.</p>
-      {user ? <ComparisonForm key={`${revision}:${initialOlder}:${initialNewer}`} initialOlder={initialOlder} initialNewer={initialNewer} /> : <SignInNotice feature="the mutation comparator" />}
+      {user ? <ComparisonForm key={`${revision}:${initialOlder}:${initialNewer}`} initialOlder={initialOlder} initialNewer={initialNewer} context={context} /> : <SignInNotice feature="the mutation comparator" />}
     </section>
   );
 }

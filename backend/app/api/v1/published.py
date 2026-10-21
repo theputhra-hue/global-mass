@@ -25,7 +25,14 @@ from app.services.publications.store import status
 router = APIRouter()
 
 
-async def active(db: AsyncSession = Depends(get_db_session)) -> uuid.UUID:
+async def active(release: uuid.UUID | None = None, db: AsyncSession = Depends(get_db_session)) -> uuid.UUID:
+    # Only materialized (previously activated) releases can be read. Uploads alone
+    # never create these rows, so a private staged upload cannot be selected here.
+    if release is not None:
+        exists = await db.scalar(select(Article.id).where(Article.run_id == release).limit(1))
+        if exists is None:
+            raise HTTPException(404, "This published release is unavailable.")
+        return release
     run_id = await db.scalar(select(PublicationHead.run_id).where(PublicationHead.id == 1))
     if run_id is None:
         raise HTTPException(503, "No analysis has been published yet. An approved developer must publish a reviewed release.")

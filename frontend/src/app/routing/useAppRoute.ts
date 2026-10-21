@@ -23,6 +23,7 @@ export function useAppRoute(signedIn: boolean) {
       const target = signInDestination(`#/${route.raw}`);
       if (window.location.hash !== target) navigateHash(target, true);
     }
+    if (signedIn && route.raw === 'dashboard') navigateHash('#/dashboard/browse', true);
     if (signedIn && route.raw.startsWith('dashboard?')) {
       const query = route.raw.slice('dashboard?'.length);
       const params = new URLSearchParams(query);

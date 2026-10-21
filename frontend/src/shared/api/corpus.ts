@@ -14,6 +14,7 @@ export interface CorpusArticle {
 }
 
 export interface CorpusListResponse {
+  run_id?: string;
   total: number;
   limit: number;
   offset: number;

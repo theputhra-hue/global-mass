@@ -9,7 +9,7 @@ export function ToolsDirectory() {
   // Directory tools to show (12 advanced + casebook & compare shortcuts)
   const directoryToolIds = [
     // Read & explore
-    'corpus', 'vector', 'factcheck', 'atlas', 'fullgraph',
+    'corpus', 'claims', 'vector', 'factcheck', 'atlas', 'fullgraph',
     // Compare & investigate
     'compare', 'casebook', 'project', 'masala',
     // System & local operations
@@ -25,7 +25,7 @@ export function ToolsDirectory() {
       key: 'read',
       heading: 'Explore the collection',
       description: 'Start from stored articles, statements or connections in the archive.',
-      toolIds: ['corpus', 'vector', 'factcheck', 'atlas', 'fullgraph'],
+      toolIds: ['corpus', 'claims', 'vector', 'factcheck', 'atlas', 'fullgraph'],
     },
     {
       key: 'research',
@@ -51,7 +51,7 @@ export function ToolsDirectory() {
           Specialist tools directory
         </p>
         <h1 className="font-display text-4xl md:text-5xl">
-          Advanced tools
+          Research tools
         </h1>
         <p className="text-sm leading-relaxed text-hermes-bone/70">
           Start with article search for ordinary reading. Use these specialist tools when you want to
