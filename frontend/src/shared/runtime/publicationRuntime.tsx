@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from 're
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../api/client';
 import { publicationsApi, type PublicationStatus } from '../api/publications';
+import { useSession } from '../session/session';
 
 interface Runtime { mode: 'local' | 'published' | 'connecting' | 'unavailable'; publication?: PublicationStatus }
 const RuntimeContext = createContext<Runtime>({ mode: 'local' });
@@ -10,10 +11,12 @@ const RuntimeContext = createContext<Runtime>({ mode: 'local' });
 export const usePublicationRuntime = () => useContext(RuntimeContext);
 
 export function PublicationProvider({ children }: { children: ReactNode }) {
+  const { user, revision } = useSession();
+  const approved = Boolean(user && (!user.access_status || user.access_status === 'approved'));
   const client = useQueryClient();
   const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: () => apiClient.get<{ mode: string }>('/capabilities', { timeoutMs: 60_000 }), retry: false, staleTime: Infinity });
   const cloud = capabilities.data?.mode === 'published';
-  const status = useQuery({ queryKey: ['publication-status'], queryFn: publicationsApi.status, enabled: cloud, refetchInterval: 60_000, retry: false });
+  const status = useQuery({ queryKey: ['publication-status', user?.id, revision, user?.access_status], queryFn: publicationsApi.status, enabled: cloud && approved, refetchInterval: 60_000, retry: false });
   const previous = useRef<number | undefined>();
   useEffect(() => {
     const revision = status.data?.revision;

@@ -22,7 +22,13 @@ from app.services.identity.service import (
     rotate_refresh_token,
 )
 
-router = APIRouter()
+
+def private_response(response: Response) -> None:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Vary"] = "Authorization"
+
+
+router = APIRouter(dependencies=[Depends(private_response)])
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=TokenResponse)
 async def register(

@@ -9,10 +9,14 @@ from app.models.user import RoleEnum
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=10, max_length=1024, description="Password must be at least 10 characters long")
-    full_name: str | None = Field(default=None, max_length=300)
-    # Opting into fewer permissions is safe; callers cannot request an
-    # administrator/researcher role or promote an existing identity.
+    full_name: str = Field(min_length=1, max_length=120)
+    # Compatibility with older clients; signup always creates pending viewers.
     read_only: bool = Field(default=False, strict=True)
+
+    @field_validator('full_name', mode='before')
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        return value.strip() if isinstance(value, str) else value
     
     @field_validator('password')
     @classmethod
@@ -27,6 +31,7 @@ class UserResponse(BaseModel):
     role: RoleEnum
     full_name: str | None
     is_active: bool
+    access_status: str
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)

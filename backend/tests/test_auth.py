@@ -47,7 +47,7 @@ async def test_register_success(async_client: AsyncClient, db_session: AsyncSess
 @pytest.mark.asyncio
 async def test_register_duplicate(async_client: AsyncClient) -> None:
     # 2. Duplicate email register -> 409
-    payload = {"email": "duplicate@example.com", "password": "password123"}
+    payload = {"full_name": "Test Visitor", "email": "duplicate@example.com", "password": "password123"}
     await async_client.post("/api/v1/auth/register", json=payload)
     response = await async_client.post("/api/v1/auth/register", json=payload)
     assert response.status_code == 409
@@ -55,7 +55,7 @@ async def test_register_duplicate(async_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_login_success(async_client: AsyncClient, db_session: AsyncSession) -> None:
     # Setup user
-    payload = {"email": "login@example.com", "password": "password123"}
+    payload = {"full_name": "Test Visitor", "email": "login@example.com", "password": "password123"}
     await async_client.post("/api/v1/auth/register", json=payload)
     
     # 3. Login with correct credentials -> 200
@@ -72,7 +72,7 @@ async def test_login_success(async_client: AsyncClient, db_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_inactive_user_cannot_login_or_refresh(async_client: AsyncClient, db_session: AsyncSession) -> None:
-    payload = {"email": "inactive@example.com", "password": "password123"}
+    payload = {"full_name": "Test Visitor", "email": "inactive@example.com", "password": "password123"}
     registered = await async_client.post("/api/v1/auth/register", json=payload)
     tokens = registered.json()
     user = (await db_session.execute(select(User).where(User.email == payload["email"]))).scalar_one()
@@ -89,18 +89,18 @@ async def test_inactive_user_cannot_login_or_refresh(async_client: AsyncClient, 
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(async_client: AsyncClient) -> None:
-    payload = {"email": "wrongpass@example.com", "password": "password123"}
+    payload = {"full_name": "Test Visitor", "email": "wrongpass@example.com", "password": "password123"}
     await async_client.post("/api/v1/auth/register", json=payload)
     
     # 4. Wrong password -> generic 401
-    response = await async_client.post("/api/v1/auth/login", json={"email": "wrongpass@example.com", "password": "wrong"})
+    response = await async_client.post("/api/v1/auth/login", json={"full_name": "Test Visitor", "email": "wrongpass@example.com", "password": "wrong"})
     assert response.status_code == 401
     assert response.json()["detail"] == "Incorrect email or password"
 
 @pytest.mark.asyncio
 async def test_login_nonexistent_email(async_client: AsyncClient) -> None:
     # 5. Nonexistent email -> SAME generic 401
-    response = await async_client.post("/api/v1/auth/login", json={"email": "nonexistent@example.com", "password": "wrong"})
+    response = await async_client.post("/api/v1/auth/login", json={"full_name": "Test Visitor", "email": "nonexistent@example.com", "password": "wrong"})
     assert response.status_code == 401
     assert response.json()["detail"] == "Incorrect email or password"
 
@@ -108,7 +108,7 @@ async def test_login_nonexistent_email(async_client: AsyncClient) -> None:
 async def test_login_rate_limit(async_client: AsyncClient) -> None:
     # 6. Exceeding login rate limit -> 429
     email = "ratelimit@example.com"
-    payload = {"email": email, "password": "wrong"}
+    payload = {"full_name": "Test Visitor", "email": email, "password": "wrong"}
     # 5 attempts fail with 401
     for _ in range(5):
         res = await async_client.post("/api/v1/auth/login", json=payload)
@@ -145,7 +145,7 @@ async def test_get_me_invalid_token(async_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_refresh_success(async_client: AsyncClient, db_session: AsyncSession) -> None:
     # 9. POST /refresh with valid refresh token -> 200
-    reg_res = await async_client.post("/api/v1/auth/register", json={"email": "refresh@example.com", "password": "password123"})
+    reg_res = await async_client.post("/api/v1/auth/register", json={"full_name": "Test Visitor", "email": "refresh@example.com", "password": "password123"})
     refresh_token = reg_res.json()["refresh_token"]
     
     res = await async_client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
@@ -161,7 +161,7 @@ async def test_refresh_success(async_client: AsyncClient, db_session: AsyncSessi
 @pytest.mark.asyncio
 async def test_refresh_reuse_detection(async_client: AsyncClient, db_session: AsyncSession) -> None:
     # 10. POST /refresh reusing already-rotated refresh token -> 401 + revoke all active sessions
-    payload = {"email": "reuse@example.com", "password": "password123"}
+    payload = {"full_name": "Test Visitor", "email": "reuse@example.com", "password": "password123"}
     reg_res = await async_client.post("/api/v1/auth/register", json=payload)
     refresh_token_1 = reg_res.json()["refresh_token"]
     
@@ -190,7 +190,7 @@ async def test_refresh_reuse_detection(async_client: AsyncClient, db_session: As
 @pytest.mark.asyncio
 async def test_logout(async_client: AsyncClient) -> None:
     # 11. POST /logout -> 204
-    payload = {"email": "logout@example.com", "password": "password123"}
+    payload = {"full_name": "Test Visitor", "email": "logout@example.com", "password": "password123"}
     reg_res = await async_client.post("/api/v1/auth/register", json=payload)
     access_token = reg_res.json()["access_token"]
     refresh_token = reg_res.json()["refresh_token"]
@@ -210,11 +210,11 @@ async def test_logout(async_client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_require_role(async_client: AsyncClient, db_session: AsyncSession) -> None:
     # 12. require_role dependency
-    payload_user = {"email": "user_role@example.com", "password": "password123"}
+    payload_user = {"full_name": "Test Visitor", "email": "user_role@example.com", "password": "password123"}
     res_user = await async_client.post("/api/v1/auth/register", json=payload_user)
     token_user = res_user.json()["access_token"]
     
-    payload_admin = {"email": "admin_role@example.com", "password": "password123"}
+    payload_admin = {"full_name": "Test Visitor", "email": "admin_role@example.com", "password": "password123"}
     res_admin = await async_client.post("/api/v1/auth/register", json=payload_admin)
     token_admin = res_admin.json()["access_token"]
     
@@ -222,6 +222,7 @@ async def test_require_role(async_client: AsyncClient, db_session: AsyncSession)
     user = (await db_session.execute(select(User).where(User.email == "admin_role@example.com"))).scalars().first()
     assert user is not None
     user.role = RoleEnum.admin
+    user.access_status = "approved"
     await db_session.commit()
     
     # user role should 403

@@ -1,68 +1,95 @@
-# Read-only visitor accounts
+# Visitor registration and developer approval
 
-Website accounts use email-shaped login identifiers; they do not create email
-inboxes or deliver mail. Registration creates ordinary `user` accounts by
-default. The explicit strict-boolean `read_only: true` registration option
-creates a `viewer`, allowing operators to provision viewing accounts through
-the existing HTTPS API. It can only reduce permissions; registration cannot
-request administrator/researcher roles or change an existing identity.
+## Visitor experience
 
-## Permissions
+A visitor chooses **New to GMEE? Create an account**, enters a full name, email
+and password, then chooses **Request access**. Registration creates an active
+login with `role=viewer` and `access_status=pending`. The visitor can sign in,
+check approval, rotate a session and sign out, but cannot see collection data.
 
-Viewers can search published articles, inspect saved claims and assessments,
-open topic coverage and timelines, explore the story map and recorded graph,
-and read methods. They cannot run comparisons or evidence checks, save notes,
-upload data, publish releases or access developer controls.
+The waiting page checks `/auth/me` every 15 seconds while pending. When a
+reviewer approves the account, the same session enters the viewing workspace.
+Signing in again later also works. A declined account sees its decision and
+continues to have no data access. No automatic email delivery is configured.
 
-`get_current_user` reads the current database role for each authenticated
-request. It denies every method other than GET/HEAD/OPTIONS for viewers, with
-one explicit exception for POST `/api/v1/auth/logout`. Login and refresh have
-their own credential checks and remain available. An elevated role in an older
-JWT cannot override the database restriction. Developer reads still require
-the existing admin role and email allowlist. The UI hides editing destinations,
-guards direct links and replaces inline analyzer forms with a viewing notice.
+Names are required, trimmed and limited to 120 characters. Passwords retain
+the existing Argon2 hashing and complexity rules. Duplicate registration never
+changes an existing identity. Client-supplied role, approval or legacy
+`read_only` flags cannot bypass review or request a writing role.
 
-Viewing can still create authentication sessions, audit entries and ordinary
-read caches. Read-only describes research data and analysis permissions; it
-does not disable session lifecycle or server observability.
+## Developer experience
 
-## Provisioning and release order
+Open **Manage data → Visitor access requests** on the developer dashboard.
+The pending list shows names, email addresses and request times. Choose
+**Approve viewing access** or **Decline request**. Approved and declined
+accounts are available through the Show selector. Lists are paginated and
+refresh every 30 seconds. Passwords and password hashes are never returned.
 
-1. Test and deploy the viewer-aware API and frontend. The API startup runs the
-   additive `gmee10` PostgreSQL enum migration; it changes no existing accounts.
-2. Confirm the new API is serving before provisioning viewer rows. Older API
-   versions cannot deserialize the new enum value.
-3. Prefer POST `/api/v1/auth/register` with `read_only: true`, a new email and a
-   privately generated password. Check `/auth/me` reports `viewer` immediately.
-   Do not automatically repeat a timed-out registration: try login with the
-   same saved credentials first. A duplicate email never resets an account.
-   For direct database provisioning, load configuration privately into the operator process.
-   Run `backend/scripts/create_viewer_accounts.py` with repeated `--email` flags
-   and an absolute `--credentials-file` outside the repository, in an OS-protected
-   directory. The script generates independent random passwords and stores
-   Argon2 hashes in the database. It does not expose a provisioning HTTP route.
-4. Keep the same private credentials file for retries. Provisioning verifies
-   existing active viewers against that file and refuses mismatched accounts,
-   inactive users or existing non-viewer roles. It never resets passwords.
-5. Verify `/auth/me` reports `viewer`, published data loads, authenticated
-   mutations return 403, developer access is false, and logout works. Compare
-   publication revision and run ID before and after the operation.
+Only active, approved administrators whose emails are in the existing
+`DEVELOPER_UPLOAD_EMAILS` allowlist can list/review accounts. Review records the
+reviewer ID, timestamp, decision and incremented revision. A compare-and-swap
+update permits one decision for a pending viewer: stale tabs and simultaneous
+reviewers receive 409 and cannot overwrite an earlier decision. Review cannot
+promote visitors, alter developer/researcher identities or reactivate disabled
+accounts. There is no bulk approval or automatic approval.
 
-Do not commit credentials, include passwords in command-line arguments, or
-publish shared login credentials on the landing page. The enum downgrade is
-deliberately blocked until an operator explicitly handles existing viewer rows;
-it must never silently grant them ordinary-user permissions.
+## API boundaries
 
-## Validation for the initial implementation
+- `POST /api/v1/auth/register`: name/email/password → pending viewer + normal
+  memory-only session tokens. `GET /auth/me` includes `access_status`.
+- `GET /api/v1/developer/accounts`: developer-only list; filters pending,
+  approved and rejected; defaults to 20, maximum 50 per page.
+- `POST /api/v1/developer/accounts/{id}/review`: developer-only decision with
+  `decision=approve|reject` and `expected_revision`.
+- Collection, graph, saved-result, publication and private-case routers require
+  authentication in both local and cloud profiles. Anonymous requests receive
+  401; pending/rejected identities receive 403, including direct API URLs.
+- An approved viewer can only read. Authenticated mutations return 403, except
+  the explicit session-logout endpoint. Login and refresh have their own
+  credential verification. Health, capability discovery and authored public
+  project demonstrations remain available without corpus access.
 
-- Backend: 693 unit/regression tests passed, including actual JWT/database
-  authorization against both runtime profiles and provisioning retry checks.
-- Frontend: 344 tests passed; the common desktop/mobile navigation and inline
-  analyzer restrictions have dedicated checks. Lint, production build, strict
-  backend typing, route contracts and architecture checks pass.
-- A real PostgreSQL integration regression checks the migrated enum can store
-  and deserialize a viewer. This runs in backend CI against its disposable
-  PostgreSQL service.
-- Local browser rehearsal uses a separate fixture account and the isolated
-  published-data database. Production provisioning and deployment are verified
-  separately; passing tests alone does not establish live account availability.
+The current database state is checked on every authorized request; JWT role
+claims or old sessions cannot override an approval decision. Protected data and
+account responses use no-store caching. Session-aware frontend requests reject
+late results after an identity switch and refresh expired access tokens.
+
+Viewing still creates session/audit/cache activity; read-only describes research
+content and analysis permissions, not authentication bookkeeping.
+
+## Migration and operations
+
+`gmee11` adds approval state, revision and review metadata, plus a status
+constraint and request-list index. Existing identities are backfilled as
+approved, preserving developer and previously provisioned viewer access. Only
+future public signup is forced to pending. The active publication is unchanged.
+
+Deploy API and frontend together, verify existing developer access, then check
+the registration/review flow. The migration downgrade refuses to silently
+remove the approval boundary. Do not run pre-approval application code against
+pending identities. Backups and rollback must preserve account decisions.
+
+The operator-only `create_viewer_accounts.py` remains a direct-database tool
+for explicitly pre-approved identities; it never resets mismatched accounts.
+`set_user_role.py` represents an explicit operator role/access grant. Neither
+script is a public provisioning route. Credentials stay outside Git.
+
+Read-only verification sweeps now require `GMEE_VERIFY_TOKEN` from an approved
+account. They check a viewer's comparison rejection instead of running analysis.
+
+## Verification
+
+- 710 backend tests passed; coverage 82.53%, above the 70% gate.
+- 351 frontend tests passed; lint, production build and architecture checks pass.
+- 30 infrastructure tests passed. The disposable HTTP smoke now checks pending
+  access denial, developer approval, viewing-only access and existing researcher
+  comparison contracts. Its operator bootstrap requires an explicitly marked,
+  empty testing database at the exact Compose fixture host/database; production
+  startup never creates default accounts.
+- PostgreSQL CI exercises legacy-account migration and concurrent review races.
+- Browser rehearsal: visitor signs in to the waiting page; a separate developer
+  session sees the request and approves it; the visitor enters the 7,421-article
+  viewing workspace. Rehearsal uses a separate database copy.
+
+Local passing checks do not establish production deployment; verify Render's
+exact deployed commit and the live API boundaries separately.

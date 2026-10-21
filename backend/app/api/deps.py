@@ -2,7 +2,7 @@ import uuid
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from neo4j import AsyncDriver
 from redis.asyncio import Redis
@@ -67,6 +67,12 @@ async def get_current_user(
     if user is None or not user.is_active:
         raise credentials_exception
 
+    account_endpoint = request.url.path == "/api/v1/auth/me" and request.method == "GET"
+    logout_endpoint = request.url.path == "/api/v1/auth/logout" and request.method == "POST"
+    if user.access_status in {"pending", "rejected"} and not (account_endpoint or logout_endpoint):
+        raise HTTPException(status_code=403, detail="Developer approval is required to view data.",
+                            headers={"Cache-Control": "no-store"})
+
     # Look up the current database role on every request: an old JWT must not
     # retain write access after an operator restricts an account to viewing.
     if (
@@ -76,6 +82,13 @@ async def get_current_user(
     ):
         raise HTTPException(status_code=403, detail="This account has read-only access.")
         
+    return user
+
+
+def require_data_access(response: Response, user: User = Depends(get_current_user)) -> User:
+    """Data routers require a verified account; never cache private responses."""
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vary"] = "Authorization"
     return user
 
 def require_role(*allowed_roles: RoleEnum | str | list[RoleEnum | str]) -> Callable[..., Any]:

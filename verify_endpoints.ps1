@@ -1,6 +1,6 @@
 # Read-only HTTP contract verification, NOT browser E2E.
 # No database discovery, .env reading, labels, feedback or authorized triggers.
-# Optional bearer token: set GMEE_VERIFY_TOKEN in the process environment.
+# Set GMEE_VERIFY_TOKEN to an approved account bearer token in the process environment.
 [CmdletBinding()]
 param(
     [string]$Base = 'http://127.0.0.1:8000/api/v1',

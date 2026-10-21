@@ -1,7 +1,8 @@
 """Bounded HTTP end-to-end smoke for docker-compose.smoke.yml, not browser E2E.
 
-Only a fresh disposable fixture may be used. This registers a temporary ordinary
-user, but never labels evaluation pairs, submits verdict feedback, seeds articles,
+Only a fresh disposable fixture may be used. This registers a pending visitor,
+verifies developer approval grants viewing only, and uses an operator-seeded
+fixture researcher to retain the real comparison contract checks. It but never labels evaluation pairs, submits verdict feedback, seeds articles,
 or invokes an authorized pipeline trigger. No credentials or response bodies are
 printed. The parent process enforces a hard wall-clock deadline.
 """
@@ -192,8 +193,8 @@ def wait_ready(client: Client, readiness_seconds: float = 90) -> None:
     raise SmokeError("All-store readiness was not reached before the startup deadline.")
 
 
-def empty_corpus(client: Client) -> None:
-    stats = expect(client, "GET", "/corpus/stats", (200,))
+def empty_corpus(client: Client, token: str) -> None:
+    stats = expect(client, "GET", "/corpus/stats", (200,), token=token)
     require(
         stats.get("total") == 0 and stats.get("embedded") == 0,
         "Fixture corpus is not empty; refusing fixture writes.",
@@ -203,7 +204,7 @@ def empty_corpus(client: Client) -> None:
         isinstance(nlp, dict) and all(value == 0 for value in nlp.values()),
         "Fixture contains pending articles; refusing fixture writes.",
     )
-    claims = expect(client, "GET", "/verdicts/stats", (200,))
+    claims = expect(client, "GET", "/verdicts/stats", (200,), token=token)
     require(
         claims.get("total_claims") == 0,
         "Fixture contains scientific claims; refusing fixture writes.",
@@ -266,9 +267,13 @@ def check_analysis(
 
 def run_smoke(client: Client) -> None:
     wait_ready(client)
+    researcher = expect(client, "POST", "/auth/login", (200,), body={
+        "email": "fixture-researcher@example.com", "password": "Fixture-only-research-password"})
+    research_token = researcher.get("access_token")
+    require(isinstance(research_token, str) and bool(research_token), "Fixture researcher login failed.")
     # This is a second guard, not a substitute for the dedicated tmpfs Compose file.
-    empty_corpus(client)
-    articles = expect(client, "GET", "/corpus/articles?limit=5&offset=0", (200,))
+    empty_corpus(client, research_token)
+    articles = expect(client, "GET", "/corpus/articles?limit=5&offset=0", (200,), token=research_token)
     require(
         articles.get("total") == 0 and articles.get("items") == [],
         "An empty corpus listing is a valid response, not a skipped smoke case.",
@@ -331,9 +336,26 @@ def run_smoke(client: Client) -> None:
     )
     me = expect(client, "GET", "/auth/me", (200,), token=token)
     require(
-        me.get("email") == credentials["email"] and me.get("role") == "user",
-        "The fixture account must be an ordinary, server-assigned user.",
+        me.get("email") == credentials["email"] and me.get("role") == "viewer" and me.get("access_status") == "pending",
+        "Registration must create a pending, viewing-only visitor.",
     )
+    expect(client, "GET", "/corpus/articles", (401, 403))
+    expect(client, "GET", "/corpus/articles", (403,), token=token)
+    admin = expect(client, "POST", "/auth/login", (200,), body={
+        "email": "fixture-developer@example.com", "password": "Fixture-only-developer-password"})
+    admin_token = admin.get("access_token")
+    require(isinstance(admin_token, str) and bool(admin_token), "Fixture developer login failed.")
+    listing = expect(client, "GET", "/developer/accounts", (200,), token=admin_token)
+    items = listing.get("items")
+    require(isinstance(items, list) and len(items) == 1, "The visitor must appear in the developer approval list.")
+    item = items[0]
+    require(item.get("email") == credentials["email"] and "hashed_password" not in item, "Approval list identity or privacy mismatch.")
+    expect(client, "POST", f"/developer/accounts/{item['id']}/review", (200,), token=admin_token,
+           body={"decision": "approve", "expected_revision": item["revision"]})
+    approved = expect(client, "GET", "/auth/me", (200,), token=token)
+    require(approved.get("access_status") == "approved" and approved.get("role") == "viewer", "Approval must grant viewing only.")
+    expect(client, "GET", "/corpus/articles", (200,), token=token)
+    expect(client, "POST", "/graph/mutation/compare", (403,), body=comparison, token=token)
     for path in ADMIN_TRIGGERS:
         expect(client, "POST", path, (403,), body={}, token=token)
 
@@ -342,22 +364,22 @@ def run_smoke(client: Client) -> None:
         "newer_text": "The agency found 10 survivors.",
     }
     same = expect(
-        client, "POST", "/graph/mutation/compare", (200,), body=identical, token=token
+        client, "POST", "/graph/mutation/compare", (200,), body=identical, token=research_token
     )
     check_analysis(same, identical, numeric=False)
     changed = expect(
-        client, "POST", "/graph/mutation/compare", (200,), body=comparison, token=token
+        client, "POST", "/graph/mutation/compare", (200,), body=comparison, token=research_token
     )
     check_analysis(changed, comparison, numeric=True)
-    next_pair = expect(client, "GET", "/eval/next", (200,), token=token)
+    next_pair = expect(client, "GET", "/eval/next", (200,), token=research_token)
     require(
         next_pair.get("done") is True,
         "Fresh fixture unexpectedly has evaluation pairs.",
     )
-    progress = expect(client, "GET", "/eval/progress", (200,), token=token)
+    progress = expect(client, "GET", "/eval/progress", (200,), token=research_token)
     require(progress.get("total_pairs") == 0, "Smoke must not create evaluation pairs.")
     # No /eval/label or /verdicts/feedback write exists anywhere in this smoke flow.
-    empty_corpus(client)
+    empty_corpus(client, research_token)
     print(
         "PASS HTTP end-to-end smoke; no scientific labels or corpus records written",
         flush=True,

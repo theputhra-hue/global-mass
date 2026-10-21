@@ -25,6 +25,7 @@ async def assign_role(email: str, role: RoleEnum) -> None:
         if not user.is_active:
             raise SystemExit("Account is inactive; role changes will not reactivate it.")
         user.role = role
+        user.access_status = "approved"
         await db.commit()
     print(f"Assigned role {role.value} to the existing account.")
 

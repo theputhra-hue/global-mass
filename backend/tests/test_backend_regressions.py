@@ -45,7 +45,7 @@ async def test_blocklist_covers_final_fractional_second():
 
 
 async def test_lowercase_bearer_logout_invalidates_access_token(async_client):
-    registered = await async_client.post("/api/v1/auth/register", json={
+    registered = await async_client.post("/api/v1/auth/register", json={"full_name": "Test Visitor", 
         "email": "bearer@example.com", "password": "testPassword123!",
     })
     tokens = registered.json()

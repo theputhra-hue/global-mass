@@ -19,6 +19,10 @@ if (-not [Uri]::TryCreate($Base, [UriKind]::Absolute, [ref]$baseUri) -or
 }
 $Base = $Base.TrimEnd('/')
 $token = [Environment]::GetEnvironmentVariable('GMEE_VERIFY_TOKEN')
+if (-not $token) {
+    Write-Error 'Set GMEE_VERIFY_TOKEN to an approved account bearer token. Data endpoints require approved access.'
+    exit 2
+}
 $clock = [Diagnostics.Stopwatch]::StartNew()
 $log = New-Object 'System.Collections.Generic.List[string]'
 $fails = 0
@@ -115,8 +119,14 @@ $null = Probe 'mutation auth gate' '/graph/mutation/compare' -Status @(401, 403)
 $null = Probe 'eval auth gate' '/eval/next' -Status @(401, 403) -Anonymous
 
 if ($token) {
-    $null = Probe 'current user' '/auth/me' @('id', 'email', 'role')
-    $analysis = Probe 'read-only typed mutation comparison' '/graph/mutation/compare' @('analysis') -Method POST -Body $comparison
+    $verifiedAccount = Probe 'current user' '/auth/me' @('id', 'email', 'role', 'access_status')
+    $analysis = $null
+    if ($verifiedAccount -and $verifiedAccount.role -eq 'viewer') {
+        $null = Probe 'viewer mutation restriction' '/graph/mutation/compare' -Status @(403) -Method POST -Body $comparison
+    }
+    else {
+        $analysis = Probe 'non-persisting typed mutation comparison' '/graph/mutation/compare' @('analysis') -Method POST -Body $comparison
+    }
     if ($analysis) {
         $details = $analysis.analysis
         if ($null -eq $details.PSObject.Properties['observed_propagation'] -or

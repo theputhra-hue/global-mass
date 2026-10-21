@@ -18,12 +18,16 @@ import { WorkspaceShell } from './layouts/WorkspaceShell';
 import { useAppRoute } from './routing/useAppRoute';
 import { ReadOnlyNotice } from '../features/account/components/ReadOnlyNotice';
 import { viewerCanOpen } from '../shared/navigation/viewerAccess';
+import { ApprovalStatus } from '../features/account/pages/ApprovalStatus';
+import { AccountApprovals } from '../features/developer/components/AccountApprovals';
 
 /** Application composition only. Route parsing and redirects live in routing/. */
 function App() {
   const runtime = usePublicationRuntime();
   const { user } = useSession();
   const route = useAppRoute(Boolean(user));
+
+  if (user?.access_status && user.access_status !== 'approved' && (route.dashboard || route.kind === 'signin')) return <ApprovalStatus />;
 
   if (user && route.dashboard && ['connecting', 'unavailable'].includes(runtime.mode)) {
     return <DataServiceState />;
@@ -48,8 +52,8 @@ function App() {
         page = <ToolsDirectory />;
         break;
       case 'developer':
-        page = runtime.mode === 'published'
-          ? <DeveloperUpload key={user.id} /> : <DeveloperConsole key={user.id} />;
+        page = <div className="space-y-8"><AccountApprovals />{runtime.mode === 'published'
+          ? <DeveloperUpload key={user.id} /> : <DeveloperConsole key={user.id} />}</div>;
         break;
       case 'upload':
         page = <DeveloperUpload key={user.id} />;

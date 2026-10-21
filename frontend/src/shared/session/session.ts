@@ -7,6 +7,7 @@ export interface AccountUser {
   role: string;
   is_active: boolean;
   created_at: string;
+  access_status?: 'pending' | 'approved' | 'rejected';
 }
 
 export interface SessionTokens {
