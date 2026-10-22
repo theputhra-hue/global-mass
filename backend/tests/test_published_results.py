@@ -81,6 +81,29 @@ async def test_retries_conflicts_replacement_and_rollback(cloud_client):
     assert (await client.get("/api/v1/corpus/articles")).json()["items"][0]["title"] == "Example"
 
 
+async def test_published_analysis_disclosures_do_not_invent_completion_or_evidence(cloud_client):
+    client, _ = cloud_client
+    payload = snapshot_payload()
+    payload["claims"][0].update(verdict="UNSUPPORTED", rationale="P(supported)=0.29")
+    empty = copy.deepcopy(payload["articles"][0])
+    empty.update(id=str(uuid.uuid4()), url="https://example.org/metadata-only")
+    payload["articles"].append(empty)
+    receipt = await upload(client, payload)
+    await client.post(f"/api/v1/publications/{payload['run_id']}/publish", json=publish_body(receipt))
+    first = payload["articles"][0]["id"]
+    detail = (await client.get(f"/api/v1/corpus/articles/{first}")).json()
+    assert detail["publication_status"] == "published" and detail["nlp_status"] == "not_recorded"
+    assert detail["analysis_availability"]["assessments"] == "partial"
+    assert detail["analysis_provenance"] == payload["provenance"]
+    items = (await client.get(f"/api/v1/corpus/articles/{first}/claims")).json()["items"]
+    claim = next(c for c in items if c["id"] == payload["claims"][0]["id"])
+    assert claim["verdict_evidence"] is None and claim["evidence_availability"]["status"] == "not_published"
+    assert claim["verdict_rationale"] == "P(supported)=0.29"  # Historical data is unchanged.
+    detail = (await client.get(f"/api/v1/corpus/articles/{empty['id']}")).json()
+    assert detail["analysis_availability"]["claims"] == "none_recorded"
+    assert (await client.get("/api/v1/publications/status")).json()["sha256"] == receipt["sha256"]
+
+
 async def test_article_assessment_totals_are_scoped_to_active_release_and_article(cloud_client):
     client, _ = cloud_client
     first = snapshot_payload()

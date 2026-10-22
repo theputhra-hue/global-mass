@@ -22,6 +22,17 @@ function responses(endpoint: string): Response {
 }
 
 describe('stored FactCheck evidence and uncertainty', () => {
+  it('does not infer a single source or falsity from absent stored neighbors', async () => {
+    mockApi(endpoint => endpoint.endsWith(row.id)
+      ? jsonResponse({ ...detail, verdict: 'UNSUPPORTED', verdict_rationale: 'P(supported)=0.29 [UNSUPPORTED].' })
+      : responses(endpoint));
+    renderWithClient(<FactCheck />);
+    fireEvent.click(await screen.findByRole('button', { name: `Inspect evidence for ${row.claim_text}` }));
+    expect(await screen.findByText(/does not mean the statement is false/)).toBeTruthy();
+    expect(screen.getByText(/No checked cross-outlet neighbors are stored/)).toBeTruthy();
+    expect(screen.getByText(/Legacy heuristic score=0.29/)).toBeTruthy();
+    expect(screen.queryByText(/SINGLE SOURCE|this claim is single-source|P\(supported\)/)).toBeNull();
+  });
   it('renders the stored score as heuristic/unvalidated, not calibrated probability', async () => {
     mockApi(responses);
     renderWithClient(<FactCheck />);

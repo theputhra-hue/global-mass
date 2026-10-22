@@ -7,6 +7,7 @@ import { articlesApi, type ArticleClaim } from '../../../shared/api/articles';
 import { articleHref, isUuid, navigateHash } from '../../../shared/navigation/articleRoutes';
 import { usePublicationRuntime } from '../../../shared/runtime/publicationRuntime';
 import { QueryError } from '../../../shared/ui/QueryError';
+import { assessmentExplanation } from '../lib/assessment';
 
 export function ClaimsWorkspace() {
   const runtime = usePublicationRuntime();
@@ -181,6 +182,7 @@ export function ClaimsWorkspace() {
                             </span>
                           )}
                         </div>
+                        <p className="text-xs text-hermes-bone/65">{assessmentExplanation(claim.verdict)}</p>
                         <div className="pt-2">
                           <a href={href} className="btn-outline-dark inline-flex items-center gap-2 text-xs">
                             <span>Open owning article with this claim</span>

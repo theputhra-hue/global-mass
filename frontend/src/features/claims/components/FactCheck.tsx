@@ -19,6 +19,7 @@ import { Dialog } from '../../../shared/ui/Dialog';
 import { QueryError } from '../../../shared/ui/QueryError';
 import { ClaimCheck } from './ClaimCheck';
 import { articleHref } from '../../../shared/navigation/articleRoutes';
+import { assessmentExplanation, assessmentRationale } from '../lib/assessment';
 
 /**
  * FactCheck — the Verdict Engine surface.
@@ -62,7 +63,7 @@ const BAND_STYLE: Record<string, { icon: React.ElementType; cls: string; label: 
   PARTIALLY_SUPPORTED: { icon: ShieldCheck, cls: 'text-teal-300 border-teal-300/40 bg-teal-300/5', label: 'PARTIALLY SUPPORTED' },
   WEAKLY_CORROBORATED: { icon: Scale, cls: 'text-sky-300 border-sky-300/40 bg-sky-300/5', label: 'WEAKLY CORROBORATED' },
   UNRESOLVED: { icon: HelpCircle, cls: 'text-amber-300 border-amber-300/40 bg-amber-300/5', label: 'UNRESOLVED' },
-  UNSUPPORTED: { icon: FileSearch, cls: 'text-orange-300 border-orange-300/40 bg-orange-300/5', label: 'UNSUPPORTED · SINGLE SOURCE' },
+  UNSUPPORTED: { icon: FileSearch, cls: 'text-orange-300 border-orange-300/40 bg-orange-300/5', label: 'UNSUPPORTED' },
   DISPUTED: { icon: AlertOctagon, cls: 'text-hermes-red-bright border-hermes-red-bright/50 bg-hermes-red-bright/10', label: 'DISPUTED' },
 };
 
@@ -230,10 +231,11 @@ const EvidenceDrawer: React.FC<{ detail: VerdictDetail; onClose: () => void }> =
         <FeedbackButtons claimId={detail.id} engineBand={detail.verdict} />
 
         {/* rationale */}
+        <p className="text-xs leading-relaxed text-hermes-bone/65">{assessmentExplanation(detail.verdict)}</p>
         {detail.verdict_rationale && (
           <div className="border border-hermes-bone/15 bg-hermes-panel-deep p-4">
             <div className="font-mono text-[10px] uppercase tracking-widest text-hermes-bone/45 mb-1.5">Engine Rationale</div>
-            <p className="text-sm text-hermes-bone/85">{detail.verdict_rationale}</p>
+            <p className="text-sm text-hermes-bone/85">{assessmentRationale(detail.verdict_rationale)}</p>
           </div>
         )}
 
@@ -270,8 +272,8 @@ const EvidenceDrawer: React.FC<{ detail: VerdictDetail; onClose: () => void }> =
           </div>
           {neighbors.length === 0 ? (
             <p className="font-mono text-xs text-hermes-bone/50 border border-dashed border-hermes-bone/20 p-3">
-              No cross-outlet neighbors in corpus yet — this claim is single-source.
-              As more articles are ingested and claims extracted, corroboration is re-computed.
+              No checked cross-outlet neighbors are stored in this assessment.
+              Corpus coverage and reporting independence remain unknown. Opening this page does not recompute the assessment.
             </p>
           ) : (
             <div className="space-y-1.5">

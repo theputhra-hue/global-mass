@@ -162,3 +162,40 @@ inventory and experiment entries above remain historical evidence.
   rights, authorship/declarations and venue gates remain open.
 
 No push, upload, external message, submission or live-data mutation occurred.
+
+## Local core-integrity checkpoint — 22 October 2026
+
+The user selected RAM prices as the first topic and requested a saved checkpoint
+before resuming tomorrow. See
+[the checkpoint](checkpoints/CORE_EVIDENCE_RAM_PRICES_2026-10-22.md).
+The existing published archive was validated and audited read-only: 8 lexical
+topic candidates across 2 domains, including 1 without extracted claims. All
+remain relevance-review pending; none has a verified event assignment. This is
+candidate inventory, not independent gold, exhaustive retrieval or a RAM-price
+finding. Source bodies and detailed evidence remain absent from publication
+formats 1–3; local database availability was not audited because Docker was off.
+Local integrity/API/UI changes and synthetic RAM comparison guards have 65
+targeted backend and 40 targeted frontend passing tests; final checks and
+browser verification remain open. Existing frozen VitaminC outcomes were not
+changed or re-evaluated. No new scientific gate is claimed complete. The prior
+research-preserving application restoration was merged as `ddfb3ef`; this new
+core work remains local and undeployed.
+
+## Core-integrity continuation — 22 October 2026
+
+The user resumed the checkpoint. The
+[verification receipt](validation/CORE_EVIDENCE_VERIFICATION_2026-10-22.md)
+records 750 passing backend offline tests (22 real-model/database tests
+deselected), 367 passing frontend tests, coverage gates, lint/type/boundary and
+interface/cloud checks, and desktop/mobile browser checks of a disposable local
+copy. Archive completion/evidence gaps are explicit; legacy score language no
+longer implies a calibrated probability or that an unsupported claim is false
+or single-source. RAM comparison guards now include form, ECC and timings.
+
+The eight RAM-topic candidates were triaged from metadata only: device-price,
+supply and forecast stories still need source relevance review and comparable
+RAM offer evidence. No relevance gold, rights determination, independent human
+label, verified event group or substantive price-change finding was created.
+The existing archive and frozen VitaminC computations were unchanged. Local
+engineering completion does not close the independent-validation gate for a
+full GMEE natural-news paper. No push, live publication or deployment occurred.
