@@ -161,3 +161,16 @@ this checkpoint. No external publication or live account decision was changed.
 > evidence work on codex/core-evidence-integrity. Our first topic is RAM prices.
 > Preserve existing changes and frozen research. Finish verification and browser
 > checks, then show me the localhost result. Do not push or deploy yet.
+
+## Resumed continuation — 22 October 2026
+
+The user resumed this checkpoint. See the new
+[verification receipt](../validation/CORE_EVIDENCE_VERIFICATION_2026-10-22.md)
+for completed integration fixes and checks: 750 offline backend tests, 367
+frontend tests, coverage gates, static/interface/cloud-isolation checks and
+desktop/mobile browser verification against an isolated in-memory copy.
+Local preview is at `http://127.0.0.1:3004` with a visible verification banner;
+the real site's data/accounts are unchanged. Evidence transport, source/rights
+review, authenticated RAM observation review and scientific validation remain
+open. No push or deployment occurred. This continuation supersedes the earlier
+pending verification items; the original checkpoint above is retained as history.

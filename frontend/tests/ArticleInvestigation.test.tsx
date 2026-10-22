@@ -24,6 +24,12 @@ function fixture(endpoint: string) {
 function route(tab = 'overview', query = '') { return parseArticleRoute(`dashboard/articles/${id}/${tab}${query}`)!; }
 
 describe('article investigation', () => {
+  it.each(['overview', 'claims'])('discloses archive omissions in %s previews when the old API has no evidence metadata', async tab => {
+    mockApi(fixture);
+    renderWithClient(<ArticleInvestigation route={route(tab, `?release=${other}`)} />);
+    expect(await screen.findByText(/Evidence passages were not included in this published archive/)).toBeTruthy();
+    expect(screen.queryByText(/No citable source passages are attached/)).toBeNull();
+  });
   it('shows all-claim assessment totals separately from the bounded overview preview', async () => {
     const fetch = mockApi(endpoint => endpoint.includes('/claims?') ? jsonResponse({ article_id: id, total: 25, items: [
       { ...claim, verdict: 'UNSUPPORTED', verdict_probability: .29, verdict_rationale: 'Stored corpus comparison.' },

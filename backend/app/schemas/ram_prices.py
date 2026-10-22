@@ -3,7 +3,14 @@
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, HttpUrl, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    model_validator,
+)
 
 
 class RAMPriceObservation(BaseModel):
@@ -17,6 +24,10 @@ class RAMPriceObservation(BaseModel):
     total_capacity_gb: int = Field(strict=True, ge=1, le=8192)
     module_count: int = Field(strict=True, ge=1, le=64)
     speed_mt_s: int = Field(strict=True, ge=1, le=50000)
+    form_factor: Literal["DIMM", "SO-DIMM", "CAMM2", "chip_package", "unknown"] = "unknown"
+    ecc: Literal["non_ecc", "ecc_unbuffered", "ecc_registered", "unknown"] = "unknown"
+    # Full primary timings, not just CL, for the quoted speed profile.
+    timings: str | None = Field(default=None, pattern=r"^\d{1,3}(?:-\d{1,3}){3}$")
     condition: Literal["new", "used", "refurbished"]
     amount: Decimal = Field(gt=0, max_digits=14, decimal_places=4)
     currency: Literal["USD", "INR", "EUR", "GBP", "CAD", "AUD", "JPY"]
@@ -53,13 +64,15 @@ def compare_ram_prices(older: RAMPriceObservation, newer: RAMPriceObservation) -
     if newer.observed_at <= older.observed_at:
         raise ValueError("The newer observation must have a later timestamp")
     keys = ("product_kind", "manufacturer", "part_number", "memory_type", "total_capacity_gb",
-            "module_count", "speed_mt_s", "condition", "currency", "market", "seller",
+            "module_count", "speed_mt_s", "form_factor", "ecc", "timings", "condition", "currency", "market", "seller",
             "tax_basis", "shipping_basis", "offer_basis")
     for key in keys:
         if getattr(older, key) != getattr(newer, key):
             raise ValueError(f"Non-comparable observations: {key} differs")
     if "unknown" in (older.tax_basis, older.shipping_basis, older.offer_basis):
         raise ValueError("Tax, shipping and offer conditions must be known")
+    if "unknown" in (older.form_factor, older.ecc) or older.timings is None:
+        raise ValueError("Form factor, ECC and speed-profile timings must be known")
     if older.source_revision == newer.source_revision:
         raise ValueError("Distinct source revision or capture identities are required")
     delta = newer.amount - older.amount
