@@ -124,7 +124,8 @@ describe('typed API requests and readiness', () => {
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-access');
     expect(init?.credentials).toBe('omit');
     expect(window.localStorage.length).toBe(0);
-    expect(window.sessionStorage.length).toBe(0);
+    expect(window.sessionStorage.getItem(window.sessionStorage.key(0)!)).toContain('test-refresh');
+    expect(window.sessionStorage.getItem(window.sessionStorage.key(0)!)).not.toContain('test-access');
   });
 
   it('handles successful empty 204 logout responses', async () => {

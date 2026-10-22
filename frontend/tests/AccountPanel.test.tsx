@@ -11,7 +11,7 @@ function openLogin() {
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'strong-password' } });
 }
 
-describe('memory-only account UI', () => {
+describe('account UI with tab-scoped reload recovery', () => {
   it('portals dialogs outside transformed or blurred header ancestors', () => {
     signInFixture();
     renderWithClient(<header style={{ backdropFilter: 'blur(4px)' }}><AccountPanel /></header>);
@@ -22,7 +22,7 @@ describe('memory-only account UI', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close account' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
-  it('logs in and verifies /me using a bearer token without persisting credentials', async () => {
+  it('verifies /me and persists only the rotating refresh credential in this tab', async () => {
     const fetch = mockApi((endpoint) => endpoint === '/auth/login'
       ? jsonResponse({ access_token: 'login-access', refresh_token: 'login-refresh', token_type: 'bearer' })
       : jsonResponse(accountFixture));
@@ -36,7 +36,12 @@ describe('memory-only account UI', () => {
     expect(new Headers(fetch.mock.calls[1][1]?.headers).get('Authorization')).toBe('Bearer login-access');
     expect(fetch.mock.calls.every(([, init]) => init?.credentials === 'omit')).toBe(true);
     expect(window.localStorage.length).toBe(0);
-    expect(window.sessionStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(1);
+    const saved = window.sessionStorage.getItem(window.sessionStorage.key(0)!);
+    expect(saved).toContain('login-refresh');
+    expect(saved).not.toContain('login-access');
+    expect(saved).not.toContain('strong-password');
+    expect(saved).not.toContain(accountFixture.email);
     expect(screen.queryByText('login-access')).toBeNull();
   });
 
@@ -76,7 +81,7 @@ describe('memory-only account UI', () => {
     await screen.findByText(/Session rotated and account re-verified/);
     expect(getRefreshToken()).toBe('rotated-refresh');
     fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
-    await screen.findByText(/Signed out. In-memory credentials/);
+    await screen.findByText(/Signed out. Local session credentials/);
     const refresh = fetch.mock.calls.find(([url]) => String(url).endsWith('/auth/refresh'));
     const logout = fetch.mock.calls.find(([url]) => String(url).endsWith('/auth/logout'));
     expect(JSON.parse(String(refresh?.[1]?.body))).toEqual({ refresh_token: 'test-refresh' });
@@ -85,6 +90,7 @@ describe('memory-only account UI', () => {
     expect(getAccessToken()).toBeUndefined();
     expect(getRefreshToken()).toBeUndefined();
     expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
   });
 
   it('clears local credentials and reports uncertainty if server logout fails', async () => {

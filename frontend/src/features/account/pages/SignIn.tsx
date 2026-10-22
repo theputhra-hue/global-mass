@@ -40,7 +40,7 @@ export function SignIn() {
           <button type="submit" disabled={pending} className="btn-brutal w-full !py-3">{pending ? 'Please wait…' : register ? 'Request access' : 'Sign in'}<ArrowRight className="w-4 h-4" /></button>
         </form>
         <button type="button" disabled={pending} onClick={() => { setRegister(!register); setError(null); }} className="btn-outline-dark mt-6">{register ? 'Already have an account? Sign in' : 'New to GMEE? Create an account'}</button>
-        <p className="mt-6 text-xs text-hermes-bone/65">For your privacy, refreshing or closing this page ends your local session.</p>
+        <p className="mt-6 text-xs text-hermes-bone/65">When tab storage is available, reloading keeps you signed in for up to 8 hours. Log out when using a shared device.</p>
       </section>
     </div>
   </main>;

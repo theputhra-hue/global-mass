@@ -22,7 +22,7 @@ export function AccountPanel({ signInLabel = 'Sign in', compact = false }: { sig
     setError(null);
     try {
       await authApi.logout();
-      setNotice('Signed out. In-memory credentials have been cleared.');
+      setNotice('Signed out. Local session credentials have been cleared.');
     } catch (failure) {
       setError(failure);
       setNotice('Local credentials cleared. Server-side logout could not be confirmed; the server session may remain active until expiry.');
@@ -38,7 +38,7 @@ export function AccountPanel({ signInLabel = 'Sign in', compact = false }: { sig
     setNotice('');
     try {
       await authApi.refresh();
-      setNotice('Session rotated and account re-verified. Tokens remain in memory only.');
+      setNotice('Session rotated and account re-verified. Reload recovery has been updated for this tab.');
     } catch (failure) {
       setError(failure);
     } finally {
@@ -61,7 +61,7 @@ export function AccountPanel({ signInLabel = 'Sign in', compact = false }: { sig
               <X className="w-4 h-4" />
             </button>
           </div>
-          <p className="text-xs font-mono text-hermes-bone/65">Bearer and rotating refresh tokens are held in memory only. Reloading this page ends the local session; no tokens are saved in browser storage.</p>
+          <p className="text-xs font-mono text-hermes-bone/65">Reloads can restore your sign-in in this tab for up to 8 hours. Your account is checked again before access. Passwords and access tokens are never saved in browser storage. Log out to clear this tab’s saved session.</p>
           {error != null && <QueryError title="Account request failed" error={error} />}
           {notice && <p role="status" className="text-xs font-mono border border-hermes-bone/25 p-3">{notice}</p>}
           {user ? (

@@ -66,7 +66,7 @@ src/
     landing/                    # first visit and project explanation
   shared/
     api/                        # transport and typed API clients
-    session/                    # memory-only authentication/session state
+    session/                    # in-memory identity/access; bounded tab reload recovery
     runtime/                    # capability detection
     navigation/                 # safe return links, article routes, tab identifiers
     providers/                  # shared polling configuration

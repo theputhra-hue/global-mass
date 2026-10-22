@@ -2,7 +2,7 @@ export const detailTabs = ['overview', 'article', 'claims', 'related', 'evidence
 export type DetailTab = typeof detailTabs[number];
 export const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
-/** Change local route state without reloading and clearing the memory-only session. */
+/** Change local route state without a document reload or extra session rotation. */
 export function navigateHash(hash: string, replace = false): void {
   if (window.location.hash !== hash) {
     if (replace) window.history.replaceState(null, '', hash);

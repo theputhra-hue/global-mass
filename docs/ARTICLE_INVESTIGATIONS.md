@@ -29,8 +29,10 @@ Example: `/#/dashboard/articles/<article-uuid>/claims?claim=<claim-uuid>`.
 The tab, selected claim, claim-page offset and safe return-to-results route live
 in the hash URL. Reader search and pagination, corpus filters and semantic query
 are preserved for the return journey. Signed-out detail links return to their
-requested destination after sign-in. Sessions remain memory-only: a deliberate
-full page refresh still requires sign-in, after which the requested route returns.
+requested destination after sign-in. Reloads restore a tab-scoped session for up
+to eight hours by rotating its saved refresh credential and verifying `/auth/me`
+before mounting protected pages. Access tokens and account identity stay in
+memory. See [the session design](architecture/RELOAD_SESSION_RECOVERY.md).
 Programmatic local navigation uses History API events to avoid unwanted reloads.
 
 ## Read-only APIs
