@@ -21,9 +21,10 @@ import { viewerCanOpen } from '../shared/navigation/viewerAccess';
 import { ApprovalStatus } from '../features/account/pages/ApprovalStatus';
 import { AccountApprovals } from '../features/developer/components/AccountApprovals';
 import { AccountAccessMonitor } from '../features/account/components/AccountAccessMonitor';
+import { SessionBootstrap } from '../features/account/components/SessionBootstrap';
 
 /** Application composition only. Route parsing and redirects live in routing/. */
-function App() {
+function WorkspaceApp() {
   const runtime = usePublicationRuntime();
   const { user } = useSession();
   const route = useAppRoute(Boolean(user));
@@ -93,4 +94,6 @@ function App() {
   return <div className="App"><AccountAccessMonitor />{page}</div>;
 }
 
-export default App;
+export default function App() {
+  return <SessionBootstrap><WorkspaceApp /></SessionBootstrap>;
+}

@@ -199,3 +199,17 @@ label, verified event group or substantive price-change finding was created.
 The existing archive and frozen VitaminC computations were unchanged. Local
 engineering completion does not close the independent-validation gate for a
 full GMEE natural-news paper. No push, live publication or deployment occurred.
+
+## Direct-request session repair — 22 October 2026
+
+The user reported that refreshing the live site ends sign-in. The explicit
+application repair takes precedence over paper-priority work for this change.
+The [local verification receipt](validation/RELOAD_SESSION_VERIFICATION_2026-10-22.md)
+records bounded tab recovery, server re-verification before protected pages,
+380 passing frontend tests, coverage/static/build/architecture gates and browser
+reload/logout checks against a disposable account/database. No scientific
+experiment, result, benchmark source, corpus or live account was changed.
+The independent-validation and source-evidence research gates remain open.
+These new session changes are local; the earlier core-evidence code was already
+merged and deployed through PR #18 as `22f2ac0`. No push or deployment of this
+subsequent session fix has occurred.

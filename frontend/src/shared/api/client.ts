@@ -113,13 +113,13 @@ async function performRequest<T>(
 
 let refreshInFlight: { revision: number; promise: Promise<void> } | null = null;
 
-export async function rotateAccessToken(): Promise<void> {
+export async function rotateAccessToken(options: Pick<ApiRequestOptions, 'timeoutMs'> = {}): Promise<void> {
   const revision = getSessionRevision();
   if (refreshInFlight?.revision === revision) return refreshInFlight.promise;
   const refreshToken = getRefreshToken();
   if (!refreshToken) throw new ApiError(401, { detail: 'This session has no refresh token. Sign in again.' });
   const rotation = (async () => {
-    const next = await performRequest<SessionTokens>('POST', '/auth/refresh', { refresh_token: refreshToken }, { anonymous: true });
+    const next = await performRequest<SessionTokens>('POST', '/auth/refresh', { refresh_token: refreshToken }, { ...options, anonymous: true });
     if (revision !== getSessionRevision()) throw new ApiError(401, { detail: 'The session changed. Sign in again.' });
     if (!next?.access_token) throw new ApiError(200, next, 'The authentication response did not contain an access token.');
     setSessionTokens(next);

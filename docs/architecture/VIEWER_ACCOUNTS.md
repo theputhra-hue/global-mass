@@ -46,7 +46,8 @@ A banned identity cannot be changed to paused to bypass its sign-in restriction.
 ## API boundaries
 
 - `POST /api/v1/auth/register`: name/email/password → pending viewer + normal
-  memory-only session tokens. `GET /auth/me` includes `access_status`.
+  in-memory access tokens and server-verified tab reload recovery (see
+  [session design](RELOAD_SESSION_RECOVERY.md)). `GET /auth/me` includes `access_status`.
 - `GET /api/v1/developer/accounts`: developer-only directory of all roles and active states;
   `access_status=all` (default), pending, approved, rejected, paused or banned; defaults to 20,
   maximum 50 per page. Nonnegative offsets allow paging through the entire directory.
